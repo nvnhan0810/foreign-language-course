@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FLC — Cài đặt</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Cài đặt FLC</h1>
+      <label>
+        API URL
+        <input id="api-base-url" type="url" />
+      </label>
+      <label>
+        Số lần quiz mỗi ngày (ước lượng)
+        <input id="quiz-per-day" type="number" min="1" max="12" />
+      </label>
+      <label>
+        Kiểm tra nhắc nghe (phút)
+        <input id="media-check-minutes" type="number" min="15" max="1440" />
+      </label>
+      <label class="checkbox">
+        <input id="notifications-enabled" type="checkbox" />
+        Bật thông báo
+      </label>
+      <button type="button" id="btn-save">Lưu cài đặt</button>
+      <p id="status" class="status"></p>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

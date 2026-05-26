@@ -1,0 +1,41 @@
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 480px;
+  margin: 40px auto;
+  padding: 0 20px;
+  color: #1a1a2e;
+}
+
+label {
+  display: block;
+  margin-bottom: 16px;
+}
+
+input[type='url'],
+input[type='number'] {
+  width: 100%;
+  padding: 8px;
+  margin-top: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+button {
+  padding: 10px 16px;
+  background: #4361ee;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.status {
+  color: #16a34a;
+  margin-top: 12px;
+}

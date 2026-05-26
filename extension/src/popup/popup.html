@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FLC</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>FLC</h1>
+      <p class="subtitle">Foreign Language Companion</p>
+    </header>
+
+    <div id="extension-notice" class="notice-banner hidden"></div>
+
+    <nav class="tabs">
+      <button type="button" data-tab="lookup" class="active">Tra từ</button>
+      <button type="button" data-tab="vocab">Từ của tôi</button>
+      <button type="button" data-tab="media">Media</button>
+      <button type="button" data-tab="quiz">Quiz</button>
+    </nav>
+
+    <section id="auth-panel" class="panel">
+      <h2>Đăng nhập</h2>
+      <p class="muted">Chỉ tài khoản Google có email trong allowlist mới dùng được.</p>
+      <button type="button" id="btn-google-login" class="google-btn">
+        <span class="google-icon">G</span>
+        Đăng nhập bằng Google
+      </button>
+      <p id="auth-error" class="error"></p>
+    </section>
+
+    <section id="lookup-panel" class="panel tab-panel">
+      <div class="row">
+        <input id="lookup-input" type="text" placeholder="Nhập từ tiếng Anh..." />
+        <button type="button" id="btn-lookup">Tra</button>
+      </div>
+      <div id="lookup-result" class="card hidden"></div>
+      <button type="button" id="btn-save-word" class="primary hidden">Lưu từ</button>
+      <p id="lookup-error" class="error"></p>
+    </section>
+
+    <section id="vocab-panel" class="panel tab-panel hidden">
+      <ul id="vocab-list"></ul>
+      <p id="vocab-empty" class="muted">Chưa có từ nào.</p>
+    </section>
+
+    <section id="media-panel" class="panel tab-panel hidden">
+      <form id="media-form" class="card">
+        <input name="title" placeholder="Tiêu đề" required />
+        <input name="url" type="url" placeholder="URL audio / YouTube" required />
+        <select name="type">
+          <option value="youtube">YouTube</option>
+          <option value="audio">Audio</option>
+        </select>
+        <select name="frequency">
+          <option value="daily">Nghe hàng ngày</option>
+          <option value="weekly">Hàng tuần</option>
+          <option value="monthly">Hàng tháng</option>
+        </select>
+        <button type="submit">Thêm link</button>
+      </form>
+      <ul id="media-list"></ul>
+    </section>
+
+    <section id="quiz-panel" class="panel tab-panel hidden">
+      <div id="quiz-area" class="card">
+        <p class="muted">Bấm "Lấy câu hỏi" hoặc mở từ thông báo.</p>
+        <button type="button" id="btn-next-quiz">Lấy câu hỏi</button>
+      </div>
+    </section>
+
+    <footer>
+      <span id="user-label"></span>
+      <a href="#" id="open-options">Cài đặt</a>
+      <button type="button" id="btn-logout" class="link hidden">Đăng xuất</button>
+    </footer>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
