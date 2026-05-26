@@ -4,7 +4,12 @@
   "version": "1.0.0",
   "description": "Tra từ Anh-Anh, lưu từ vựng, quản lý link nghe và nhắc ôn tập.",
   "permissions": ["storage", "alarms", "notifications", "activeTab", "contextMenus", "identity"],
-  "host_permissions": ["http://localhost:8080/*", "http://127.0.0.1:8080/*"],
+  "host_permissions": [
+    "https://flc.nvnhan0810.com/*",
+    "http://localhost:8080/*",
+    "http://127.0.0.1:8080/*"
+  ],
+  "optional_host_permissions": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
@@ -25,7 +30,7 @@
       "js": ["content/content-script.js"],
       "css": ["content/content-overlay.css"],
       "run_at": "document_end",
-      "all_frames": true
+      "all_frames": false
     }
   ],
   "web_accessible_resources": [

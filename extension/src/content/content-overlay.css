@@ -51,12 +51,14 @@
   position: fixed;
   width: min(360px, calc(100vw - 24px));
   max-height: min(420px, calc(100vh - 24px));
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(15, 23, 42, 0.18);
-  padding: 12px 14px;
+  padding: 0;
 }
 
 #flc-selection-root .flc-panel-header {
@@ -64,7 +66,25 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 10px;
+  padding: 12px 14px 10px;
+}
+
+#flc-selection-root .flc-panel-body {
+  padding: 0 14px 4px;
+}
+
+#flc-selection-root .flc-panel-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 10px 14px 12px;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+  box-shadow: 0 -6px 16px rgba(15, 23, 42, 0.06);
+}
+
+#flc-selection-root .flc-panel-footer[hidden] {
+  display: none;
 }
 
 #flc-selection-root .flc-selected-text {
@@ -144,9 +164,6 @@
 #flc-selection-root .flc-actions {
   display: flex;
   gap: 8px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid #e2e8f0;
 }
 
 #flc-selection-root .flc-btn {

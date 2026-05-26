@@ -11,6 +11,49 @@ label {
   margin-bottom: 16px;
 }
 
+.section {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.section h2 {
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+
+.hint {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+.hint code {
+  font-size: 0.8rem;
+  background: #f1f5f9;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.preview {
+  font-size: 0.875rem;
+  color: #4361ee;
+  margin: -8px 0 12px;
+  word-break: break-all;
+}
+
+.preview.error {
+  color: #dc2626;
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+input[type='text'],
 input[type='url'],
 input[type='number'] {
   width: 100%;
@@ -35,7 +78,18 @@ button {
   cursor: pointer;
 }
 
+button.secondary {
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.875rem;
+  padding: 6px 12px;
+}
+
 .status {
   color: #16a34a;
   margin-top: 12px;
+}
+
+.status.error {
+  color: #dc2626;
 }

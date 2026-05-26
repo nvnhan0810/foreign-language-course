@@ -8,24 +8,49 @@
   <body>
     <main>
       <h1>Cài đặt FLC</h1>
-      <label>
-        API URL
-        <input id="api-base-url" type="url" />
-      </label>
-      <label>
-        Số lần quiz mỗi ngày (ước lượng)
-        <input id="quiz-per-day" type="number" min="1" max="12" />
-      </label>
-      <label>
-        Kiểm tra nhắc nghe (phút)
-        <input id="media-check-minutes" type="number" min="15" max="1440" />
-      </label>
-      <label class="checkbox">
-        <input id="notifications-enabled" type="checkbox" />
-        Bật thông báo
-      </label>
+
+      <section class="section">
+        <h2>Domain API</h2>
+        <p class="hint">
+          Nhập domain hoặc URL đầy đủ. Extension tự thêm <code>https://</code> và
+          <code>/api</code> nếu thiếu.
+        </p>
+        <label>
+          Địa chỉ API
+          <input
+            id="api-base-url"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="flc.nvnhan0810.com hoặc https://flc.nvnhan0810.com/api"
+          />
+        </label>
+        <p id="api-preview" class="preview" hidden></p>
+        <div class="preset-row">
+          <button type="button" id="btn-api-production" class="secondary">Production</button>
+          <button type="button" id="btn-api-local" class="secondary">Local (8080)</button>
+          <button type="button" id="btn-api-reset" class="secondary">Mặc định</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Thông báo &amp; quiz</h2>
+        <label>
+          Số lần quiz mỗi ngày (ước lượng)
+          <input id="quiz-per-day" type="number" min="1" max="12" />
+        </label>
+        <label>
+          Kiểm tra nhắc nghe (phút)
+          <input id="media-check-minutes" type="number" min="15" max="1440" />
+        </label>
+        <label class="checkbox">
+          <input id="notifications-enabled" type="checkbox" />
+          Bật thông báo
+        </label>
+      </section>
+
       <button type="button" id="btn-save">Lưu cài đặt</button>
-      <p id="status" class="status"></p>
+      <p id="status" class="status" role="status"></p>
     </main>
     <script type="module" src="options.js"></script>
   </body>

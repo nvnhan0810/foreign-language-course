@@ -6,7 +6,8 @@ import {
   normalizeSelection,
   renderDictionaryHtml,
 } from '../shared/dictionary-ui';
-import { getAuth } from '../shared/storage';
+import { ExtensionContextError, isExtensionContextValid, runtimeGetURL, runtimeSendMessage } from '../shared/extension-context';
+import { getAuth, setLookupWord } from '../shared/storage';
 import type { DictionaryResult } from '../shared/types';
 
 const ROOT_ID = 'flc-selection-root';
@@ -77,7 +78,12 @@ export function initSelectionUi(): void {
     'mousedown',
     (e) => {
       if (e.target instanceof Node && root?.contains(e.target)) return;
-      if (panel?.style.display !== 'none') return;
+
+      if (panelOpen || panel?.style.display === 'block') {
+        hideAll();
+        return;
+      }
+
       setTimeout(() => {
         const text = getSelectedText();
         if (!text) hideAll();
@@ -102,6 +108,7 @@ function getSelectedText(): string {
 }
 
 function processSelection(): void {
+  if (!isExtensionContextValid()) return;
   if (panelOpen || panel?.style.display === 'block') return;
 
   const text = getSelectedText();
@@ -114,7 +121,7 @@ function processSelection(): void {
   currentSelection = text;
   captureAnchorRect();
   showFab();
-  void chrome.storage.local.set({ lookupWord: lookupTermFromSelection(text) });
+  void setLookupWord(lookupTermFromSelection(text));
 }
 
 function ensureRoot(): HTMLElement {
@@ -128,7 +135,11 @@ function ensureRoot(): HTMLElement {
   fab.className = 'flc-fab';
   fab.title = 'Tra với FLC';
   fab.style.display = 'none';
-  fab.innerHTML = `<img src="${chrome.runtime.getURL('icons/icon16.png')}" alt="FLC" />`;
+  try {
+    fab.innerHTML = `<img src="${runtimeGetURL('icons/icon16.png')}" alt="FLC" />`;
+  } catch {
+    fab.textContent = 'FLC';
+  }
   fab.addEventListener('mousedown', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -240,6 +251,11 @@ function clamp(pos: number, size: number, maxViewport: number): number {
 async function openPanel(): Promise<void> {
   if (!panel || !fab) return;
 
+  if (!isExtensionContextValid()) {
+    showExtensionReloadPanel();
+    return;
+  }
+
   panelOpen = true;
   if (debounceTimer) clearTimeout(debounceTimer);
 
@@ -261,6 +277,7 @@ async function openPanel(): Promise<void> {
     <div class="flc-panel-body">
       <div class="flc-loading"><span class="flc-spinner"></span> Đang tra...</div>
     </div>
+    <div class="flc-panel-footer" hidden></div>
   `;
 
   panel.querySelector('.flc-close')?.addEventListener('click', hideAll);
@@ -274,12 +291,12 @@ async function openPanel(): Promise<void> {
   if (!auth.token) {
     body.innerHTML = `
       <p class="flc-msg">Bạn cần đăng nhập Google trong extension FLC (icon trên thanh công cụ).</p>
-      <div class="flc-actions">
-        <button type="button" class="flc-btn flc-btn-secondary flc-open-extension">Mở FLC</button>
-      </div>
     `;
-    body.querySelector('.flc-open-extension')?.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'OPEN_POPUP' });
+    const actions = showPanelFooter(
+      `<button type="button" class="flc-btn flc-btn-secondary flc-open-extension">Mở FLC</button>`
+    );
+    actions.querySelector('.flc-open-extension')?.addEventListener('click', () => {
+      runtimeSendMessage({ type: 'OPEN_POPUP' });
     });
     positionPanelNearSelection();
     return;
@@ -288,22 +305,63 @@ async function openPanel(): Promise<void> {
   try {
     currentLookup = await api.lookup(lookupWord);
     body.innerHTML = renderDictionaryHtml(currentLookup);
-    const actions = document.createElement('div');
-    actions.className = 'flc-actions';
-    actions.innerHTML = `
+    const actions = showPanelFooter(`
       <button type="button" class="flc-btn flc-btn-primary flc-save">Lưu từ</button>
       <button type="button" class="flc-btn flc-btn-secondary flc-close-btn">Đóng</button>
-    `;
-    panel.appendChild(actions);
+    `);
 
     actions.querySelector('.flc-save')?.addEventListener('click', () => void saveWord(actions));
     actions.querySelector('.flc-close-btn')?.addEventListener('click', hideAll);
 
     positionPanelNearSelection();
   } catch (e) {
+    if (e instanceof ExtensionContextError) {
+      showExtensionReloadInPanel(body);
+      positionPanelNearSelection();
+      return;
+    }
     body.innerHTML = `<p class="flc-error">${escapeHtml(e instanceof ApiError ? e.message : 'Không tra được từ.')}</p>`;
+    const actions = showPanelFooter(
+      `<button type="button" class="flc-btn flc-btn-secondary flc-close-btn">Đóng</button>`
+    );
+    actions.querySelector('.flc-close-btn')?.addEventListener('click', hideAll);
     positionPanelNearSelection();
   }
+}
+
+function showExtensionReloadPanel(): void {
+  if (!panel || !fab) return;
+  panelOpen = true;
+  fab.style.display = 'none';
+  panel.style.display = 'block';
+  panel.innerHTML = `
+    <div class="flc-panel-header">
+      <div class="flc-selected-text">FLC</div>
+      <button type="button" class="flc-close" aria-label="Đóng">×</button>
+    </div>
+    <div class="flc-panel-body"></div>
+    <div class="flc-panel-footer" hidden></div>
+  `;
+  panel.querySelector('.flc-close')?.addEventListener('click', hideAll);
+  const body = panel.querySelector('.flc-panel-body')!;
+  showExtensionReloadInPanel(body);
+  captureAnchorRect();
+  positionPanelNearSelection();
+}
+
+function showExtensionReloadInPanel(body: Element): void {
+  body.innerHTML = `<p class="flc-msg">Extension vừa được cập nhật hoặc tắt. Tải lại trang (F5) để tiếp tục tra từ.</p>`;
+  const actions = showPanelFooter(
+    `<button type="button" class="flc-btn flc-btn-secondary flc-close-btn">Đóng</button>`
+  );
+  actions.querySelector('.flc-close-btn')?.addEventListener('click', hideAll);
+}
+
+function showPanelFooter(buttonsHtml: string): HTMLElement {
+  const footer = panel!.querySelector('.flc-panel-footer') as HTMLElement;
+  footer.innerHTML = `<div class="flc-actions">${buttonsHtml}</div>`;
+  footer.hidden = false;
+  return footer.querySelector('.flc-actions')!;
 }
 
 async function saveWord(actionsEl: HTMLElement): Promise<void> {
@@ -329,7 +387,7 @@ async function saveWord(actionsEl: HTMLElement): Promise<void> {
     const err = document.createElement('p');
     err.className = 'flc-error';
     err.textContent = e instanceof ApiError ? e.message : 'Không lưu được.';
-    actionsEl.before(err);
+    panel?.querySelector('.flc-panel-body')?.appendChild(err);
   }
 }
 

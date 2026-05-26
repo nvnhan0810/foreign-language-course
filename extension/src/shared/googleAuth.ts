@@ -1,8 +1,5 @@
+import { apiOrigin } from './config';
 import { getSettings, saveAuth } from './storage';
-
-function apiOrigin(apiBaseUrl: string): string {
-  return apiBaseUrl.replace(/\/api\/?$/, '');
-}
 
 export async function loginWithGoogle(): Promise<void> {
   const settings = await getSettings();

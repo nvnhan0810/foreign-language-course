@@ -1,8 +1,42 @@
+import { ensureHostPermissionForApi } from '../shared/api-permissions';
+import { DEFAULT_API_BASE_URL, normalizeApiBaseUrl } from '../shared/config';
 import { getSettings, saveSettings } from '../shared/storage';
+
+const LOCAL_API = 'http://localhost:8080/api';
+
+function setStatus(message: string, isError = false): void {
+  const status = document.getElementById('status');
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle('error', isError);
+}
+
+function updateApiPreview(): void {
+  const input = document.getElementById('api-base-url') as HTMLInputElement;
+  const preview = document.getElementById('api-preview');
+  if (!preview) return;
+
+  const raw = input.value.trim();
+  if (!raw) {
+    preview.hidden = true;
+    return;
+  }
+
+  try {
+    preview.textContent = `Sẽ lưu: ${normalizeApiBaseUrl(raw)}`;
+    preview.hidden = false;
+    preview.classList.remove('error');
+  } catch {
+    preview.textContent = 'Địa chỉ không hợp lệ';
+    preview.hidden = false;
+    preview.classList.add('error');
+  }
+}
 
 async function init() {
   const s = await getSettings();
-  (document.getElementById('api-base-url') as HTMLInputElement).value = s.apiBaseUrl;
+  const apiInput = document.getElementById('api-base-url') as HTMLInputElement;
+  apiInput.value = s.apiBaseUrl;
   (document.getElementById('quiz-per-day') as HTMLInputElement).value = String(s.quizPerDay);
   (document.getElementById('media-check-minutes') as HTMLInputElement).value = String(
     s.mediaCheckMinutes
@@ -10,9 +44,41 @@ async function init() {
   (document.getElementById('notifications-enabled') as HTMLInputElement).checked =
     s.notificationsEnabled;
 
+  updateApiPreview();
+  apiInput.addEventListener('input', updateApiPreview);
+
+  document.getElementById('btn-api-production')?.addEventListener('click', () => {
+    apiInput.value = DEFAULT_API_BASE_URL;
+    updateApiPreview();
+  });
+  document.getElementById('btn-api-local')?.addEventListener('click', () => {
+    apiInput.value = LOCAL_API;
+    updateApiPreview();
+  });
+  document.getElementById('btn-api-reset')?.addEventListener('click', () => {
+    apiInput.value = DEFAULT_API_BASE_URL;
+    updateApiPreview();
+  });
+
   document.getElementById('btn-save')?.addEventListener('click', async () => {
+    setStatus('');
+
+    let apiBaseUrl: string;
+    try {
+      apiBaseUrl = normalizeApiBaseUrl(apiInput.value);
+    } catch {
+      setStatus('Địa chỉ API không hợp lệ.', true);
+      return;
+    }
+
+    const perm = await ensureHostPermissionForApi(apiBaseUrl);
+    if (!perm.ok) {
+      setStatus(perm.message ?? 'Không có quyền truy cập API.', true);
+      return;
+    }
+
     await saveSettings({
-      apiBaseUrl: (document.getElementById('api-base-url') as HTMLInputElement).value.trim(),
+      apiBaseUrl,
       quizPerDay: Number((document.getElementById('quiz-per-day') as HTMLInputElement).value),
       mediaCheckMinutes: Number(
         (document.getElementById('media-check-minutes') as HTMLInputElement).value
@@ -20,8 +86,10 @@ async function init() {
       notificationsEnabled: (document.getElementById('notifications-enabled') as HTMLInputElement)
         .checked,
     });
-    const status = document.getElementById('status');
-    if (status) status.textContent = 'Đã lưu. Alarm sẽ được cập nhật khi mở lại extension.';
+
+    apiInput.value = apiBaseUrl;
+    updateApiPreview();
+    setStatus(`Đã lưu. API: ${apiBaseUrl}`);
   });
 }
 
