@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ListeningAssessment;
-use App\Models\ListeningAssessment;
 use App\Services\ListeningAssessmentGeneratorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
