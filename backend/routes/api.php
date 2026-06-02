@@ -4,6 +4,8 @@ use App\Http\Controllers\Api\AppConfigController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DictionaryController;
 use App\Http\Controllers\Api\GoogleAuthController;
+use App\Http\Controllers\Api\ListeningAssessmentController;
+use App\Http\Controllers\Api\ListeningMediaController;
 use App\Http\Controllers\Api\MediaItemController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\SyncController;
@@ -26,6 +28,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/media-items/due', [MediaItemController::class, 'due']);
     Route::post('/media-items/{mediaItem}/listened', [MediaItemController::class, 'listened']);
     Route::apiResource('media-items', MediaItemController::class);
+
+    // Listening: save YouTube/MP3, analyze, quiz/test/exam
+    Route::prefix('listening')->group(function () {
+        Route::post('/media', [ListeningMediaController::class, 'store']);
+        Route::get('/media/{mediaItem}', [ListeningMediaController::class, 'show']);
+        Route::get('/media/{mediaItem}/analysis', [ListeningMediaController::class, 'analysis']);
+        Route::post('/media/{mediaItem}/process', [ListeningMediaController::class, 'process']);
+        Route::get('/media/{mediaItem}/audio', [ListeningMediaController::class, 'audio']);
+        Route::get('/media/{mediaItem}/assessments', [ListeningMediaController::class, 'assessments']);
+        Route::post('/media/{mediaItem}/assessments/generate', [ListeningMediaController::class, 'generateAssessment']);
+
+        Route::get('/assessments/{listeningAssessment}', [ListeningAssessmentController::class, 'show']);
+        Route::get('/assessments/{listeningAssessment}/questions', [ListeningAssessmentController::class, 'questions']);
+        Route::post('/assessments/{listeningAssessment}/attempts', [ListeningAssessmentController::class, 'submitAttempt']);
+        Route::get('/assessments/{listeningAssessment}/attempts', [ListeningAssessmentController::class, 'attempts']);
+    });
 
     Route::get('/quiz/next', [QuizController::class, 'next']);
     Route::post('/quiz/attempts', [QuizController::class, 'attempt']);
