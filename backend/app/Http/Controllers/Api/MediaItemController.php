@@ -3,15 +3,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessMediaContentJob;
 use App\Models\ListenLog;
 use App\Models\MediaItem;
 use App\Services\MediaScheduleService;
+use App\Services\YouTubeUrlParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class MediaItemController extends Controller
 {
-    public function __construct(private readonly MediaScheduleService $schedule) {}
+    public function __construct(
+        private readonly MediaScheduleService $schedule,
+        private readonly YouTubeUrlParser $youtubeParser,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -34,11 +39,26 @@ class MediaItemController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
-        $item = $request->user()->mediaItems()->create([
+        $payload = [
             ...$data,
             'is_active' => $data['is_active'] ?? true,
             'next_listen_at' => $this->schedule->initialNextListenAt($data['frequency']),
-        ]);
+        ];
+
+        if ($data['type'] === MediaItem::TYPE_YOUTUBE) {
+            $videoId = $this->youtubeParser->extractVideoId($data['url']);
+
+            if ($videoId) {
+                $payload['source_id'] = $videoId;
+                $payload['analysis_status'] = MediaItem::ANALYSIS_PENDING;
+            }
+        }
+
+        $item = $request->user()->mediaItems()->create($payload);
+
+        if ($data['type'] === MediaItem::TYPE_YOUTUBE && $item->source_id) {
+            ProcessMediaContentJob::dispatch($item->id);
+        }
 
         return response()->json(['data' => $item], 201);
     }

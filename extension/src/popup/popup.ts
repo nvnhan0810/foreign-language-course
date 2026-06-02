@@ -7,7 +7,12 @@ import {
   getAuth,
   getPendingQuiz,
 } from '../shared/storage';
-import type { DictionaryResult, MediaItem, QuizQuestion, Vocabulary } from '../shared/types';
+import type {
+  DictionaryResult,
+  MediaItem,
+  QuizQuestion,
+  Vocabulary,
+} from '../shared/types';
 
 let currentLookup: DictionaryResult | null = null;
 
@@ -234,18 +239,38 @@ function bindMedia() {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const fd = new FormData(form);
+    const type = fd.get('type') as 'audio' | 'youtube';
+    const frequency = fd.get('frequency') as 'daily' | 'weekly' | 'monthly';
+    const payload = {
+      title: fd.get('title') as string,
+      url: fd.get('url') as string,
+      frequency,
+      is_active: true,
+    };
+
     try {
-      await api.createMedia({
-        title: fd.get('title') as string,
-        url: fd.get('url') as string,
-        type: fd.get('type') as 'audio' | 'youtube',
-        frequency: fd.get('frequency') as 'daily' | 'weekly' | 'monthly',
-        is_active: true,
-      });
+      if (type === 'youtube') {
+        const res = await api.createListeningMedia({
+          title: payload.title,
+          url: payload.url,
+          type: 'youtube',
+          frequency: payload.frequency,
+          auto_process: true,
+        });
+        $('media-form-status').textContent =
+          res.message ?? 'Đã thêm YouTube. Đang phân tích và tạo quiz/test/exam...';
+      } else {
+        await api.createMedia({
+          ...payload,
+          type: 'audio',
+        });
+        $('media-form-status').textContent = 'Đã thêm link audio.';
+      }
       form.reset();
       await loadMedia();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : 'Lỗi thêm media');
+      $('media-form-status').textContent =
+        err instanceof ApiError ? err.message : 'Lỗi thêm media';
     }
   });
 }
@@ -268,19 +293,61 @@ function renderMediaItem(m: MediaItem) {
   li.className = 'item';
   const freqLabel =
     m.frequency === 'daily' ? 'ngày' : m.frequency === 'weekly' ? 'tuần' : 'tháng';
+  const analysisLabel = formatAnalysisStatus(m);
   li.innerHTML = `
     <div>
       <strong>${escapeHtml(m.title)}</strong>
-      <div class="muted">${freqLabel} · ${m.type}</div>
+      <div class="muted">${freqLabel} · ${m.type}${analysisLabel ? ` · ${analysisLabel}` : ''}</div>
       <a href="${escapeHtml(m.url)}" target="_blank">${escapeHtml(m.url)}</a>
+      ${m.analysis_error ? `<div class="error">${escapeHtml(m.analysis_error)}</div>` : ''}
+      <div class="media-actions"></div>
     </div>
-    <button type="button" class="secondary">Xóa</button>
+    <button type="button" class="secondary media-delete-btn">Xóa</button>
   `;
-  li.querySelector('button')?.addEventListener('click', async () => {
+
+  const actions = li.querySelector('.media-actions') as HTMLDivElement;
+  if (m.type === 'youtube' && m.analysis_status === 'ready') {
+    const badge = document.createElement('span');
+    badge.className = 'badge-ready';
+    badge.textContent = 'Quiz / Test / Exam sẵn sàng (dùng mobile app)';
+    actions.appendChild(badge);
+  } else if (m.type === 'youtube' && m.analysis_status === 'failed') {
+    const retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.className = 'secondary';
+    retryBtn.textContent = 'Phân tích lại';
+    retryBtn.addEventListener('click', () => void retryAnalysis(m.id, li));
+    actions.appendChild(retryBtn);
+  }
+
+  li.querySelector('.media-delete-btn')?.addEventListener('click', async () => {
     await api.deleteMedia(m.id);
     await loadMedia();
   });
   return li;
+}
+
+async function retryAnalysis(id: number, li: HTMLElement) {
+  try {
+    await api.processListeningMedia(id);
+    const statusEl = li.querySelector('.muted');
+    if (statusEl) {
+      statusEl.textContent = statusEl.textContent?.replace(/ · (pending|processing|ready|failed).*$/, '') + ' · đang phân tích...';
+    }
+  } catch (err) {
+    alert(err instanceof ApiError ? err.message : 'Không phân tích lại được.');
+  }
+}
+
+function formatAnalysisStatus(m: MediaItem): string {
+  if (m.type !== 'youtube' || !m.analysis_status) return '';
+  const labels: Record<string, string> = {
+    pending: 'chờ phân tích',
+    processing: 'đang phân tích',
+    ready: 'sẵn sàng',
+    failed: 'phân tích lỗi',
+  };
+  return labels[m.analysis_status] ?? m.analysis_status;
 }
 
 function bindQuiz() {

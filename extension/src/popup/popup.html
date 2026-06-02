@@ -51,8 +51,8 @@
         <input name="title" placeholder="Tiêu đề" required />
         <input name="url" type="url" placeholder="URL audio / YouTube" required />
         <select name="type">
-          <option value="youtube">YouTube</option>
-          <option value="audio">Audio</option>
+          <option value="youtube">YouTube (tạo quiz / test / exam)</option>
+          <option value="audio">Audio URL (nhắc nghe)</option>
         </select>
         <select name="frequency">
           <option value="daily">Nghe hàng ngày</option>
@@ -60,6 +60,7 @@
           <option value="monthly">Hàng tháng</option>
         </select>
         <button type="submit">Thêm link</button>
+        <p id="media-form-status" class="muted"></p>
       </form>
       <ul id="media-list"></ul>
     </section>

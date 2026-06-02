@@ -16,7 +16,8 @@
             <a href="{{ route('admin.settings.edit') }}" class="{{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">Cài đặt</a>
             <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">Người dùng</a>
             <a href="{{ route('admin.vocabularies.index') }}" class="{{ request()->routeIs('admin.vocabularies.*') ? 'active' : '' }}">Từ vựng</a>
-            <a href="{{ route('admin.media-items.index') }}" class="{{ request()->routeIs('admin.media-items.*') ? 'active' : '' }}">Media</a>
+            <a href="{{ route('admin.media-items.index') }}" class="{{ request()->routeIs('admin.media-items.*') ? 'active' : '' }}">Video / MP3</a>
+            <a href="{{ route('admin.listening-assessments.index') }}" class="{{ request()->routeIs('admin.listening-assessments.*') ? 'active' : '' }}">Quiz / Test / Exam</a>
         </nav>
     </aside>
     <main class="admin-main">

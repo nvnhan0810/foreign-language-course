@@ -5,10 +5,21 @@
 
 @section('content')
 <div class="card">
-    <p class="muted">User: {{ $mediaItem->user?->email }}</p>
+    <p class="muted">User hiện tại: {{ $mediaItem->user?->email }}</p>
     <form method="POST" action="{{ route('admin.media-items.update', $mediaItem) }}">
         @csrf
         @method('PUT')
+
+        <div class="form-group">
+            <label for="user_id">Người dùng *</label>
+            <select name="user_id" id="user_id" required>
+                @foreach ($users as $user)
+                    <option value="{{ $user->id }}" @selected(old('user_id', $mediaItem->user_id) == $user->id)>
+                        {{ $user->email }} ({{ $user->name }})
+                    </option>
+                @endforeach
+            </select>
+        </div>
 
         <div class="form-group">
             <label for="title">Tiêu đề</label>
@@ -24,17 +35,28 @@
             <label for="type">Loại</label>
             <select name="type" id="type">
                 <option value="youtube" @selected(old('type', $mediaItem->type) === 'youtube')>YouTube</option>
+                <option value="mp3" @selected(old('type', $mediaItem->type) === 'mp3')>MP3</option>
                 <option value="audio" @selected(old('type', $mediaItem->type) === 'audio')>Audio</option>
             </select>
         </div>
 
         <div class="form-group">
-            <label for="frequency">Tần suất</label>
+            <label for="language">Ngôn ngữ</label>
+            <input type="text" name="language" id="language" value="{{ old('language', $mediaItem->language) }}" maxlength="10">
+        </div>
+
+        <div class="form-group">
+            <label for="frequency">Tần suất nhắc nghe</label>
             <select name="frequency" id="frequency">
                 <option value="daily" @selected(old('frequency', $mediaItem->frequency) === 'daily')>Hàng ngày</option>
                 <option value="weekly" @selected(old('frequency', $mediaItem->frequency) === 'weekly')>Hàng tuần</option>
                 <option value="monthly" @selected(old('frequency', $mediaItem->frequency) === 'monthly')>Hàng tháng</option>
             </select>
+        </div>
+
+        <div class="form-group">
+            <label for="transcript">Transcript</label>
+            <textarea name="transcript" id="transcript">{{ old('transcript', $mediaItem->transcript) }}</textarea>
         </div>
 
         <div class="form-group">
@@ -52,7 +74,7 @@
 
         <div class="form-actions">
             <button type="submit" class="btn">Lưu</button>
-            <a href="{{ route('admin.media-items.index') }}" class="btn btn-secondary">Quay lại</a>
+            <a href="{{ route('admin.media-items.show', $mediaItem) }}" class="btn btn-secondary">Huỷ</a>
         </div>
     </form>
 </div>

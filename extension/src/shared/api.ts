@@ -1,6 +1,7 @@
 import { clearAuth, getAuth, getSettings } from './storage';
 import type {
   DictionaryResult,
+  ListeningAssessmentSummary,
   MediaItem,
   QuizQuestion,
   Vocabulary,
@@ -86,6 +87,47 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+
+  createListeningMedia(payload: {
+    title: string;
+    type: 'youtube' | 'mp3' | 'audio';
+    url?: string;
+    language?: string;
+    frequency?: 'daily' | 'weekly' | 'monthly';
+    notes?: string;
+    auto_process?: boolean;
+  }) {
+    return request<{ data: MediaItem; message?: string }>('/listening/media', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getListeningAnalysis(mediaId: number) {
+    return request<{
+      data: {
+        analysis_status: string;
+        analysis_error?: string | null;
+        analyzed_at?: string | null;
+        transcript?: string | null;
+        analysis?: Record<string, unknown> | null;
+        assessments: ListeningAssessmentSummary[];
+      };
+    }>(`/listening/media/${mediaId}/analysis`);
+  },
+
+  listListeningAssessments(mediaId: number) {
+    return request<{ data: ListeningAssessmentSummary[] }>(
+      `/listening/media/${mediaId}/assessments`
+    );
+  },
+
+  processListeningMedia(mediaId: number) {
+    return request<{ message?: string; data: { analysis_status: string } }>(
+      `/listening/media/${mediaId}/process`,
+      { method: 'POST' }
+    );
   },
 
   deleteMedia(id: number) {

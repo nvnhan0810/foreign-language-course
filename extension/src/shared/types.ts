@@ -25,11 +25,25 @@ export interface MediaItem {
   id: number;
   title: string;
   url: string;
-  type: 'audio' | 'youtube';
+  type: 'audio' | 'youtube' | 'mp3';
   frequency: 'daily' | 'weekly' | 'monthly';
   notes?: string | null;
   is_active: boolean;
   next_listen_at?: string | null;
+  source_id?: string | null;
+  analysis_status?: 'pending' | 'processing' | 'ready' | 'failed' | null;
+  analysis_error?: string | null;
+  analyzed_at?: string | null;
+  language?: string;
+}
+
+export interface ListeningAssessmentSummary {
+  id: number;
+  type: 'quiz' | 'test' | 'exam';
+  title: string;
+  question_count: number;
+  time_limit_minutes?: number | null;
+  status: string;
 }
 
 export interface QuizQuestion {

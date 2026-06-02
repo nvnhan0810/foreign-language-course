@@ -15,7 +15,11 @@
     </div>
     <div class="stat">
         <strong>{{ $stats['media_items'] }}</strong>
-        <span class="muted">Media</span>
+        <span class="muted">Video / MP3</span>
+    </div>
+    <div class="stat">
+        <strong>{{ $stats['listening_assessments'] }}</strong>
+        <span class="muted">Quiz / Test / Exam</span>
     </div>
     <div class="stat">
         <strong>{{ $stats['allowlist'] }}</strong>
@@ -27,6 +31,8 @@
     <h3 style="margin-top:0">Truy cập nhanh</h3>
     <p>
         <a href="{{ route('admin.allowed-emails.create') }}" class="btn">Thêm email allowlist</a>
+        <a href="{{ route('admin.media-items.create') }}" class="btn">Thêm video / MP3</a>
+        <a href="{{ route('admin.listening-assessments.index') }}" class="btn btn-secondary">Quiz / Test / Exam</a>
         <a href="{{ route('admin.settings.edit') }}" class="btn btn-secondary">Chỉnh cài đặt / thông báo extension</a>
     </p>
 </div>
