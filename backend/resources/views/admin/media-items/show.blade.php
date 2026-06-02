@@ -53,10 +53,11 @@
 
     <div class="card">
         <h3 style="margin-top:0">Phân tích nội dung</h3>
-        @if ($mediaItem->analysis_payload)
+            @if ($mediaItem->analysis_payload)
             @php $a = $mediaItem->analysis_payload; @endphp
             <p><strong>Tóm tắt:</strong> {{ $a['summary'] ?? '—' }}</p>
             <p><strong>Độ khó:</strong> {{ $a['difficulty'] ?? '—' }}</p>
+            <p><strong>Nguồn nội dung:</strong> {{ $a['content_source'] ?? 'transcript' }}</p>
             @if (!empty($a['topics']))
                 <p><strong>Chủ đề:</strong> {{ implode(', ', $a['topics']) }}</p>
             @endif
@@ -125,10 +126,16 @@
     @endif
 </div>
 
-@if ($mediaItem->transcript)
+@if ($mediaItem->transcript || !empty($mediaItem->analysis_payload['source_content']))
 <div class="card">
-    <h3 style="margin-top:0">Transcript</h3>
-    <div class="transcript-box">{{ $mediaItem->transcript }}</div>
+    <h3 style="margin-top:0">
+        @if ($mediaItem->transcript)
+            Transcript
+        @else
+            Nội dung phân tích (metadata)
+        @endif
+    </h3>
+    <div class="transcript-box">{{ $mediaItem->transcript ?? $mediaItem->analysis_payload['source_content'] ?? '' }}</div>
 </div>
 @endif
 

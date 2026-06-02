@@ -16,9 +16,7 @@ class ListeningAssessmentGeneratorService
      */
     public function generateAll(MediaItem $mediaItem): array
     {
-        if (! $mediaItem->transcript) {
-            throw new \RuntimeException('Media item has no transcript. Run analysis first.');
-        }
+        $this->getSourceContent($mediaItem);
 
         $results = [];
 
@@ -59,7 +57,7 @@ class ListeningAssessmentGeneratorService
             $assessment->questions()->delete();
 
             $questions = $this->buildQuestions(
-                $mediaItem->transcript,
+                $this->getSourceContent($mediaItem),
                 $mediaItem->title,
                 $type,
                 $questionCount,
@@ -89,21 +87,36 @@ class ListeningAssessmentGeneratorService
      * @return array<int, array<string, mixed>>
      */
     private function buildQuestions(
-        string $transcript,
+        string $content,
         string $title,
         string $type,
         int $questionCount,
         array $analysis
     ): array {
         if ($this->cursor->isConfigured()) {
-            $questions = $this->generateWithCursor($transcript, $title, $type, $questionCount, $analysis);
+            $questions = $this->generateWithCursor($content, $title, $type, $questionCount, $analysis);
 
             if ($questions !== []) {
                 return $questions;
             }
         }
 
-        return $this->generateLocally($transcript, $title, $type, $questionCount, $analysis);
+        return $this->generateLocally($content, $title, $type, $questionCount, $analysis);
+    }
+
+    private function getSourceContent(MediaItem $mediaItem): string
+    {
+        $fromPayload = $mediaItem->analysis_payload['source_content'] ?? null;
+
+        if (is_string($fromPayload) && trim($fromPayload) !== '') {
+            return $fromPayload;
+        }
+
+        if ($mediaItem->transcript) {
+            return $mediaItem->transcript;
+        }
+
+        throw new \RuntimeException('Media item has no analyzed content. Run analysis first.');
     }
 
     /**
@@ -111,14 +124,20 @@ class ListeningAssessmentGeneratorService
      * @return array<int, array<string, mixed>>
      */
     private function generateWithCursor(
-        string $transcript,
+        string $content,
         string $title,
         string $type,
         int $questionCount,
         array $analysis
     ): array {
-        $excerpt = mb_substr($transcript, 0, 12000);
+        $excerpt = mb_substr($content, 0, 12000);
         $analysisJson = json_encode($analysis);
+        $contentSource = $analysis['content_source'] ?? MediaContentResolverService::SOURCE_TRANSCRIPT;
+        $sourceNote = match ($contentSource) {
+            MediaContentResolverService::SOURCE_METADATA => 'No transcript available — infer listening questions from title/description and likely video topics.',
+            MediaContentResolverService::SOURCE_NOTES, MediaContentResolverService::SOURCE_TITLE => 'Limited metadata only — create reasonable inference questions about the topic.',
+            default => 'Use the transcript for accurate detail questions.',
+        };
 
         $typeGuide = match ($type) {
             ListeningAssessment::TYPE_QUIZ => 'Quick quiz: vocabulary and main idea questions.',
@@ -132,9 +151,10 @@ Generate {$questionCount} listening comprehension questions for language learner
 Title: {$title}
 Assessment type: {$type}
 Guide: {$typeGuide}
+Content source note: {$sourceNote}
 Analysis: {$analysisJson}
 
-Transcript:
+Content:
 {$excerpt}
 
 Return JSON:

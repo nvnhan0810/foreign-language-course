@@ -6,30 +6,41 @@ class ContentAnalysisService
 {
     public function __construct(private readonly CursorAgentService $cursor) {}
 
-    public function analyze(string $transcript, string $title, string $language = 'en'): array
-    {
+    public function analyze(
+        string $content,
+        string $title,
+        string $language = 'en',
+        string $contentSource = MediaContentResolverService::SOURCE_TRANSCRIPT,
+    ): array {
         if ($this->cursor->isConfigured()) {
-            $analysis = $this->analyzeWithCursor($transcript, $title, $language);
+            $analysis = $this->analyzeWithCursor($content, $title, $language, $contentSource);
 
             if ($analysis) {
                 return $analysis;
             }
         }
 
-        return $this->analyzeLocally($transcript, $title, $language);
+        return $this->analyzeLocally($content, $title, $language, $contentSource);
     }
 
-    private function analyzeWithCursor(string $transcript, string $title, string $language): ?array
-    {
-        $excerpt = mb_substr($transcript, 0, 12000);
+    private function analyzeWithCursor(
+        string $content,
+        string $title,
+        string $language,
+        string $contentSource,
+    ): ?array {
+        $excerpt = mb_substr($content, 0, 12000);
+        $sourceNote = $this->sourceNote($contentSource);
 
         $prompt = <<<PROMPT
 Analyze this listening content for language learners.
 
 Title: {$title}
 Language: {$language}
+Content source: {$contentSource}
+{$sourceNote}
 
-Transcript:
+Content:
 {$excerpt}
 
 Return JSON with keys:
@@ -53,17 +64,26 @@ PROMPT;
             'difficulty' => $payload['difficulty'] ?? 'intermediate',
             'main_ideas' => $payload['main_ideas'] ?? [],
             'source' => 'cursor',
+            'content_source' => $contentSource,
         ];
     }
 
-    private function analyzeLocally(string $transcript, string $title, string $language): array
-    {
-        $words = str_word_count(strtolower($transcript), 1);
+    private function analyzeLocally(
+        string $content,
+        string $title,
+        string $language,
+        string $contentSource,
+    ): array {
+        $words = str_word_count(strtolower($content), 1);
         $uniqueWords = array_unique($words);
         $wordCount = count($words);
 
-        $sentences = preg_split('/[.!?]+/', $transcript, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        $summary = trim($sentences[0] ?? mb_substr($transcript, 0, 200));
+        $sentences = preg_split('/[.!?]+/', $content, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $summary = trim($sentences[0] ?? mb_substr($content, 0, 200));
+
+        if ($contentSource !== MediaContentResolverService::SOURCE_TRANSCRIPT) {
+            $summary = $summary !== '' ? $summary : "Listening practice based on: {$title}";
+        }
 
         $stopWords = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'to', 'of', 'and', 'in', 'on', 'for', 'it', 'that', 'this'];
         $freq = array_count_values(array_filter($uniqueWords, fn ($w) => strlen($w) > 4 && ! in_array($w, $stopWords, true)));
@@ -79,6 +99,16 @@ PROMPT;
             'word_count' => $wordCount,
             'source' => 'local',
             'language' => $language,
+            'content_source' => $contentSource,
         ];
+    }
+
+    private function sourceNote(string $contentSource): string
+    {
+        return match ($contentSource) {
+            MediaContentResolverService::SOURCE_METADATA => 'No transcript/captions were available. Use the video title and description to infer likely topics and vocabulary.',
+            MediaContentResolverService::SOURCE_NOTES, MediaContentResolverService::SOURCE_TITLE => 'Only limited metadata is available. Infer reasonable listening topics and vocabulary from the title/notes.',
+            default => 'Full transcript is available.',
+        };
     }
 }

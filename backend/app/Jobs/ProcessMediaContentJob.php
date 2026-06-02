@@ -5,7 +5,7 @@ namespace App\Jobs;
 use App\Models\MediaItem;
 use App\Services\ContentAnalysisService;
 use App\Services\ListeningAssessmentGeneratorService;
-use App\Services\TranscriptService;
+use App\Services\MediaContentResolverService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -21,7 +21,7 @@ class ProcessMediaContentJob implements ShouldQueue
     public function __construct(public int $mediaItemId) {}
 
     public function handle(
-        TranscriptService $transcriptService,
+        MediaContentResolverService $contentResolver,
         ContentAnalysisService $analysisService,
         ListeningAssessmentGeneratorService $assessmentGenerator,
     ): void {
@@ -37,16 +37,26 @@ class ProcessMediaContentJob implements ShouldQueue
         ]);
 
         try {
-            $transcript = $transcriptService->resolve($mediaItem);
+            $resolved = $contentResolver->resolve($mediaItem);
+            $content = $resolved['content'];
+            $contentSource = $resolved['source'];
 
             $analysis = $analysisService->analyze(
-                $transcript,
+                $content,
                 $mediaItem->title,
-                $mediaItem->language
+                $mediaItem->language,
+                $contentSource
             );
 
+            $analysis['source_content'] = $content;
+            $analysis['content_source'] = $contentSource;
+
+            if (isset($resolved['metadata'])) {
+                $analysis['youtube_metadata'] = $resolved['metadata'];
+            }
+
             $mediaItem->update([
-                'transcript' => $transcript,
+                'transcript' => $contentSource === MediaContentResolverService::SOURCE_TRANSCRIPT ? $content : $mediaItem->transcript,
                 'analysis_payload' => $analysis,
                 'analysis_status' => MediaItem::ANALYSIS_READY,
                 'analyzed_at' => now(),

@@ -239,6 +239,21 @@ footer a {
   white-space: nowrap;
 }
 
+.card button.secondary {
+  margin-top: 8px;
+  width: 100%;
+  background: #64748b;
+  color: #fff;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.card button.secondary:hover {
+  background: #475569;
+}
+
 .media-actions {
   margin-top: 6px;
   display: flex;

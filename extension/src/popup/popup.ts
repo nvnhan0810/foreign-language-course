@@ -7,6 +7,7 @@ import {
   getAuth,
   getPendingQuiz,
 } from '../shared/storage';
+import { getActiveTabYouTubeInfo } from '../shared/youtube-tab';
 import type {
   DictionaryResult,
   MediaItem,
@@ -58,7 +59,10 @@ function switchTab(tab: string) {
   document.querySelectorAll('.tab-panel').forEach((p) => p.classList.add('hidden'));
   $(`${tab}-panel`).classList.remove('hidden');
   if (tab === 'vocab') void loadVocab();
-  if (tab === 'media') void loadMedia();
+  if (tab === 'media') {
+    void loadMedia();
+    void prefillMediaFromActiveTab();
+  }
 }
 
 function bindAuth() {
@@ -235,6 +239,8 @@ function renderVocabItem(v: Vocabulary) {
 }
 
 function bindMedia() {
+  $('btn-prefill-youtube').addEventListener('click', () => void prefillMediaFromActiveTab());
+
   $('media-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -273,6 +279,32 @@ function bindMedia() {
         err instanceof ApiError ? err.message : 'Lỗi thêm media';
     }
   });
+}
+
+async function prefillMediaFromActiveTab(): Promise<boolean> {
+  const form = $('media-form') as HTMLFormElement;
+  const titleInput = form.querySelector('[name="title"]') as HTMLInputElement;
+  const urlInput = form.querySelector('[name="url"]') as HTMLInputElement;
+  const typeSelect = form.querySelector('[name="type"]') as HTMLSelectElement;
+  const statusEl = $('media-form-status');
+
+  try {
+    const info = await getActiveTabYouTubeInfo();
+    if (!info) {
+      statusEl.textContent =
+        'Không lấy được video từ tab hiện tại. Mở trang video YouTube (watch/shorts) rồi bấm "Lấy từ tab YouTube".';
+      return false;
+    }
+
+    titleInput.value = info.title;
+    urlInput.value = info.url;
+    typeSelect.value = 'youtube';
+    statusEl.textContent = 'Đã điền tiêu đề và URL từ tab YouTube hiện tại.';
+    return true;
+  } catch {
+    statusEl.textContent = 'Không đọc được tab YouTube. Thử reload extension rồi mở lại video.';
+    return false;
+  }
 }
 
 async function loadMedia() {
