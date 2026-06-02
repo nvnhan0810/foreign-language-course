@@ -44,7 +44,7 @@ return new class extends Migration
             $table->string('question_type', 40); // mcq | fill_blank | true_false | comprehension
             $table->text('prompt');
             $table->json('options')->nullable();
-            $table->string('correct_answer');
+            $table->text('correct_answer');
             $table->text('explanation')->nullable();
             $table->unsignedInteger('audio_start_seconds')->nullable();
             $table->unsignedInteger('audio_end_seconds')->nullable();
