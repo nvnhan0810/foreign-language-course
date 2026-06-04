@@ -87,23 +87,4 @@ class ListeningApiTest extends TestCase
         $response->assertStatus(422);
     }
 
-    public function test_analysis_endpoint_requires_ownership(): void
-    {
-        $owner = User::factory()->create();
-        $other = User::factory()->create();
-
-        $item = MediaItem::query()->create([
-            'user_id' => $owner->id,
-            'title' => 'Private',
-            'url' => 'https://youtu.be/dQw4w9WgXcQ',
-            'type' => 'youtube',
-            'frequency' => 'weekly',
-            'analysis_status' => 'pending',
-        ]);
-
-        Sanctum::actingAs($other);
-
-        $this->getJson("/api/listening/media/{$item->id}/analysis")
-            ->assertForbidden();
-    }
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\ListeningAssessmentController;
 use App\Http\Controllers\Api\ListeningMediaController;
 use App\Http\Controllers\Api\MediaItemController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\VocabularyController;
@@ -20,6 +21,7 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
+    Route::get('/profile', [ProfileController::class, 'show']);
 
     Route::get('/dictionary/{word}', [DictionaryController::class, 'show']);
 
@@ -29,15 +31,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/media-items/{mediaItem}/listened', [MediaItemController::class, 'listened']);
     Route::apiResource('media-items', MediaItemController::class);
 
-    // Listening: save YouTube/MP3, analyze, quiz/test/exam
+    // Listening: save YouTube/MP3 (analysis + assessments run in background on store)
     Route::prefix('listening')->group(function () {
         Route::post('/media', [ListeningMediaController::class, 'store']);
         Route::get('/media/{mediaItem}', [ListeningMediaController::class, 'show']);
-        Route::get('/media/{mediaItem}/analysis', [ListeningMediaController::class, 'analysis']);
-        Route::post('/media/{mediaItem}/process', [ListeningMediaController::class, 'process']);
         Route::get('/media/{mediaItem}/audio', [ListeningMediaController::class, 'audio']);
         Route::get('/media/{mediaItem}/assessments', [ListeningMediaController::class, 'assessments']);
-        Route::post('/media/{mediaItem}/assessments/generate', [ListeningMediaController::class, 'generateAssessment']);
 
         Route::get('/assessments/{listeningAssessment}', [ListeningAssessmentController::class, 'show']);
         Route::get('/assessments/{listeningAssessment}/questions', [ListeningAssessmentController::class, 'questions']);

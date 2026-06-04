@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessMediaContentJob;
 use App\Models\MediaItem;
-use App\Services\ListeningAssessmentGeneratorService;
 use App\Services\MediaStorageService;
 use App\Services\YouTubeUrlParser;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +18,6 @@ class ListeningMediaController extends Controller
     public function __construct(
         private readonly MediaStorageService $storage,
         private readonly YouTubeUrlParser $youtubeParser,
-        private readonly ListeningAssessmentGeneratorService $assessmentGenerator,
     ) {}
 
     /**
@@ -90,7 +88,7 @@ class ListeningMediaController extends Controller
             'data' => $this->formatMediaItem($item),
             'message' => $autoProcess
                 ? 'Media saved. Analysis and listening assessments are being generated.'
-                : 'Media saved. Call POST /api/listening/media/{id}/process to start analysis.',
+                : 'Media saved.',
         ], 201);
     }
 
@@ -101,48 +99,6 @@ class ListeningMediaController extends Controller
         return response()->json([
             'data' => $this->formatMediaItem($mediaItem->load('listeningAssessments')),
         ]);
-    }
-
-    public function analysis(Request $request, MediaItem $mediaItem): JsonResponse
-    {
-        $this->authorizeMedia($request, $mediaItem);
-
-        return response()->json([
-            'data' => [
-                'analysis_status' => $mediaItem->analysis_status,
-                'analysis_error' => $mediaItem->analysis_error,
-                'analyzed_at' => $mediaItem->analyzed_at,
-                'transcript' => $mediaItem->transcript,
-                'analysis' => $mediaItem->analysis_payload,
-                'assessments' => $mediaItem->listeningAssessments()
-                    ->select(['id', 'type', 'title', 'question_count', 'time_limit_minutes', 'status', 'generated_at'])
-                    ->get(),
-            ],
-        ]);
-    }
-
-    public function process(Request $request, MediaItem $mediaItem): JsonResponse
-    {
-        $this->authorizeMedia($request, $mediaItem);
-
-        if ($mediaItem->analysis_status === MediaItem::ANALYSIS_PROCESSING) {
-            return response()->json([
-                'message' => 'Analysis is already in progress.',
-                'data' => ['analysis_status' => $mediaItem->analysis_status],
-            ], 409);
-        }
-
-        $mediaItem->update([
-            'analysis_status' => MediaItem::ANALYSIS_PENDING,
-            'analysis_error' => null,
-        ]);
-
-        ProcessMediaContentJob::dispatch($mediaItem->id);
-
-        return response()->json([
-            'message' => 'Analysis started.',
-            'data' => ['analysis_status' => MediaItem::ANALYSIS_PENDING],
-        ], 202);
     }
 
     public function audio(Request $request, MediaItem $mediaItem): StreamedResponse|JsonResponse
@@ -172,26 +128,6 @@ class ListeningMediaController extends Controller
             ->get();
 
         return response()->json(['data' => $assessments]);
-    }
-
-    public function generateAssessment(Request $request, MediaItem $mediaItem): JsonResponse
-    {
-        $this->authorizeMedia($request, $mediaItem);
-
-        $data = $request->validate([
-            'type' => ['required', 'in:quiz,test,exam'],
-        ]);
-
-        if (! $mediaItem->isAnalysisReady()) {
-            return response()->json([
-                'message' => 'Media analysis is not ready yet. Wait for analysis to complete or retry processing.',
-                'data' => ['analysis_status' => $mediaItem->analysis_status],
-            ], 422);
-        }
-
-        $assessment = $this->assessmentGenerator->generate($mediaItem, $data['type']);
-
-        return response()->json(['data' => $assessment], 201);
     }
 
     /**
