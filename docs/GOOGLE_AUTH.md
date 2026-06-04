@@ -52,7 +52,13 @@ Sau khi sửa `.env`:
 cd backend && ./vendor/bin/sail artisan config:clear
 ```
 
-## 3. Chrome Extension
+## 3. Flutter Mobile
+
+App dùng redirect `flc://oauth-callback` (đã allow trên backend). Cấu hình deep link Android/iOS: [mobile/README.md](../mobile/README.md).
+
+Luồng giống extension: mở `/api/auth/google/redirect?redirect_uri=flc://oauth-callback` → Google → callback backend → redirect về app kèm `?token=...`.
+
+## 4. Chrome Extension
 
 Extension dùng `chrome.identity.launchWebAuthFlow` — **không** cần thêm redirect URI của extension vào Google Console (Chrome tự xử lý `https://<extension-id>.chromiumapp.org/`).
 
@@ -60,7 +66,7 @@ Cần permission `identity` trong manifest (đã có).
 
 Reload extension sau `npm run build`.
 
-## 4. Luồng đăng nhập
+## 5. Luồng đăng nhập
 
 1. User bấm **Đăng nhập bằng Google** trong popup
 2. Extension mở OAuth → backend → Google

@@ -115,6 +115,11 @@ class GoogleAuthController extends Controller
             return true;
         }
 
+        // FLC mobile app (Flutter): flc://oauth-callback
+        if ($parsed['scheme'] === 'flc' && ($parsed['host'] ?? '') === 'oauth-callback') {
+            return true;
+        }
+
         if (in_array($host, ['localhost', '127.0.0.1'], true)) {
             return in_array($parsed['scheme'], ['http', 'https'], true);
         }
