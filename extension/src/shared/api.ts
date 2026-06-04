@@ -1,11 +1,5 @@
 import { clearAuth, getAuth, getSettings } from './storage';
-import type {
-  DictionaryResult,
-  ListeningAssessmentSummary,
-  MediaItem,
-  QuizQuestion,
-  Vocabulary,
-} from './types';
+import type { DictionaryResult, MediaItem, QuizQuestion, Vocabulary } from './types';
 
 class ApiError extends Error {
   constructor(
@@ -102,32 +96,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-  },
-
-  getListeningAnalysis(mediaId: number) {
-    return request<{
-      data: {
-        analysis_status: string;
-        analysis_error?: string | null;
-        analyzed_at?: string | null;
-        transcript?: string | null;
-        analysis?: Record<string, unknown> | null;
-        assessments: ListeningAssessmentSummary[];
-      };
-    }>(`/listening/media/${mediaId}/analysis`);
-  },
-
-  listListeningAssessments(mediaId: number) {
-    return request<{ data: ListeningAssessmentSummary[] }>(
-      `/listening/media/${mediaId}/assessments`
-    );
-  },
-
-  processListeningMedia(mediaId: number) {
-    return request<{ message?: string; data: { analysis_status: string } }>(
-      `/listening/media/${mediaId}/process`,
-      { method: 'POST' }
-    );
   },
 
   deleteMedia(id: number) {

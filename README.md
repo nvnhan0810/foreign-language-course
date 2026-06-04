@@ -1,6 +1,6 @@
 # FLC — Foreign Language Companion
 
-Chrome Extension + Laravel API để học tiếng Anh: tra từ Anh–Anh, lưu từ vựng, quản lý link nghe (audio/YouTube), quiz và nhắc ôn tập.
+Chrome Extension + Flutter mobile + Laravel API để học tiếng Anh: tra từ Anh–Anh, lưu từ vựng, quản lý link nghe (audio/YouTube), quiz và nhắc ôn tập.
 
 Kế hoạch chi tiết: [docs/PLAN.md](docs/PLAN.md)
 
@@ -11,11 +11,13 @@ Kế hoạch chi tiết: [docs/PLAN.md](docs/PLAN.md)
 | `docs/` | Tài liệu kế hoạch |
 | `backend/` | Laravel 11 + Sail + PostgreSQL |
 | `extension/` | Chrome Extension MV3 (TypeScript + Vite) |
+| `mobile/` | Flutter app (iOS / Android) |
 
 ## Yêu cầu
 
 - Docker Desktop (cho Laravel Sail)
 - Node.js 18+ (build extension)
+- Flutter 3.16+ (build mobile — xem [mobile/README.md](mobile/README.md))
 
 ## Backend (Laravel Sail)
 
@@ -83,6 +85,18 @@ Load unpacked trong Chrome:
 - **Nghe lại**: nhắc các media đến hạn `next_listen_at`
 
 Cho phép notification cho extension trong Chrome.
+
+## Flutter Mobile
+
+```bash
+cd mobile
+cp .env.example .env
+flutter create . --org com.nvnhan0810 --project-name flc_mobile
+flutter pub get
+flutter run
+```
+
+Chi tiết OAuth deep link, YouTube/MP3, listening quiz: [mobile/README.md](mobile/README.md)
 
 ## Phát triển
 

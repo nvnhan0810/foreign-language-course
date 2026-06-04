@@ -27,6 +27,8 @@
    APP_URL=http://localhost:8080
    ```
 
+   **Lưu ý:** Luồng mobile/extension luôn dùng callback `/api/auth/google/callback` (hard-code trong `GoogleAuthController`). Admin dùng `/admin/auth/google/callback` riêng. Trong Google Console phải đăng ký **cả hai** redirect URI; nếu chỉ có admin, sau Google sẽ vào dashboard admin thay vì `flc://oauth-callback`.
+
 ## 2. Email allowlist
 
 Trong `backend/.env`:
