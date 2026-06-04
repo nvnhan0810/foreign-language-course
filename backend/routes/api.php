@@ -6,7 +6,9 @@ use App\Http\Controllers\Api\DictionaryController;
 use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\ListeningAssessmentController;
 use App\Http\Controllers\Api\ListeningMediaController;
+use App\Http\Controllers\Api\DevicePushTokenController;
 use App\Http\Controllers\Api\MediaItemController;
+use App\Http\Controllers\Api\NotificationSettingsController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\SyncController;
@@ -22,6 +24,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/profile', [ProfileController::class, 'show']);
+
+    Route::post('/me/push-token', [DevicePushTokenController::class, 'store']);
+    Route::delete('/me/push-token', [DevicePushTokenController::class, 'destroy']);
+    Route::get('/me/notification-settings', [NotificationSettingsController::class, 'show']);
+    Route::put('/me/notification-settings', [NotificationSettingsController::class, 'update']);
 
     Route::get('/dictionary/{word}', [DictionaryController::class, 'show']);
 

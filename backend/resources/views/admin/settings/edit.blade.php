@@ -22,6 +22,15 @@
 
         <div class="form-group checkbox">
             <label>
+                <input type="hidden" name="vocab_quiz_push_enabled" value="0">
+                <input type="checkbox" name="vocab_quiz_push_enabled" value="1" {{ old('vocab_quiz_push_enabled', $vocab_quiz_push_enabled) ? 'checked' : '' }}>
+                Bật nhắc quiz từ vựng (FCM) — 11:00 & 20:00 (Asia/Ho_Chi_Minh)
+            </label>
+            <p class="muted">Gửi push nếu user chưa ôn đủ: trưa (0 lần), tối (≤1 lần trong ngày).</p>
+        </div>
+
+        <div class="form-group checkbox">
+            <label>
                 <input type="hidden" name="allow_all_emails" value="0">
                 <input type="checkbox" name="allow_all_emails" value="1" {{ old('allow_all_emails', $allow_all_emails) ? 'checked' : '' }}>
                 Cho phép mọi email Google đăng nhập (ghi đè allowlist)

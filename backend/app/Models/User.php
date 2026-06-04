@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -27,6 +28,21 @@ class User extends Authenticatable
     public function mediaItems(): HasMany
     {
         return $this->hasMany(MediaItem::class);
+    }
+
+    public function pushTokens(): HasMany
+    {
+        return $this->hasMany(DevicePushToken::class);
+    }
+
+    public function notificationPreference(): HasOne
+    {
+        return $this->hasOne(UserNotificationPreference::class);
+    }
+
+    public function quizAttempts(): HasMany
+    {
+        return $this->hasMany(QuizAttempt::class);
     }
 
     /**

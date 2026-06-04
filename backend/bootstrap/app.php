@@ -22,4 +22,13 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
-    })->create();
+    })
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
+        $schedule->command('flc:vocab-quiz-reminders midday')
+            ->timezone('Asia/Ho_Chi_Minh')
+            ->dailyAt('11:00');
+        $schedule->command('flc:vocab-quiz-reminders evening')
+            ->timezone('Asia/Ho_Chi_Minh')
+            ->dailyAt('20:00');
+    })
+    ->create();

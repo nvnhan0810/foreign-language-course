@@ -13,6 +13,12 @@ class AppConfigController extends Controller
         return response()->json([
             'app_name' => $settings->get('app_name', 'FLC'),
             'extension_notice' => $settings->get('extension_notice', ''),
+            'vocab_quiz_push_enabled' => $settings->getBool('vocab_quiz_push_enabled', true),
+            'vocab_quiz_reminder_schedule' => [
+                'timezone' => 'Asia/Ho_Chi_Minh',
+                'midday' => '11:00',
+                'evening' => '20:00',
+            ],
         ]);
     }
 }
