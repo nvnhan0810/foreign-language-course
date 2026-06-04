@@ -23,14 +23,9 @@ class ProfileController extends Controller
             ->where('user_id', $user->id)
             ->avg('percentage');
 
-        $vocabStats = QuizAttempt::query()
-            ->where('user_id', $user->id)
-            ->selectRaw('SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END) as correct_count')
-            ->selectRaw('COUNT(*) as total_count')
-            ->first();
-
-        $vocabCorrect = (int) ($vocabStats->correct_count ?? 0);
-        $vocabTotal = (int) ($vocabStats->total_count ?? 0);
+        $vocabBase = QuizAttempt::query()->where('user_id', $user->id);
+        $vocabCorrect = (int) (clone $vocabBase)->where('correct', true)->count();
+        $vocabTotal = (int) (clone $vocabBase)->count();
         $vocabPercent = $vocabTotal > 0 ? round(($vocabCorrect / $vocabTotal) * 100, 1) : null;
 
         $averageScorePercent = $this->averageScorePercent(
@@ -67,14 +62,18 @@ class ProfileController extends Controller
 
         $vocabSessions = QuizAttempt::query()
             ->where('user_id', $userId)
-            ->selectRaw('DATE(created_at) as session_date')
-            ->selectRaw('SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END) as score')
-            ->selectRaw('COUNT(*) as total')
-            ->selectRaw('MAX(created_at) as completed_at')
-            ->groupByRaw('DATE(created_at)')
-            ->orderByDesc('session_date')
-            ->limit(30)
-            ->get();
+            ->orderByDesc('created_at')
+            ->get(['correct', 'created_at'])
+            ->groupBy(fn (QuizAttempt $attempt) => $attempt->created_at->toDateString())
+            ->map(fn ($group, string $sessionDate) => (object) [
+                'session_date' => $sessionDate,
+                'score' => $group->where('correct', true)->count(),
+                'total' => $group->count(),
+                'completed_at' => $group->max('created_at'),
+            ])
+            ->sortByDesc('session_date')
+            ->take(30)
+            ->values();
 
         $items = new Collection;
 
