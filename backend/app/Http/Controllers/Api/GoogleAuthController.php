@@ -19,7 +19,8 @@ class GoogleAuthController extends Controller
     public function redirect(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'redirect_uri' => ['required', 'url', 'max:2048'],
+            // Custom schemes (flc://, chromiumapp.org) are not valid for the `url` rule.
+            'redirect_uri' => ['required', 'string', 'max:2048'],
         ]);
 
         if (! $this->isValidExtensionRedirect($data['redirect_uri'])) {
@@ -33,6 +34,7 @@ class GoogleAuthController extends Controller
 
         return Socialite::driver('google')
             ->stateless()
+            ->redirectUrl($this->apiGoogleCallbackUrl())
             ->with(['state' => $state])
             ->redirect();
     }
@@ -52,7 +54,10 @@ class GoogleAuthController extends Controller
         $redirectUri = $payload['redirect_uri'];
 
         try {
-            $googleUser = Socialite::driver('google')->stateless()->user();
+            $googleUser = Socialite::driver('google')
+                ->stateless()
+                ->redirectUrl($this->apiGoogleCallbackUrl())
+                ->user();
         } catch (\Throwable) {
             return $this->redirectWithError($redirectUri, 'Đăng nhập Google thất bại.');
         }
@@ -99,6 +104,12 @@ class GoogleAuthController extends Controller
     private function stateKey(string $state): string
     {
         return 'flc_oauth_state:'.$state;
+    }
+
+    /** Google OAuth callback for mobile app + Chrome extension (not admin). */
+    private function apiGoogleCallbackUrl(): string
+    {
+        return url('/api/auth/google/callback');
     }
 
     private function isValidExtensionRedirect(string $uri): bool
