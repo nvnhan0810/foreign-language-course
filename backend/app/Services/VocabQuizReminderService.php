@@ -73,8 +73,7 @@ class VocabQuizReminderService
     private function eligibleUsers(): Collection
     {
         return User::query()
-            ->withCount('vocabularies')
-            ->having('vocabularies_count', '>=', 4)
+            ->has('vocabularies', '>=', 4)
             ->whereHas('pushTokens')
             ->with(['pushTokens', 'notificationPreference'])
             ->get()
