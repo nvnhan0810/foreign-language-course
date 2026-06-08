@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e113a4312d0ba45ebd65f2d1c9162144",
+    "content-hash": "99e38ff96d7535f4a4128e549622ab5f",
     "packages": [
         {
             "name": "brick/math",
@@ -2755,7 +2755,7 @@
         },
         {
             "name": "nvnhan0810/laravel-telegram-logging",
-            "version": "dev-main",
+            "version": "v1.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nvnhan0810/laravel-telegram-logging.git",
@@ -2779,7 +2779,6 @@
                 "orchestra/testbench": "^10.0|^11.0",
                 "phpunit/phpunit": "^11.0|^12.0"
             },
-            "default-branch": true,
             "type": "library",
             "extra": {
                 "laravel": {
@@ -2793,11 +2792,7 @@
                     "Nvnhan0810\\TelegramLogging\\": "src/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "Nvnhan0810\\TelegramLogging\\Tests\\": "tests/"
-                }
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -2808,8 +2803,8 @@
             ],
             "description": "Laravel log channel — send warnings/errors to Telegram with optional queue and message templates.",
             "support": {
-                "source": "https://github.com/nvnhan0810/laravel-telegram-logging/tree/main",
-                "issues": "https://github.com/nvnhan0810/laravel-telegram-logging/issues"
+                "issues": "https://github.com/nvnhan0810/laravel-telegram-logging/issues",
+                "source": "https://github.com/nvnhan0810/laravel-telegram-logging/tree/v1.0.0"
             },
             "time": "2026-06-08T15:22:06+00:00"
         },
@@ -8988,9 +8983,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "nvnhan0810/laravel-telegram-logging": 20
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
