@@ -1,6 +1,19 @@
 # Telegram log alerts
 
-Gửi log **warning**, **error**, **critical** (và cao hơn) lên Telegram khi hệ thống ghi log qua Laravel `Log` facade hoặc exception handler.
+Gửi log **warning**, **error**, **critical** (và cao hơn) lên Telegram qua package [`nvnhan0810/laravel-telegram-logging`](https://github.com/nvnhan0810/laravel-telegram-logging).
+
+## Cài package (FLC backend)
+
+Repo GitHub (chưa tag Packagist) — đã khai báo trong `backend/composer.json`:
+
+```bash
+cd backend
+composer update nvnhan0810/laravel-telegram-logging
+```
+
+Require hiện tại: `"nvnhan0810/laravel-telegram-logging": "dev-main"` (VCS → `main`).
+
+Sau khi publish tag (vd. `v1.0.0`), có thể đổi thành `"^1.0"` và bỏ block `repositories` nếu đăng lên Packagist.
 
 ## Cấu hình bot
 
@@ -14,20 +27,50 @@ Gửi log **warning**, **error**, **critical** (và cao hơn) lên Telegram khi 
 ```env
 TELEGRAM_BOT_TOKEN=123456:ABC...
 TELEGRAM_CHAT_ID=123456789
-TELEGRAM_ALERTS_ENABLED=true
+TELEGRAM_LOG_ENABLED=true
+TELEGRAM_LOG_LEVEL=warning
 LOG_STACK=daily,telegram
-LOG_TELEGRAM_LEVEL=warning
 ```
 
-`LOG_TELEGRAM_LEVEL=warning` → gửi warning, error, critical, alert, emergency (không gửi info/debug).
+`TELEGRAM_LOG_LEVEL=warning` → gửi warning, error, critical, alert, emergency (không gửi info/debug).
+
+## Queue (không block request)
+
+```env
+TELEGRAM_LOG_QUEUE=true
+# TELEGRAM_LOG_QUEUE_CONNECTION=redis
+# TELEGRAM_LOG_QUEUE_NAME=default
+```
+
+Cần chạy worker: `php artisan queue:work`.
+
+## Tuỳ chỉnh template message
+
+Publish config:
+
+```bash
+php artisan vendor:publish --tag=telegram-logging-config
+```
+
+Chỉnh `config/telegram-logging.php` → `template`. Placeholders:
+
+| Placeholder | Giá trị |
+|-------------|---------|
+| `{%emoji%}` | Emoji theo level |
+| `{%level%}` | `WARNING`, `ERROR`, … |
+| `{%message%}` | Nội dung log |
+| `{%context_block%}` | `<pre>JSON context</pre>` hoặc rỗng |
+| `{%app_name%}` | `config('app.name')` |
+| `{%app_env%}` | `config('app.env')` |
+| `{%config:app.url%}` | Bất kỳ `config('…')` |
 
 ## Kiểm tra
 
 ```bash
-php artisan flc:telegram-test
+php artisan telegram-log:test
 ```
 
-Hoặc kích hoạt log thử:
+Hoặc:
 
 ```bash
 php artisan tinker
@@ -36,15 +79,15 @@ php artisan tinker
 
 ## Cách hoạt động
 
-- Kênh `telegram` trong `config/logging.php` (Monolog custom handler).
-- `LOG_STACK` mặc định gợi ý: `single,telegram` (local) hoặc `daily,telegram` (production).
-- Nếu **không** đặt token/chat id → handler no-op (không lỗi).
-- **Dedupe** 60s: cùng level + message không gửi lặp (tránh spam cron/queue).
+- Kênh `telegram` trong `config/logging.php` dùng driver `telegram-logging`.
+- `LOG_STACK` gợi ý: `single,telegram` (local) hoặc `daily,telegram` (production).
+- Không đặt token/chat id → handler no-op (không lỗi).
+- **Dedupe** mặc định 60s: cùng level + message không gửi lặp.
 
 ## Tắt tạm
 
 ```env
-TELEGRAM_ALERTS_ENABLED=false
+TELEGRAM_LOG_ENABLED=false
 ```
 
 Hoặc bỏ `telegram` khỏi `LOG_STACK`:
@@ -57,4 +100,4 @@ LOG_STACK=daily
 
 - Cần PHP **curl** (Http facade) ra internet tới `api.telegram.org`.
 - Exception không bắt vẫn được Laravel log → Telegram nếu level đủ cao.
-- Không gửi secret từ `.env` trong message; context JSON có thể bị cắt 800 ký tự.
+- Không gửi secret từ `.env` trong message; context JSON có thể bị cắt (mặc định 800 ký tự).
