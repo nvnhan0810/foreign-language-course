@@ -1,19 +1,21 @@
 # Telegram log alerts
 
-Gửi log **warning**, **error**, **critical** (và cao hơn) lên Telegram qua package [`nvnhan0810/laravel-telegram-logging`](https://github.com/nvnhan0810/laravel-telegram-logging).
+Gửi log **warning**, **error**, **critical** (và cao hơn) lên Telegram qua package [`nvnhan0810/laravel-telegram-logging`](https://packagist.org/packages/nvnhan0810/laravel-telegram-logging) (v1.0.0+).
 
 ## Cài package (FLC backend)
 
-Repo GitHub (chưa tag Packagist) — đã khai báo trong `backend/composer.json`:
+Đã khai báo trong `backend/composer.json`: `"nvnhan0810/laravel-telegram-logging": "^1.0"`.
 
 ```bash
 cd backend
 composer update nvnhan0810/laravel-telegram-logging
 ```
 
-Require hiện tại: `"nvnhan0810/laravel-telegram-logging": "dev-main"` (VCS → `main`).
+Hoặc cài mới:
 
-Sau khi publish tag (vd. `v1.0.0`), có thể đổi thành `"^1.0"` và bỏ block `repositories` nếu đăng lên Packagist.
+```bash
+composer require nvnhan0810/laravel-telegram-logging:^1.0
+```
 
 ## Cấu hình bot
 
