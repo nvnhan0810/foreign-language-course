@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -24,8 +25,23 @@ class PushNotificationService {
   final Ref _ref;
   final LocalNotificationsService _localNoti = LocalNotificationsService.instance;
   bool _initialized = false;
+  Future<void>? _initFuture;
+  StreamSubscription<String>? _tokenRefreshSub;
 
-  Future<void> initialize(GoRouter router) async {
+  Future<void> initialize(GoRouter router) {
+    if (_initFuture != null) return _initFuture!;
+
+    final future = _doInitialize(router);
+    _initFuture = future;
+    return future.catchError((Object e) {
+      if (identical(_initFuture, future)) {
+        _initFuture = null;
+      }
+      throw e;
+    });
+  }
+
+  Future<void> _doInitialize(GoRouter router) async {
     if (_initialized) return;
 
     if (!isFirebaseConfigured) {
@@ -40,8 +56,15 @@ class PushNotificationService {
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
       final messaging = FirebaseMessaging.instance;
-      // iOS + cross-platform FCM permission dialog.
       await messaging.requestPermission(alert: true, badge: true, sound: true);
+
+      if (Platform.isIOS) {
+        await messaging.setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
 
       FirebaseMessaging.onMessage.listen(_showForegroundNotification);
 
@@ -56,14 +79,20 @@ class PushNotificationService {
         }
       });
 
+      _tokenRefreshSub ??= messaging.onTokenRefresh.listen((_) {
+        unawaited(syncTokenWithBackend());
+      });
+
       final initial = await messaging.getInitialMessage();
       if (initial != null) {
         _pendingRoute = _routeFromMessage(initial);
       }
 
       _initialized = true;
+      debugPrint('Push: FCM initialized.');
     } catch (e, st) {
       debugPrint('Push: Firebase init failed (app continues without FCM): $e\n$st');
+      rethrow;
     }
   }
 
@@ -76,20 +105,53 @@ class PushNotificationService {
   }
 
   Future<void> syncTokenWithBackend() async {
-    if (!_initialized) return;
-
     try {
-      final token = await FirebaseMessaging.instance.getToken();
-      if (token == null || token.isEmpty) return;
+      if (_initFuture != null) {
+        await _initFuture;
+      }
+      if (!_initialized) {
+        debugPrint('Push: sync skipped — FCM not initialized.');
+        return;
+      }
+
+      final loggedIn = await _ref.read(authServiceProvider).isLoggedIn();
+      if (!loggedIn) {
+        debugPrint('Push: sync skipped — not logged in.');
+        return;
+      }
+
+      final token = await _resolveFcmToken();
+      if (token == null || token.isEmpty) {
+        debugPrint('Push: sync skipped — FCM token not available yet (iOS needs real device + push capability).');
+        return;
+      }
 
       final platform = Platform.isIOS ? 'ios' : 'android';
       await _ref.read(flcApiProvider).registerPushToken(token: token, platform: platform);
-    } catch (e) {
-      debugPrint('Push: register token failed: $e');
+      debugPrint('Push: token registered ($platform, ${token.substring(0, 8)}…).');
+    } catch (e, st) {
+      debugPrint('Push: register token failed: $e\n$st');
     }
   }
 
+  Future<String?> _resolveFcmToken() async {
+    final messaging = FirebaseMessaging.instance;
+
+    if (Platform.isIOS) {
+      for (var attempt = 0; attempt < 5; attempt++) {
+        final apns = await messaging.getAPNSToken();
+        if (apns != null) break;
+        await Future<void>.delayed(const Duration(seconds: 1));
+      }
+    }
+
+    return messaging.getToken();
+  }
+
   Future<void> unregisterToken() async {
+    if (_initFuture != null) {
+      await _initFuture;
+    }
     if (!_initialized) return;
 
     try {

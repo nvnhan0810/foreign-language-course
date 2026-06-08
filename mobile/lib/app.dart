@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/core/push/push_notification_service.dart';
 import 'package:flc_mobile/core/theme/app_theme.dart';
@@ -39,9 +41,12 @@ class _FlcAppState extends ConsumerState<FlcApp> {
   Widget build(BuildContext context) {
     ref.listen<AsyncValue<bool>>(authStateProvider, (previous, next) {
       next.whenData((loggedIn) {
-        if (loggedIn) {
-          ref.read(pushNotificationServiceProvider).syncTokenWithBackend();
-        }
+        if (!loggedIn) return;
+        final push = ref.read(pushNotificationServiceProvider);
+        final router = ref.read(routerProvider);
+        unawaited(
+          push.initialize(router).then((_) => push.syncTokenWithBackend()),
+        );
       });
     });
 

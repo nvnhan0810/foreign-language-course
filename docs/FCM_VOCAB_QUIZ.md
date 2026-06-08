@@ -44,7 +44,9 @@ php artisan flc:vocab-quiz-reminders evening
    - Android 13+: app xin `POST_NOTIFICATIONS` qua `flutter_local_notifications` + FCM `requestPermission`.  
    - Foreground: hiển thị local notification (giống `order_mobile_app`).
 4. `fvm flutter pub get` → build/run.
-5. Profile → bật **Nhắc quiz từ vựng** (đăng ký FCM token).
+5. **Đăng nhập** trên thiết bị thật (iOS simulator thường **không** có FCM token). Cho phép thông báo khi app hỏi.  
+6. Profile → bật **Nhắc quiz từ vựng** (đăng ký token lên `device_push_tokens`).  
+7. Kiểm tra DB: `SELECT * FROM device_push_tokens;` — mỗi user/thiết bị một dòng sau khi login.
 
 ## Scheduler trên VPS production
 

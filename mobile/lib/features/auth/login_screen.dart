@@ -1,6 +1,7 @@
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/core/push/push_notification_service.dart';
 import 'package:flc_mobile/core/theme/app_theme.dart';
+import 'package:flc_mobile/router/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,7 +25,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref.read(authServiceProvider).loginWithGoogle();
       ref.invalidate(authStateProvider);
-      await ref.read(pushNotificationServiceProvider).syncTokenWithBackend();
+      final push = ref.read(pushNotificationServiceProvider);
+      await push.initialize(ref.read(routerProvider));
+      await push.syncTokenWithBackend();
       if (mounted) context.go('/home/lookup');
     } catch (e) {
       setState(() => _error = e.toString());

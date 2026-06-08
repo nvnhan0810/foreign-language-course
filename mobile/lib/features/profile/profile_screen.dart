@@ -377,14 +377,15 @@ class _NotificationSettingsCard extends ConsumerWidget {
             value: settings.isActive,
             onChanged: settings.globalVocabQuizPushEnabled
                 ? (value) async {
+                    final router = GoRouter.of(context);
                     await ref.read(flcApiProvider).updateNotificationSettings(
                           vocabQuizPushEnabled: value,
                         );
                     ref.invalidate(notificationSettingsProvider);
                     if (value) {
-                      await ref
-                          .read(pushNotificationServiceProvider)
-                          .syncTokenWithBackend();
+                      final push = ref.read(pushNotificationServiceProvider);
+                      await push.initialize(router);
+                      await push.syncTokenWithBackend();
                     }
                   }
                 : null,
