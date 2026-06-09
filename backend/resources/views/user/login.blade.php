@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập — FLC</title>
+    <link rel="stylesheet" href="{{ asset('css/user.css') }}?v={{ filemtime(public_path('css/user.css')) }}">
+</head>
+<body>
+<div class="user-login-page">
+    <div class="user-login-card">
+        <div class="user-login-icon">🌐</div>
+        <h1>FLC</h1>
+        <p class="subtitle">Foreign Language Companion</p>
+
+        @if (session('error'))
+            <div class="alert alert-error">{{ session('error') }}</div>
+        @endif
+        @if (session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+
+        <a href="{{ route('user.auth.google') }}" class="btn btn-block">
+            Đăng nhập bằng Google
+        </a>
+
+        <p class="muted" style="margin-top:24px;font-size:12px">
+            Email phải nằm trong allowlist. Liên hệ admin nếu chưa có quyền.
+        </p>
+    </div>
+</div>
+</body>
+</html>

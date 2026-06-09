@@ -118,6 +118,10 @@ cp .env.example .env   # nếu chưa có .env
 
 API mặc định: **http://localhost:8080/api**
 
+- Web user (mặc định)
+
+**http://localhost:8080** — tra từ, từ vựng, nghe, quiz, hồ sơ (đăng nhập Google riêng).
+
 - Trang Admin
 
 **http://localhost:8080/admin** — allowlist, cài đặt, users, từ vựng, media.

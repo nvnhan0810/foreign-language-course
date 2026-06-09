@@ -8,9 +8,54 @@ use App\Http\Controllers\Admin\MediaItemController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VocabularyController;
+use App\Http\Controllers\Web\ListeningController;
+use App\Http\Controllers\Web\LookupController;
+use App\Http\Controllers\Web\MediaController;
+use App\Http\Controllers\Web\ProfileController;
+use App\Http\Controllers\Web\QuizController;
+use App\Http\Controllers\Web\UserAuthController;
+use App\Http\Controllers\Web\VocabularyController as WebVocabularyController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route('admin.login'));
+Route::get('/', function () {
+    if (Auth::check()) {
+        return redirect()->route('user.home.lookup');
+    }
+
+    return redirect()->route('user.login');
+});
+
+Route::name('user.')->group(function () {
+    Route::get('login', [UserAuthController::class, 'showLogin'])->name('login');
+    Route::get('auth/google', [UserAuthController::class, 'redirectGoogle'])->name('auth.google');
+    Route::get('auth/google/callback', [UserAuthController::class, 'callbackGoogle'])->name('auth.google.callback');
+
+    Route::middleware('auth')->group(function () {
+        Route::post('logout', [UserAuthController::class, 'logout'])->name('logout');
+
+        Route::prefix('home')->name('home.')->group(function () {
+            Route::get('lookup', [LookupController::class, 'index'])->name('lookup');
+            Route::post('lookup', [LookupController::class, 'lookup'])->name('lookup.search');
+            Route::post('lookup/save', [LookupController::class, 'save'])->name('lookup.save');
+
+            Route::get('vocab', [WebVocabularyController::class, 'index'])->name('vocab');
+            Route::delete('vocab/{vocabulary}', [WebVocabularyController::class, 'destroy'])->name('vocab.destroy');
+
+            Route::get('media', [MediaController::class, 'index'])->name('media');
+            Route::get('media/{mediaItem}', [MediaController::class, 'show'])->name('media.show');
+
+            Route::get('quiz', [QuizController::class, 'index'])->name('quiz');
+            Route::post('quiz/next', [QuizController::class, 'next'])->name('quiz.next');
+            Route::post('quiz/answer', [QuizController::class, 'answer'])->name('quiz.answer');
+
+            Route::get('profile', [ProfileController::class, 'show'])->name('profile');
+        });
+
+        Route::get('listening/{listeningAssessment}', [ListeningController::class, 'show'])->name('listening.show');
+        Route::post('listening/{listeningAssessment}/submit', [ListeningController::class, 'submit'])->name('listening.submit');
+    });
+});
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('login', [AdminAuthController::class, 'showLogin'])->name('login');
