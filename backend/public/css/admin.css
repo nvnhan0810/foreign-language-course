@@ -326,6 +326,69 @@ th {
   font-weight: 600;
 }
 
+.answers-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.answers-panel-header h3 {
+  margin-bottom: 0;
+}
+
+.answer-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.answer-toggle-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.answer-toggle-btn .icon-eye-hide {
+  display: none;
+}
+
+.answer-toggle-btn.is-revealed .icon-eye-show {
+  display: none;
+}
+
+.answer-toggle-btn.is-revealed .icon-eye-hide {
+  display: block;
+}
+
+.answers-panel.answers-hidden .answer-reveal {
+  display: none;
+}
+
+.answers-panel.answers-hidden .answer-mask {
+  display: inline;
+  letter-spacing: 2px;
+  color: #94a3b8;
+  user-select: none;
+}
+
+.answers-panel:not(.answers-hidden) .answer-mask {
+  display: none;
+}
+
+.answers-panel.answers-hidden .options-list .correct {
+  color: inherit;
+  font-weight: inherit;
+}
+
 .text-danger {
   color: var(--danger);
 }
