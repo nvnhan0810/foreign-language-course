@@ -321,7 +321,7 @@ th {
   font-size: 13px;
 }
 
-.options-list .correct {
+.options-list li[data-correct="1"] {
   color: var(--success);
   font-weight: 600;
 }
@@ -357,36 +357,52 @@ th {
   border-color: #cbd5e1;
 }
 
-.answer-toggle-btn .icon-eye-hide {
-  display: none;
+.answers-panel.answers-hidden .answer-toggle-btn .icon-eye-hide {
+  display: none !important;
 }
 
-.answer-toggle-btn.is-revealed .icon-eye-show {
-  display: none;
+.answers-panel.answers-hidden .answer-toggle-btn .icon-eye-show {
+  display: inline-block !important;
 }
 
-.answer-toggle-btn.is-revealed .icon-eye-hide {
+.answers-panel:not(.answers-hidden) .answer-toggle-btn .icon-eye-show {
+  display: none !important;
+}
+
+.answers-panel:not(.answers-hidden) .answer-toggle-btn .icon-eye-hide {
+  display: inline-block !important;
+}
+
+.answer-block {
+  position: relative;
   display: block;
+  min-width: 4rem;
+  min-height: 1.25rem;
 }
 
-.answers-panel.answers-hidden .answer-reveal {
-  display: none;
+.answer-block .answer-text {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.answers-panel.answers-hidden .answer-mask {
-  display: inline;
-  letter-spacing: 2px;
+.answers-panel.answers-hidden .answer-block .answer-text {
+  visibility: hidden;
+}
+
+.answers-panel.answers-hidden .answer-block::after {
+  content: '••••••';
+  position: absolute;
+  inset: 0;
   color: #94a3b8;
+  letter-spacing: 2px;
   user-select: none;
+  pointer-events: none;
 }
 
-.answers-panel:not(.answers-hidden) .answer-mask {
-  display: none;
-}
-
-.answers-panel.answers-hidden .options-list .correct {
-  color: inherit;
-  font-weight: inherit;
+.answers-panel.answers-hidden .options-list li[data-correct="1"] {
+  color: var(--text);
+  font-weight: 400;
 }
 
 .text-danger {

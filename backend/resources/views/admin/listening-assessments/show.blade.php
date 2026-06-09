@@ -109,18 +109,20 @@
                         @if ($q->options)
                             <ul class="options-list">
                                 @foreach ($q->options as $opt)
-                                    <li @if($opt === $q->correct_answer) class="correct" @endif>{{ $opt }}</li>
+                                    <li @if($opt === $q->correct_answer) data-correct="1" @endif>{{ $opt }}</li>
                                 @endforeach
                             </ul>
                         @endif
                     </td>
                     <td class="answer-cell">
-                        <span class="answer-mask" aria-hidden="true">••••••</span>
-                        <span class="answer-reveal"><strong>{{ $q->correct_answer }}</strong></span>
+                        <div class="answer-block">
+                            <span class="answer-text"><strong>{{ $q->correct_answer }}</strong></span>
+                        </div>
                     </td>
-                    <td class="answer-cell muted">
-                        <span class="answer-mask" aria-hidden="true">••••••</span>
-                        <span class="answer-reveal">{{ Str::limit($q->explanation, 80) }}</span>
+                    <td class="answer-cell">
+                        <div class="answer-block">
+                            <span class="answer-text muted">{{ $q->explanation }}</span>
+                        </div>
                     </td>
                 </tr>
             @endforeach
@@ -142,7 +144,6 @@ document.querySelectorAll('[data-answer-toggle]').forEach(function (btn) {
         if (!panel) return;
 
         var hidden = panel.classList.toggle('answers-hidden');
-        btn.classList.toggle('is-revealed', !hidden);
         btn.setAttribute('aria-pressed', hidden ? 'false' : 'true');
         btn.setAttribute('title', hidden ? 'Hiện đáp án' : 'Ẩn đáp án');
 
