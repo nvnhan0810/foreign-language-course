@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:flc_mobile/core/providers/app_providers.dart';
-import 'package:flc_mobile/core/push/push_notification_service.dart';
 import 'package:flc_mobile/models/flc_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -83,7 +84,8 @@ class _ProfileContent extends StatelessWidget {
           expandedHeight: 200,
           pinned: true,
           flexibleSpace: FlexibleSpaceBar(
-            background: Container(
+            background: IgnorePointer(
+              child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
@@ -129,22 +131,13 @@ class _ProfileContent extends StatelessWidget {
                 ],
               ),
             ),
+            ),
           ),
           actions: [
             IconButton(
               icon: const Icon(Icons.logout),
-              onPressed: () async {
-                try {
-                  await ref.read(pushNotificationServiceProvider).unregisterToken();
-                } catch (_) {}
-                try {
-                  await ref.read(flcApiProvider).logout();
-                } catch (_) {}
-                await ref.read(authServiceProvider).logout();
-                ref.invalidate(authStateProvider);
-                ref.invalidate(profileProvider);
-                if (context.mounted) context.go('/login');
-              },
+              tooltip: 'Đăng xuất',
+              onPressed: () => _logout(context),
             ),
           ],
         ),
@@ -224,6 +217,22 @@ class _ProfileContent extends StatelessWidget {
         const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
     );
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    unawaited(
+      ref.read(fcmTokenRegistrarProvider).unregister().catchError((_) {}),
+    );
+    unawaited(ref.read(flcApiProvider).logout().catchError((_) {}));
+
+    await ref.read(authServiceProvider).logout();
+    ref.invalidate(authStateProvider);
+    ref.invalidate(profileProvider);
+    await ref.read(authStateProvider.future);
+
+    if (context.mounted) {
+      context.go('/login');
+    }
   }
 }
 
@@ -377,15 +386,12 @@ class _NotificationSettingsCard extends ConsumerWidget {
             value: settings.isActive,
             onChanged: settings.globalVocabQuizPushEnabled
                 ? (value) async {
-                    final router = GoRouter.of(context);
                     await ref.read(flcApiProvider).updateNotificationSettings(
                           vocabQuizPushEnabled: value,
                         );
                     ref.invalidate(notificationSettingsProvider);
                     if (value) {
-                      final push = ref.read(pushNotificationServiceProvider);
-                      await push.initialize(router);
-                      await push.syncTokenWithBackend();
+                      await ref.read(fcmTokenRegistrarProvider).registerIfLoggedIn();
                     }
                   }
                 : null,

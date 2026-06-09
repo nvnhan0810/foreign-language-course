@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flc_mobile/core/providers/app_providers.dart';
-import 'package:flc_mobile/core/push/push_notification_service.dart';
 import 'package:flc_mobile/core/theme/app_theme.dart';
+import 'package:flc_mobile/init_dependencies.dart';
 import 'package:flc_mobile/router/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,26 +14,29 @@ class FlcApp extends ConsumerStatefulWidget {
   ConsumerState<FlcApp> createState() => _FlcAppState();
 }
 
-class _FlcAppState extends ConsumerState<FlcApp> {
+class _FlcAppState extends ConsumerState<FlcApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _setupPush());
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      appFcmRedirectCoordinator.start(ref.read(routerProvider));
+    });
   }
 
-  Future<void> _setupPush() async {
-    try {
-      final router = ref.read(routerProvider);
-      final push = ref.read(pushNotificationServiceProvider);
-      await push.initialize(router);
-      push.applyPendingNavigation(router);
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
-      final loggedIn = await ref.read(authServiceProvider).isLoggedIn();
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final loggedIn = ref.read(authStateProvider).valueOrNull ?? false;
       if (loggedIn) {
-        await push.syncTokenWithBackend();
+        unawaited(appFcmTokenRegistrar.registerIfLoggedIn());
       }
-    } catch (e, st) {
-      debugPrint('Push setup failed: $e\n$st');
     }
   }
 
@@ -42,11 +45,7 @@ class _FlcAppState extends ConsumerState<FlcApp> {
     ref.listen<AsyncValue<bool>>(authStateProvider, (previous, next) {
       next.whenData((loggedIn) {
         if (!loggedIn) return;
-        final push = ref.read(pushNotificationServiceProvider);
-        final router = ref.read(routerProvider);
-        unawaited(
-          push.initialize(router).then((_) => push.syncTokenWithBackend()),
-        );
+        unawaited(appFcmTokenRegistrar.registerIfLoggedIn());
       });
     });
 

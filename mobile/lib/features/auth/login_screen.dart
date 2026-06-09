@@ -1,7 +1,5 @@
 import 'package:flc_mobile/core/providers/app_providers.dart';
-import 'package:flc_mobile/core/push/push_notification_service.dart';
 import 'package:flc_mobile/core/theme/app_theme.dart';
-import 'package:flc_mobile/router/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,9 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref.read(authServiceProvider).loginWithGoogle();
       ref.invalidate(authStateProvider);
-      final push = ref.read(pushNotificationServiceProvider);
-      await push.initialize(ref.read(routerProvider));
-      await push.syncTokenWithBackend();
+      await ref.read(fcmTokenRegistrarProvider).registerIfLoggedIn();
       if (mounted) context.go('/home/lookup');
     } catch (e) {
       setState(() => _error = e.toString());
@@ -91,26 +87,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 48),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.white70),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Đăng nhập bằng Google\n(email phải có trong allowlist)',
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
                 if (_error != null)
                   Container(
                     padding: const EdgeInsets.all(12),

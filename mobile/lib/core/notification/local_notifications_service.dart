@@ -27,7 +27,12 @@ class LocalNotificationsService {
     if (_ready) return;
 
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const darwinInit = DarwinInitializationSettings();
+    // Permissions are requested by FCM; avoid duplicate iOS permission prompts.
+    const darwinInit = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
 
     await _plugin.initialize(
       const InitializationSettings(android: androidInit, iOS: darwinInit),
