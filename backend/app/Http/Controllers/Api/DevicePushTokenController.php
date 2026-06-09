@@ -16,9 +16,17 @@ class DevicePushTokenController extends Controller
             'platform' => ['required', 'in:ios,android'],
         ]);
 
+        $userId = $request->user()->id;
+
+        // One FCM token belongs to one device — reassign if another account had it.
+        DevicePushToken::query()
+            ->where('token', $data['token'])
+            ->where('user_id', '!=', $userId)
+            ->delete();
+
         DevicePushToken::query()->updateOrCreate(
             [
-                'user_id' => $request->user()->id,
+                'user_id' => $userId,
                 'token' => $data['token'],
             ],
             ['platform' => $data['platform']],
