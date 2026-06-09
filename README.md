@@ -1,23 +1,110 @@
 # FLC — Foreign Language Companion
 
-Chrome Extension + Flutter mobile + Laravel API để học tiếng Anh: tra từ Anh–Anh, lưu từ vựng, quản lý link nghe (audio/YouTube), quiz và nhắc ôn tập.
+<p align="center">
+  <img src="docs/images/app-icon.png" alt="FLC app icon" width="120" />
+</p>
 
-Kế hoạch chi tiết: [docs/PLAN.md](docs/PLAN.md)
+Chrome Extension + Flutter mobile + Laravel API để học tiếng Anh: tra từ Anh–Anh, lưu từ vựng, luyện nghe, quiz và nhắc ôn tập. **Một tài khoản** — dữ liệu đồng bộ giữa extension và app.
 
-## Cấu trúc
+---
+
+## Flow học tiếng Anh
+
+FLC xoay quanh vòng lặp **gặp từ → hiểu nghĩa → lưu lại → nghe → ôn bằng quiz**. Extension và mobile **bổ sung cho nhau**.
+
+```mermaid
+flowchart LR
+  A[Gặp từ tiếng Anh] --> B[Tra Anh–Anh]
+  B --> C[Lưu từ vựng]
+  C --> D[Luyện nghe]
+  D --> E[Quiz ôn tập]
+  E --> C
+```
+
+| Bước | Chrome extension | Mobile app |
+|------|------------------|------------|
+| **Tra từ** | Bôi đen → **Tra từ với FLC**, hoặc popup tab Tra từ | Tab **Tra từ** |
+| **Lưu từ** | Tab **Từ của tôi** | Tab **Từ vựng** (đồng bộ) |
+| **Nghe** | Thêm link YouTube/audio, nhắc nghe lại | Tab **Nghe** — YouTube/MP3, listening quiz |
+| **Quiz** | Tab **Quiz**, notification Chrome | Tab **Quiz**, push FCM 11h & 20h |
+| **Tiến độ** | Options / sync | Tab **Cá nhân** — thống kê, lịch sử |
+
+> Tra **từ điển Anh–Anh**, không dịch Việt. Cần **≥ 4 từ** để làm quiz từ vựng.
+
+### Nên dùng extension hay app?
+
+| Tình huống | Gợi ý |
+|------------|--------|
+| Đọc web, docs, forum trên Chrome | **Extension** |
+| Học trên điện thoại, nhận push nhắc quiz | **Mobile app** |
+| Tự thêm link YouTube nghe lại | **Extension** |
+| Bài nghe + listening quiz từ admin | **Mobile app** |
+
+---
+
+## Hình ảnh — Chrome Extension
+
+### Tra từ trên trang web
+
+Bôi đen từ → chuột phải **Tra từ với FLC**.
+
+<p align="center">
+  <img src="docs/images/extension-context-menu.png" alt="Extension — tra từ trên trang web" width="520" />
+</p>
+
+### Popup extension
+
+<p align="center">
+  <img src="docs/images/extension-popup-lookup.png" alt="Extension popup — tra từ" width="320" />
+  &nbsp;&nbsp;
+  <img src="docs/images/extension-quiz.png" alt="Extension popup — quiz" width="320" />
+</p>
+
+---
+
+## Hình ảnh — Mobile App
+
+<p align="center">
+  <img src="docs/images/login-screen.png" alt="Mobile — đăng nhập" width="200" />
+  <img src="docs/images/lookup-screen.png" alt="Mobile — tra từ" width="200" />
+  <img src="docs/images/mobile-vocab.png" alt="Mobile — từ vựng" width="200" />
+</p>
+
+<p align="center">
+  <img src="docs/images/mobile-media.png" alt="Mobile — nghe" width="200" />
+  <img src="docs/images/quiz-screen.png" alt="Mobile — quiz" width="200" />
+  <img src="docs/images/mobile-profile.png" alt="Mobile — cá nhân" width="200" />
+</p>
+
+---
+
+## Tech stack
+
+| Thành phần | Công nghệ |
+|------------|------------|
+| **Backend** | Laravel · PostgreSQL · Sanctum |
+| **Extension** | Chrome MV3 · TypeScript · Vite |
+| **Mobile** | Flutter · Riverpod · Firebase Cloud Messaging |
+| **Dictionary** | [Free Dictionary API](https://dictionaryapi.dev/) |
+
+---
+
+## Cấu trúc repo
 
 | Thư mục | Mô tả |
 |---------|--------|
-| `docs/` | Tài liệu kế hoạch |
-| `backend/` | Laravel 11 + Sail + PostgreSQL |
-| `extension/` | Chrome Extension MV3 (TypeScript + Vite) |
+| `docs/` | Tài liệu + hình minh họa |
+| `backend/` | Laravel API + Admin |
+| `extension/` | Chrome Extension MV3 |
 | `mobile/` | Flutter app (iOS / Android) |
 
-## Yêu cầu
+## Yêu cầu dev
 
-- Docker Desktop (cho Laravel Sail)
-- Node.js 18+ (build extension)
-- Flutter 3.16+ (build mobile — xem [mobile/README.md](mobile/README.md))
+- Docker Desktop (Laravel Sail)
+- Node.js 18+ (extension)
+- Flutter 3.16+ (mobile — [mobile/README.md](mobile/README.md))
+
+---
 
 ## Backend (Laravel Sail)
 
@@ -30,33 +117,14 @@ cp .env.example .env   # nếu chưa có .env
 
 API mặc định: **http://localhost:8080/api**
 
-> Nếu port `5432` hoặc `5173` bị chiếm, chỉnh `FORWARD_DB_PORT` / `VITE_PORT` / `APP_PORT` trong `backend/.env`.
+- Trang Admin
 
-### Trang Admin
+**http://localhost:8080/admin** — allowlist, cài đặt, users, từ vựng, media.
 
-**http://localhost:8080/admin** — quản lý allowlist, cài đặt, users, từ vựng, media.
+-  Đăng nhập Google
+- Push nhắc quiz (mobile): FCM 11:00 & 20:00 giờ VN
 
-Xem [docs/ADMIN.md](docs/ADMIN.md)
-
-### Đăng nhập Google + allowlist email
-
-Xem hướng dẫn chi tiết: [docs/GOOGLE_AUTH.md](docs/GOOGLE_AUTH.md)
-
-```env
-# backend/.env
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-FLC_ALLOWED_EMAILS=you@gmail.com,*@yourcompany.com
-```
-
-### Endpoints chính
-
-- `GET /api/auth/google/redirect`, `GET /api/auth/google/callback`
-- `GET /api/dictionary/{word}`
-- `CRUD /api/vocabularies`
-- `CRUD /api/media-items`, `GET /api/media-items/due`
-- `GET /api/quiz/next`, `POST /api/quiz/attempts`
-- `GET /api/sync`
+---
 
 ## Chrome Extension
 
@@ -66,49 +134,33 @@ npm install
 npm run build
 ```
 
-Load unpacked trong Chrome:
+Load unpacked: `chrome://extensions` → **Load unpacked** → `extension/dist`
 
-1. Mở `chrome://extensions`
-2. Bật **Developer mode**
-3. **Load unpacked** → chọn thư mục `extension/dist`
+1. **Đăng nhập Google** (email trong allowlist)
+2. Tab **Tra từ** — hoặc bôi đen → chuột phải **Tra từ với FLC**
+3. Tab **Media** — thêm link YouTube/audio
+4. **Cài đặt** — API URL, quiz/ngày, nhắc nghe
 
-### Cấu hình lần đầu
+**Notification:** quiz (≥ 4 từ), nhắc media đến hạn nghe lại.
 
-1. Mở extension → **Đăng nhập bằng Google** (email phải nằm trong allowlist)
-2. Tab **Tra từ**: nhập từ hoặc bôi đen trên trang web → chuột phải **Tra từ với FLC**
-3. Tab **Media**: thêm link YouTube/audio, chọn tần suất (ngày/tuần/tháng)
-4. **Cài đặt** (options): API URL, số quiz/ngày, chu kỳ nhắc nghe, bật notification
-
-### Notification
-
-- **Quiz**: cần ≥ 4 từ đã lưu; ưu tiên từ ít được hỏi
-- **Nghe lại**: nhắc các media đến hạn `next_listen_at`
-
-Cho phép notification cho extension trong Chrome.
+---
 
 ## Flutter Mobile
 
 ```bash
 cd mobile
 cp .env.example .env
-flutter create . --org com.nvnhan0810 --project-name flc_mobile
-flutter pub get
-flutter run
+fvm flutter pub get
+fvm flutter run
 ```
 
-Chi tiết OAuth deep link, YouTube/MP3, listening quiz: [mobile/README.md](mobile/README.md)
+Chi tiết OAuth, YouTube/MP3, build release: [mobile/README.md](mobile/README.md)
+
+---
 
 ## Phát triển
 
 ```bash
-# Backend logs
 cd backend && ./vendor/bin/sail logs -f
-
-# Extension watch build
 cd extension && npm run dev
 ```
-
-## Ghi chú
-
-- Dictionary: [Free Dictionary API](https://dictionaryapi.dev/) (cache 7 ngày trên PostgreSQL)
-- Production: cập nhật `host_permissions` trong `extension/manifest.json` và API URL trong Options
