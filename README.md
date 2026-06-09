@@ -72,6 +72,7 @@ Bôi đen từ → chuột phải **Tra từ với FLC**.
 
 <p align="center">
   <img src="docs/images/mobile-media.png" alt="Mobile — nghe" width="200" />
+  <img src="docs/images/mobile-exam.png" alt="Mobile — Kiểm tra nghe" width="200" />
   <img src="docs/images/quiz-screen.png" alt="Mobile — quiz" width="200" />
   <img src="docs/images/mobile-profile.png" alt="Mobile — cá nhân" width="200" />
 </p>

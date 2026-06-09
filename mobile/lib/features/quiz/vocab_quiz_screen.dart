@@ -64,7 +64,7 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

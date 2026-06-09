@@ -220,14 +220,16 @@ class _ProfileContent extends StatelessWidget {
   }
 
   Future<void> _logout(BuildContext context) async {
-    unawaited(
-      ref.read(fcmTokenRegistrarProvider).unregister().catchError((_) {}),
-    );
-    unawaited(ref.read(flcApiProvider).logout().catchError((_) {}));
+    try {
+      await ref.read(fcmTokenRegistrarProvider).unregister();
+    } catch (_) {}
+
+    try {
+      await ref.read(flcApiProvider).logout();
+    } catch (_) {}
 
     await ref.read(authServiceProvider).logout();
     ref.invalidate(authStateProvider);
-    ref.invalidate(profileProvider);
     await ref.read(authStateProvider.future);
 
     if (context.mounted) {

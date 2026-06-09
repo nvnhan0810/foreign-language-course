@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart' as ja;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 class MediaDetailScreen extends ConsumerStatefulWidget {
@@ -68,6 +69,36 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
     });
   }
 
+  String? _youtubeWatchUrl(MediaItem m) {
+    if (m.url.isNotEmpty) return m.url;
+    final id = m.sourceId;
+    if (id != null && id.isNotEmpty) {
+      return 'https://www.youtube.com/watch?v=$id';
+    }
+    return null;
+  }
+
+  Future<void> _openInYoutube(MediaItem m) async {
+    final url = _youtubeWatchUrl(m);
+    if (url == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không tìm thấy link YouTube cho bài này.')),
+      );
+      return;
+    }
+
+    final ok = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không mở được YouTube. Thử lại sau.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final m = _media;
@@ -78,11 +109,21 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                if (m != null && m.isYoutube && _ytController != null)
+                if (m != null && m.isYoutube && _ytController != null) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: YoutubePlayer(controller: _ytController!),
                   ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _openInYoutube(m),
+                      icon: const Icon(Icons.open_in_new),
+                      label: const Text('Mở trên YouTube'),
+                    ),
+                  ),
+                ],
                 if (m != null && !m.isYoutube && _audioPlayer != null) ...[
                   Container(
                     padding: const EdgeInsets.all(16),

@@ -23,6 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref.read(authServiceProvider).loginWithGoogle();
       ref.invalidate(authStateProvider);
+      await ref.read(authStateProvider.future);
       await ref.read(fcmTokenRegistrarProvider).registerIfLoggedIn();
       if (mounted) context.go('/home/lookup');
     } catch (e) {

@@ -22,9 +22,17 @@ final authStateProvider = FutureProvider<bool>((ref) async {
 });
 
 final profileProvider = FutureProvider<UserProfile>((ref) async {
-  return ref.watch(flcApiProvider).getProfile();
+  final loggedIn = await ref.watch(authStateProvider.future);
+  if (!loggedIn) {
+    throw ApiException('Chưa đăng nhập');
+  }
+  return ref.read(flcApiProvider).getProfile();
 });
 
 final notificationSettingsProvider = FutureProvider<NotificationSettings>((ref) async {
-  return ref.watch(flcApiProvider).getNotificationSettings();
+  final loggedIn = await ref.watch(authStateProvider.future);
+  if (!loggedIn) {
+    throw ApiException('Chưa đăng nhập');
+  }
+  return ref.read(flcApiProvider).getNotificationSettings();
 });
