@@ -1,6 +1,7 @@
 import { api, ApiError } from '../shared/api';
 import {
   escapeHtml,
+  bindPronunciationButtons,
   isTranslatableSelection,
   lookupTermFromSelection,
   normalizeSelection,
@@ -305,6 +306,7 @@ async function openPanel(): Promise<void> {
   try {
     currentLookup = await api.lookup(lookupWord);
     body.innerHTML = renderDictionaryHtml(currentLookup);
+    bindPronunciationButtons(body);
     const actions = showPanelFooter(`
       <button type="button" class="flc-btn flc-btn-primary flc-save">Lưu từ</button>
       <button type="button" class="flc-btn flc-btn-secondary flc-close-btn">Đóng</button>

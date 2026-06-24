@@ -1,4 +1,5 @@
 import 'package:flc_mobile/models/flc_models.dart';
+import 'package:flc_mobile/widgets/pronunciation_button.dart';
 import 'package:flutter/material.dart';
 
 class DictionaryCard extends StatelessWidget {
@@ -16,22 +17,32 @@ class DictionaryCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(
-                  result.word,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    children: [
+                      Text(
+                        result.word,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
-                ),
-                if (result.phonetic != null) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    result.phonetic!,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey.shade600,
-                          fontStyle: FontStyle.italic,
+                      if (result.phonetic != null)
+                        Text(
+                          result.phonetic!,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.grey.shade600,
+                                fontStyle: FontStyle.italic,
+                              ),
                         ),
+                    ],
                   ),
-                ],
+                ),
+                PronunciationButton(
+                  audioUrl: result.audioUrl,
+                  word: result.word,
+                ),
               ],
             ),
             const SizedBox(height: 12),

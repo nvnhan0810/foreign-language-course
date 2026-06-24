@@ -38,6 +38,7 @@ Route::name('user.')->group(function () {
             Route::get('lookup', [LookupController::class, 'index'])->name('lookup');
             Route::post('lookup', [LookupController::class, 'lookup'])->name('lookup.search');
             Route::post('lookup/save', [LookupController::class, 'save'])->name('lookup.save');
+            Route::get('dictionary/{word}/pronounce', [LookupController::class, 'pronounce'])->name('dictionary.pronounce');
 
             Route::get('vocab', [WebVocabularyController::class, 'index'])->name('vocab');
             Route::delete('vocab/{vocabulary}', [WebVocabularyController::class, 'destroy'])->name('vocab.destroy');

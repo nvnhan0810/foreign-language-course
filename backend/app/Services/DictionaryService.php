@@ -66,20 +66,52 @@ class DictionaryService
         }
 
         $phonetic = $entry['phonetic'] ?? null;
-        if (! $phonetic && ! empty($entry['phonetics'])) {
+        $audioUrl = null;
+        if (! empty($entry['phonetics'])) {
             foreach ($entry['phonetics'] as $p) {
-                if (! empty($p['text'])) {
+                if (! empty($p['text']) && $phonetic === null) {
                     $phonetic = $p['text'];
-                    break;
                 }
             }
+            $audioUrl = $this->extractAudioUrl($entry['phonetics']);
         }
 
         return [
             'word' => $word,
             'phonetic' => $phonetic,
+            'audio_url' => $audioUrl,
             'meanings' => array_slice($meanings, 0, 12),
             'source' => 'dictionaryapi.dev',
         ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $phonetics
+     */
+    private function extractAudioUrl(array $phonetics): ?string
+    {
+        $candidates = [];
+
+        foreach ($phonetics as $phonetic) {
+            $audio = $phonetic['audio'] ?? null;
+
+            if (! is_string($audio) || $audio === '') {
+                continue;
+            }
+
+            $candidates[] = $audio;
+        }
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        foreach ($candidates as $audio) {
+            if (str_contains($audio, '-us.') || str_contains($audio, '/us-')) {
+                return $audio;
+            }
+        }
+
+        return $candidates[0];
     }
 }

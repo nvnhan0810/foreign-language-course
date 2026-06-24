@@ -26,12 +26,14 @@ class DictionaryResult {
   DictionaryResult({
     required this.word,
     this.phonetic,
+    this.audioUrl,
     required this.meanings,
     this.source,
   });
 
   final String word;
   final String? phonetic;
+  final String? audioUrl;
   final List<Meaning> meanings;
   final String? source;
 
@@ -39,6 +41,7 @@ class DictionaryResult {
       DictionaryResult(
         word: json['word'] as String,
         phonetic: json['phonetic'] as String?,
+        audioUrl: json['audio_url'] as String?,
         meanings: (json['meanings'] as List<dynamic>? ?? [])
             .map((e) => Meaning.fromJson(e as Map<String, dynamic>))
             .toList(),

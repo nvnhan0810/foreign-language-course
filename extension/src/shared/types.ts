@@ -7,6 +7,7 @@ export interface Meaning {
 export interface DictionaryResult {
   word: string;
   phonetic?: string | null;
+  audio_url?: string | null;
   meanings: Meaning[];
   source?: string;
 }

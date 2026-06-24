@@ -1,6 +1,7 @@
 import 'package:flc_mobile/core/api/api_client.dart';
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/models/flc_models.dart';
+import 'package:flc_mobile/widgets/pronunciation_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -101,7 +102,14 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
               ),
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                title: Text(v.word, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                title: Row(
+                  children: [
+                    Expanded(
+                      child: Text(v.word, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    ),
+                    PronunciationButton(word: v.word, iconSize: 20),
+                  ],
+                ),
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
@@ -140,6 +148,7 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
                             ),
                           ),
                           Text(v.word, style: Theme.of(ctx).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          PronunciationButton(word: v.word),
                           if (v.phonetic != null) 
                             Padding(
                               padding: const EdgeInsets.only(top: 4.0),

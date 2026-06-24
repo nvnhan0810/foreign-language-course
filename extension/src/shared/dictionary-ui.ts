@@ -8,6 +8,41 @@ export function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+export function playPronunciation(audioUrl: string | null | undefined, word: string): void {
+  if (audioUrl) {
+    const audio = new Audio(audioUrl);
+    void audio.play().catch(() => speakWord(word));
+    return;
+  }
+
+  speakWord(word);
+}
+
+export function speakWord(word: string): void {
+  if (!word || !('speechSynthesis' in window)) return;
+  const utterance = new SpeechSynthesisUtterance(word);
+  utterance.lang = 'en-US';
+  speechSynthesis.speak(utterance);
+}
+
+export function pronunciationButtonHtml(
+  word: string,
+  audioUrl?: string | null,
+  className = 'flc-speak'
+): string {
+  return `<button type="button" class="${className}" data-audio="${audioUrl ? escapeHtml(audioUrl) : ''}" data-word="${escapeHtml(word)}" title="Nghe phát âm" aria-label="Nghe phát âm">🔊</button>`;
+}
+
+export function bindPronunciationButtons(root: ParentNode): void {
+  root.querySelectorAll<HTMLButtonElement>('.flc-speak').forEach((btn) => {
+    if (btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => {
+      playPronunciation(btn.dataset.audio || null, btn.dataset.word || '');
+    });
+  });
+}
+
 export function renderDictionaryHtml(data: DictionaryResult, maxMeanings = 5): string {
   const meaningsHtml = data.meanings
     .slice(0, maxMeanings)
@@ -25,6 +60,7 @@ export function renderDictionaryHtml(data: DictionaryResult, maxMeanings = 5): s
     <div class="flc-word-head">
       <strong>${escapeHtml(data.word)}</strong>
       ${data.phonetic ? `<span class="flc-phonetic">${escapeHtml(data.phonetic)}</span>` : ''}
+      ${pronunciationButtonHtml(data.word, data.audio_url)}
     </div>
     ${meaningsHtml}
   `;

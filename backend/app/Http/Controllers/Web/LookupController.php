@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Vocabulary;
 use App\Models\VocabularyExample;
 use App\Services\DictionaryService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -88,5 +89,20 @@ class LookupController extends Controller
         return redirect()->route('user.home.lookup')
             ->with('success', 'Đã lưu từ.')
             ->with('lookup_saved', true);
+    }
+
+    public function pronounce(Request $request, string $word): JsonResponse|RedirectResponse
+    {
+        $result = $this->dictionary->lookup($word);
+
+        if (! $result || empty($result['audio_url'])) {
+            abort(404, 'Không có audio phát âm cho từ này.');
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['audio_url' => $result['audio_url']]);
+        }
+
+        return redirect()->away($result['audio_url']);
     }
 }

@@ -1,4 +1,5 @@
 import { api, ApiError } from '../shared/api';
+import { escapeHtml, bindPronunciationButtons, pronunciationButtonHtml, playPronunciation } from '../shared/dictionary-ui';
 import { loginWithGoogle } from '../shared/googleAuth';
 import {
   cacheSync,
@@ -180,10 +181,14 @@ function renderLookup(data: DictionaryResult) {
     )
     .join('');
   el.innerHTML = `
-    <strong>${escapeHtml(data.word)}</strong>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <strong>${escapeHtml(data.word)}</strong>
+      ${pronunciationButtonHtml(data.word, data.audio_url, 'secondary flc-speak')}
+    </div>
     ${data.phonetic ? `<div class="muted">${escapeHtml(data.phonetic)}</div>` : ''}
     ${meaningsHtml}
   `;
+  bindPronunciationButtons(el);
 }
 
 async function saveWord() {
@@ -225,12 +230,18 @@ function renderVocabItem(v: Vocabulary) {
   const def = v.meanings?.[0]?.definition ?? '';
   li.innerHTML = `
     <div>
-      <strong>${escapeHtml(v.word)}</strong>
+      <div style="display:flex;align-items:center;gap:8px">
+        <strong>${escapeHtml(v.word)}</strong>
+        <button type="button" class="secondary flc-speak" data-word="${escapeHtml(v.word)}" title="Nghe phát âm">🔊</button>
+      </div>
       <div class="muted">${escapeHtml(def)}</div>
       <div class="muted">Quiz: ${v.times_quizzed} lần</div>
     </div>
     <button type="button" class="secondary">Xóa</button>
   `;
+  li.querySelector('.flc-speak')?.addEventListener('click', () => {
+    void playVocabPronunciation(v.word);
+  });
   li.querySelector('button')?.addEventListener('click', async () => {
     await api.deleteVocabulary(v.id);
     await loadVocab();
@@ -395,12 +406,13 @@ async function answerQuiz(q: QuizQuestion, chosen: string, btn: HTMLButtonElemen
   });
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+async function playVocabPronunciation(word: string): Promise<void> {
+  try {
+    const data = await api.lookup(word);
+    playPronunciation(data.audio_url, data.word);
+  } catch {
+    playPronunciation(null, word);
+  }
 }
 
 void init();
