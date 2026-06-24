@@ -44,7 +44,7 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=
+            type=sha,format=short,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
@@ -62,17 +62,19 @@ jobs:
 
       - name: Trigger deploy webhook
         env:
-          DEPLOY_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+          DEPLOY_HOOK_TOKEN: ${{ secrets.DEPLOY_HOOK_TOKEN }}
+          DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
         run: |
+          DEPLOY_TOKEN="${DEPLOY_HOOK_TOKEN:-$DEPLOY_WEBHOOK_TOKEN}"
           if [ -z "${DEPLOY_TOKEN}" ]; then
-            echo "DEPLOY_WEBHOOK_TOKEN secret is not set — skip deploy webhook."
+            echo "DEPLOY_HOOK_TOKEN secret is not set — skip deploy webhook."
             exit 0
           fi
 
           IMAGE="ghcr.io/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
-          IMAGE_TAG="${{ github.sha }}"
+          IMAGE_TAG="${GITHUB_SHA::7}"
 
-          curl -fsS -X POST 'https://deploy.nvnhan0810.com/deploy' \
+          curl -fsS --max-time 30 -X POST 'https://deploy.nvnhan0810.com/deploy' \
             -H "Authorization: Bearer ${DEPLOY_TOKEN}" \
             -H 'Content-Type: application/json' \
             -d "$(jq -n \
