@@ -1,6 +1,8 @@
 (() => {
   'use strict';
 
+  const FCM_TOKEN_EVENT = 'flc:fcm-token';
+
   function speakWord(word) {
     if (!word || !('speechSynthesis' in window)) return;
     const utterance = new SpeechSynthesisUtterance(word);
@@ -40,6 +42,49 @@
 
     speakWord(word);
   }
+
+  function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+  }
+
+  let lastSavedPushToken = '';
+
+  async function savePushToken(token, platform) {
+    const trimmed = (token || '').trim();
+    if (!trimmed || !platform) return;
+    if (trimmed === lastSavedPushToken) return;
+
+    const csrf = csrfToken();
+    if (!csrf) return;
+
+    try {
+      const res = await fetch('/home/push-token', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-TOKEN': csrf,
+        },
+        body: JSON.stringify({ token: trimmed, platform }),
+      });
+      if (res.ok) {
+        lastSavedPushToken = trimmed;
+      }
+    } catch (_) {}
+  }
+
+  function requestMobileFcmToken() {
+    if (!window.FlcNative) return;
+    FlcNative.postMessage(JSON.stringify({ type: 'request-fcm-token' }));
+  }
+
+  window.addEventListener(FCM_TOKEN_EVENT, (event) => {
+    const detail = event.detail;
+    if (!detail || typeof detail !== 'object') return;
+    savePushToken(detail.token, detail.platform);
+  });
 
   document.addEventListener('click', (event) => {
     const btn = event.target.closest('.flc-pronounce');
@@ -121,5 +166,6 @@
 
   if (document.body.classList.contains('flc-app')) {
     document.documentElement.style.setProperty('--flc-app', '1');
+    requestMobileFcmToken();
   }
 })();

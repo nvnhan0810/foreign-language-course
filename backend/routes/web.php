@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\MediaItemController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VocabularyController;
+use App\Http\Controllers\Api\DevicePushTokenController;
 use App\Http\Controllers\Web\ListeningController;
 use App\Http\Controllers\Web\LookupController;
 use App\Http\Controllers\Web\MediaController;
@@ -54,6 +55,9 @@ Route::name('user.')->middleware(\App\Http\Middleware\DetectFlcMobileApp::class)
             Route::post('quiz/answer', [QuizController::class, 'answer'])->name('quiz.answer');
 
             Route::get('profile', [ProfileController::class, 'show'])->name('profile');
+
+            Route::post('push-token', [DevicePushTokenController::class, 'store'])->name('push-token.store');
+            Route::delete('push-token', [DevicePushTokenController::class, 'destroy'])->name('push-token.destroy');
         });
 
         Route::get('listening/{listeningAssessment}', [ListeningController::class, 'show'])->name('listening.show');
