@@ -87,7 +87,7 @@ class ListeningMediaController extends Controller
         return response()->json([
             'data' => $this->formatMediaItem($item),
             'message' => $autoProcess
-                ? 'Media saved. Analysis and listening assessments are being generated.'
+                ? 'Media saved. Analysis and question bank are being generated.'
                 : 'Media saved.',
         ], 201);
     }
@@ -122,12 +122,9 @@ class ListeningMediaController extends Controller
     {
         $this->authorizeMedia($request, $mediaItem);
 
-        $assessments = $mediaItem->listeningAssessments()
-            ->withCount('questions')
-            ->orderByRaw("CASE type WHEN 'quiz' THEN 1 WHEN 'test' THEN 2 WHEN 'exam' THEN 3 ELSE 4 END")
-            ->get();
-
-        return response()->json(['data' => $assessments]);
+        return response()->json([
+            'data' => app(\App\Services\ListeningSessionService::class)->sessionOptions($mediaItem),
+        ]);
     }
 
     /**

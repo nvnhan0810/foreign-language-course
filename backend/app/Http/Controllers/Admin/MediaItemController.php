@@ -125,7 +125,7 @@ class MediaItemController extends Controller
 
         return redirect()->route('admin.media-items.show', $item)
             ->with('success', $autoProcess
-                ? 'Đã tạo media. Đang phân tích và tạo quiz/test/exam...'
+                ? 'Đã tạo media. Đang phân tích và tạo ngân hàng câu hỏi...'
                 : 'Đã tạo media.');
     }
 
@@ -133,7 +133,8 @@ class MediaItemController extends Controller
     {
         $mediaItem->load([
             'user',
-            'listeningAssessments' => fn ($q) => $q->withCount(['questions', 'attempts']),
+            'listeningAssessments' => fn ($q) => $q->withCount('attempts')->latest()->limit(10),
+            'listeningQuestions' => fn ($q) => $q->orderBy('order'),
         ]);
 
         return view('admin.media-items.show', compact('mediaItem'));
@@ -209,20 +210,16 @@ class MediaItemController extends Controller
 
     public function regenerateAssessments(Request $request, MediaItem $mediaItem): RedirectResponse
     {
-        if (! $mediaItem->isAnalysisReady() || ! $mediaItem->transcript) {
-            return back()->with('error', 'Media chưa sẵn sàng. Cần phân tích xong trước.');
+        if (! $mediaItem->isAnalysisReady()) {
+            return back()->with('error', 'Media chưa phân tích xong. Chạy phân tích trước.');
         }
 
-        $data = $request->validate([
-            'type' => ['nullable', 'in:quiz,test,exam'],
-        ]);
-
-        if (! empty($data['type'])) {
-            $this->assessmentGenerator->generate($mediaItem, $data['type']);
-        } else {
-            $this->assessmentGenerator->generateAll($mediaItem);
+        try {
+            $this->assessmentGenerator->generateQuestionBank($mediaItem);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Tạo ngân hàng câu hỏi thất bại: '.$e->getMessage());
         }
 
-        return back()->with('success', 'Đã tạo lại bài '.($data['type'] ?? 'quiz/test/exam').'.');
+        return back()->with('success', 'Đã tạo lại ngân hàng câu hỏi.');
     }
 }

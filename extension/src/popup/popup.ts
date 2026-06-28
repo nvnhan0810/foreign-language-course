@@ -11,6 +11,7 @@ import {
 import { getActiveTabYouTubeInfo } from '../shared/youtube-tab';
 import type {
   DictionaryResult,
+  ListeningQuestion,
   MediaItem,
   QuizQuestion,
   Vocabulary,
@@ -274,7 +275,9 @@ function bindMedia() {
           frequency: payload.frequency,
           auto_process: true,
         });
-        $('media-form-status').textContent = res.message ?? 'Đã lưu YouTube.';
+        $('media-form-status').textContent =
+          res.message ??
+          'Đã lưu YouTube. Hệ thống phân tích và tạo ngân hàng câu hỏi — làm quiz trên tab Media khi sẵn sàng.';
       } else {
         await api.createMedia({
           ...payload,
@@ -332,23 +335,183 @@ async function loadMedia() {
 
 function renderMediaItem(m: MediaItem) {
   const li = document.createElement('li');
-  li.className = 'item';
+  li.className = 'item media-item';
   const freqLabel =
     m.frequency === 'daily' ? 'ngày' : m.frequency === 'weekly' ? 'tuần' : 'tháng';
+  const bankStatus = m.question_bank_status ?? 'pending';
+  const bankCount = m.question_bank_count ?? 0;
+  const bankReady = bankStatus === 'ready' && bankCount > 0;
+
   li.innerHTML = `
-    <div>
+    <div class="media-item-main">
       <strong>${escapeHtml(m.title)}</strong>
-      <div class="muted">${freqLabel} · ${m.type}</div>
+      <div class="muted">${freqLabel} · ${m.type} · ngân hàng: ${bankStatus}${bankReady ? ` (${bankCount} câu)` : ''}</div>
       <a href="${escapeHtml(m.url)}" target="_blank">${escapeHtml(m.url)}</a>
+      <div class="media-session-actions" data-media-id="${m.id}"></div>
     </div>
     <button type="button" class="secondary media-delete-btn">Xóa</button>
   `;
 
+  const actionsEl = li.querySelector('.media-session-actions') as HTMLElement;
+  if (bankReady) {
+    void renderMediaSessionButtons(actionsEl, m.id);
+  } else {
+    actionsEl.innerHTML = `<span class="muted">Chưa có ngân hàng câu hỏi — đợi admin phân tích xong.</span>`;
+  }
+
   li.querySelector('.media-delete-btn')?.addEventListener('click', async () => {
     await api.deleteMedia(m.id);
+    hideListeningQuiz();
     await loadMedia();
   });
   return li;
+}
+
+async function renderMediaSessionButtons(container: HTMLElement, mediaId: number) {
+  container.innerHTML = '<span class="muted">Đang tải...</span>';
+  try {
+    const { data } = await api.listListeningSessionOptions(mediaId);
+    container.innerHTML = '';
+    for (const option of data) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'secondary media-session-btn';
+      btn.textContent = option.available
+        ? `${option.type.toUpperCase()} (${option.question_count})`
+        : `${option.type.toUpperCase()} (chưa đủ câu)`;
+      btn.disabled = !option.available;
+      btn.title = option.available
+        ? `Random ${option.question_count} câu từ ngân hàng ${option.bank_count ?? 0} câu`
+        : `Cần ${option.question_count} câu, hiện có ${option.bank_count ?? 0}`;
+      btn.addEventListener('click', () => void startListeningQuiz(mediaId, option.type));
+      container.appendChild(btn);
+    }
+  } catch (e) {
+    container.innerHTML = `<span class="error">${e instanceof ApiError ? e.message : 'Không tải được quiz.'}</span>`;
+  }
+}
+
+let activeListeningAssessmentId: number | null = null;
+const listeningAnswers = new Map<number, string>();
+
+function hideListeningQuiz() {
+  activeListeningAssessmentId = null;
+  listeningAnswers.clear();
+  $('listening-quiz-area').classList.add('hidden');
+  $('listening-quiz-area').innerHTML = '';
+}
+
+async function startListeningQuiz(mediaId: number, type: 'quiz' | 'test' | 'exam') {
+  const area = $('listening-quiz-area');
+  area.classList.remove('hidden');
+  area.innerHTML = '<p class="muted">Đang tạo bài random...</p>';
+
+  try {
+    const { data } = await api.startListeningSession(mediaId, type);
+    activeListeningAssessmentId = data.assessment_id;
+    listeningAnswers.clear();
+    renderListeningQuiz(data.title, data.questions, data.time_limit_minutes);
+    area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (e) {
+    area.innerHTML = `<p class="error">${e instanceof ApiError ? e.message : 'Không bắt đầu được bài nghe.'}</p>`;
+  }
+}
+
+function renderListeningQuiz(
+  title: string,
+  questions: ListeningQuestion[],
+  timeLimitMinutes?: number | null
+) {
+  const area = $('listening-quiz-area');
+  const timeNote =
+    timeLimitMinutes != null ? `<p class="muted">Thời gian gợi ý: ${timeLimitMinutes} phút · câu hỏi random mỗi lần làm</p>` : '';
+
+  area.innerHTML = `
+    <div class="listening-quiz-header">
+      <strong>${escapeHtml(title)}</strong>
+      ${timeNote}
+      <button type="button" id="btn-close-listening" class="link">Đóng</button>
+    </div>
+    <div id="listening-questions"></div>
+    <button type="button" id="btn-submit-listening" class="primary">Nộp bài</button>
+    <p id="listening-feedback" class="muted"></p>
+  `;
+
+  $('btn-close-listening').addEventListener('click', () => hideListeningQuiz());
+
+  const list = $('listening-questions');
+  questions.forEach((q, index) => {
+    const block = document.createElement('div');
+    block.className = 'listening-question';
+    block.dataset.questionId = String(q.id);
+
+    if (q.options && q.options.length > 0) {
+      const optsHtml = q.options
+        .map(
+          (opt) =>
+            `<label class="listening-option"><input type="radio" name="lq-${q.id}" value="${escapeHtml(opt)}" /> ${escapeHtml(opt)}</label>`
+        )
+        .join('');
+      block.innerHTML = `<p><strong>Câu ${index + 1}</strong></p><p>${escapeHtml(q.prompt)}</p>${optsHtml}`;
+      block.querySelectorAll('input[type="radio"]').forEach((input) => {
+        input.addEventListener('change', () => {
+          listeningAnswers.set(q.id, (input as HTMLInputElement).value);
+        });
+      });
+    } else {
+      block.innerHTML = `
+        <p><strong>Câu ${index + 1}</strong></p>
+        <p>${escapeHtml(q.prompt)}</p>
+        <textarea rows="2" placeholder="Câu trả lời..." data-question-id="${q.id}"></textarea>
+      `;
+      block.querySelector('textarea')?.addEventListener('input', (e) => {
+        listeningAnswers.set(q.id, (e.target as HTMLTextAreaElement).value.trim());
+      });
+    }
+
+    list.appendChild(block);
+  });
+
+  $('btn-submit-listening').addEventListener('click', () => void submitListeningQuiz(questions.length));
+}
+
+async function submitListeningQuiz(total: number) {
+  if (!activeListeningAssessmentId) return;
+
+  if (listeningAnswers.size < total) {
+    $('listening-feedback').textContent = 'Trả lời hết các câu trước khi nộp.';
+    return;
+  }
+
+  const answers = [...listeningAnswers.entries()].map(([question_id, answer]) => ({
+    question_id,
+    answer,
+  }));
+
+  $('btn-submit-listening').setAttribute('disabled', 'true');
+  $('listening-feedback').textContent = 'Đang chấm...';
+
+  try {
+    const { data } = await api.submitListeningAttempt(activeListeningAssessmentId, answers);
+    const lines = data.results.map((r) => {
+      const mark = r.correct ? '✓' : '✗';
+      const explain = r.explanation ? ` — ${escapeHtml(r.explanation)}` : '';
+      return `<div class="${r.correct ? 'correct' : 'wrong'}">${mark} ${escapeHtml(r.answer)}${explain}</div>`;
+    });
+
+    $('listening-questions').innerHTML = `
+      <p><strong>Kết quả: ${data.score}/${data.total} (${data.percentage}%) — ${data.passed ? 'Đạt' : 'Chưa đạt'}</strong></p>
+      ${lines.join('')}
+    `;
+    $('btn-submit-listening').classList.add('hidden');
+    $('listening-feedback').textContent = 'Bấm Quiz/Test/Exam lại để làm bộ câu random mới.';
+    activeListeningAssessmentId = null;
+    listeningAnswers.clear();
+  } catch (e) {
+    $('listening-feedback').textContent =
+      e instanceof ApiError ? e.message : 'Không nộp được bài.';
+    $('btn-submit-listening').removeAttribute('disabled');
+  }
 }
 
 function bindQuiz() {

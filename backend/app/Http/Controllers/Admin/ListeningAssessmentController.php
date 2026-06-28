@@ -4,22 +4,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ListeningAssessment;
-use App\Services\ListeningAssessmentGeneratorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ListeningAssessmentController extends Controller
 {
-    public function __construct(
-        private readonly ListeningAssessmentGeneratorService $assessmentGenerator,
-    ) {}
-
     public function index(Request $request): View
     {
         $query = ListeningAssessment::query()
             ->with(['user', 'mediaItem'])
-            ->withCount(['questions', 'attempts'])
+            ->withCount('attempts')
             ->latest();
 
         if ($search = $request->string('q')->trim()->toString()) {
@@ -50,12 +45,14 @@ class ListeningAssessmentController extends Controller
         $listeningAssessment->load([
             'user',
             'mediaItem',
-            'questions' => fn ($q) => $q->orderBy('order'),
             'attempts' => fn ($q) => $q->with('user')->latest()->limit(20),
         ]);
 
+        $questions = $listeningAssessment->sessionQuestions();
+
         return view('admin.listening-assessments.show', [
             'assessment' => $listeningAssessment,
+            'questions' => $questions,
         ]);
     }
 
@@ -65,19 +62,11 @@ class ListeningAssessmentController extends Controller
         $listeningAssessment->delete();
 
         return redirect()->route('admin.media-items.show', $mediaItemId)
-            ->with('success', 'Đã xóa bài assessment.');
+            ->with('success', 'Đã xóa phiên làm bài.');
     }
 
     public function regenerate(ListeningAssessment $listeningAssessment): RedirectResponse
     {
-        $mediaItem = $listeningAssessment->mediaItem;
-
-        if (! $mediaItem || ! $mediaItem->isAnalysisReady()) {
-            return back()->with('error', 'Media chưa sẵn sàng để tạo lại câu hỏi.');
-        }
-
-        $this->assessmentGenerator->generate($mediaItem, $listeningAssessment->type);
-
-        return back()->with('success', 'Đã tạo lại bài '.$listeningAssessment->type.'.');
+        return back()->with('error', 'Câu hỏi được quản lý qua ngân hàng câu hỏi trên trang media. Tạo lại ngân hàng ở đó.');
     }
 }

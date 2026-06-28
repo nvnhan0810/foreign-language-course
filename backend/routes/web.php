@@ -26,7 +26,7 @@ Route::get('/', function () {
     return redirect()->route('user.login');
 });
 
-Route::name('user.')->group(function () {
+Route::name('user.')->middleware(\App\Http\Middleware\DetectFlcMobileApp::class)->group(function () {
     Route::get('login', [UserAuthController::class, 'showLogin'])->name('login');
     Route::get('auth/google', [UserAuthController::class, 'redirectGoogle'])->name('auth.google');
     Route::get('auth/google/callback', [UserAuthController::class, 'callbackGoogle'])->name('auth.google.callback');
@@ -41,6 +41,7 @@ Route::name('user.')->group(function () {
             Route::get('dictionary/{word}/pronounce', [LookupController::class, 'pronounce'])->name('dictionary.pronounce');
 
             Route::get('vocab', [WebVocabularyController::class, 'index'])->name('vocab');
+            Route::get('vocab/{vocabulary}', [WebVocabularyController::class, 'show'])->name('vocab.show');
             Route::delete('vocab/{vocabulary}', [WebVocabularyController::class, 'destroy'])->name('vocab.destroy');
 
             Route::get('media', [MediaController::class, 'index'])->name('media');
@@ -55,6 +56,7 @@ Route::name('user.')->group(function () {
 
         Route::get('listening/{listeningAssessment}', [ListeningController::class, 'show'])->name('listening.show');
         Route::post('listening/{listeningAssessment}/submit', [ListeningController::class, 'submit'])->name('listening.submit');
+        Route::post('media/{mediaItem}/listening/start', [ListeningController::class, 'start'])->name('listening.start');
     });
 });
 

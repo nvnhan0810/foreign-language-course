@@ -4,9 +4,9 @@
 @section('heading', 'Tra từ')
 
 @section('content')
-    <p class="muted" style="margin-top:0;font-weight:600">Tra từ Anh–Anh (giống app)</p>
+    <p class="muted" style="margin-top:0;font-weight:600">Tra từ Anh–Anh</p>
 
-    <form action="{{ route('user.home.lookup.search') }}" method="POST">
+    <form action="{{ route('user.home.lookup.search') }}" method="POST" class="flc-form-submit">
         @csrf
         <div class="form-group">
             <input
@@ -53,7 +53,7 @@
         </div>
 
         @unless ($saved)
-            <form action="{{ route('user.home.lookup.save') }}" method="POST" style="margin-top:12px">
+            <form action="{{ route('user.home.lookup.save') }}" method="POST" style="margin-top:12px" class="flc-form-submit">
                 @csrf
                 <input type="hidden" name="word" value="{{ $result['word'] ?? '' }}">
                 <input type="hidden" name="phonetic" value="{{ $result['phonetic'] ?? '' }}">
@@ -68,25 +68,4 @@
             <p class="muted" style="text-align:center;margin-top:12px">Đã lưu từ</p>
         @endunless
     @endif
-
-    <script>
-        document.querySelectorAll('.flc-pronounce').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const audioUrl = btn.dataset.audio;
-                const word = btn.dataset.word || '';
-                if (audioUrl) {
-                    new Audio(audioUrl).play().catch(() => speakWord(word));
-                    return;
-                }
-                speakWord(word);
-            });
-        });
-
-        function speakWord(word) {
-            if (!word || !('speechSynthesis' in window)) return;
-            const utterance = new SpeechSynthesisUtterance(word);
-            utterance.lang = 'en-US';
-            speechSynthesis.speak(utterance);
-        }
-    </script>
 @endsection

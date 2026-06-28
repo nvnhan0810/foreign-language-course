@@ -6,11 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Models\ListeningAssessment;
 use App\Models\ListeningAttempt;
 use App\Models\ListeningQuestion;
+use App\Models\MediaItem;
+use App\Services\ListeningSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use RuntimeException;
 
 class ListeningAssessmentController extends Controller
 {
+    public function __construct(
+        private readonly ListeningSessionService $sessionService,
+    ) {}
+
     public function show(Request $request, ListeningAssessment $listeningAssessment): JsonResponse
     {
         $this->authorizeAssessment($request, $listeningAssessment);
@@ -31,18 +38,9 @@ class ListeningAssessmentController extends Controller
             ], 422);
         }
 
-        $questions = $listeningAssessment->questions()
-            ->orderBy('order')
-            ->get()
-            ->map(fn (ListeningQuestion $q) => [
-                'id' => $q->id,
-                'order' => $q->order,
-                'question_type' => $q->question_type,
-                'prompt' => $q->prompt,
-                'options' => $q->options,
-                'audio_start_seconds' => $q->audio_start_seconds,
-                'audio_end_seconds' => $q->audio_end_seconds,
-            ]);
+        $questions = $this->sessionService->formatQuestionsForClient(
+            $listeningAssessment->sessionQuestions()
+        );
 
         return response()->json([
             'data' => [
@@ -50,7 +48,7 @@ class ListeningAssessmentController extends Controller
                 'type' => $listeningAssessment->type,
                 'title' => $listeningAssessment->title,
                 'time_limit_minutes' => $listeningAssessment->time_limit_minutes,
-                'question_count' => $questions->count(),
+                'question_count' => count($questions),
                 'questions' => $questions,
             ],
         ]);
@@ -71,15 +69,15 @@ class ListeningAssessmentController extends Controller
             'started_at' => ['nullable', 'date'],
         ]);
 
-        $questions = $listeningAssessment->questions()->get()->keyBy('id');
+        $questions = $listeningAssessment->sessionQuestions()->keyBy('id');
         $score = 0;
         $results = [];
 
         foreach ($data['answers'] as $answer) {
             $question = $questions->get($answer['question_id']);
 
-            if (! $question || $question->listening_assessment_id !== $listeningAssessment->id) {
-                abort(422, 'Invalid question for this assessment.');
+            if (! $question || $question->media_item_id !== $listeningAssessment->media_item_id) {
+                abort(422, 'Invalid question for this session.');
             }
 
             $isCorrect = $this->isAnswerCorrect($question, $answer['answer']);
@@ -102,6 +100,8 @@ class ListeningAssessmentController extends Controller
 
         $attempt = ListeningAttempt::query()->create([
             'listening_assessment_id' => $listeningAssessment->id,
+            'media_item_id' => $listeningAssessment->media_item_id,
+            'type' => $listeningAssessment->type,
             'user_id' => $request->user()->id,
             'score' => $score,
             'total' => $total,
@@ -133,6 +133,36 @@ class ListeningAssessmentController extends Controller
             ->get(['id', 'score', 'total', 'percentage', 'started_at', 'completed_at']);
 
         return response()->json(['data' => $attempts]);
+    }
+
+    public function startSession(Request $request, MediaItem $mediaItem): JsonResponse
+    {
+        $this->authorizeMedia($request, $mediaItem);
+
+        $data = $request->validate([
+            'type' => ['required', 'in:quiz,test,exam'],
+        ]);
+
+        try {
+            $session = $this->sessionService->startSession(
+                $mediaItem,
+                $request->user(),
+                $data['type']
+            );
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $session], 201);
+    }
+
+    public function sessionOptions(Request $request, MediaItem $mediaItem): JsonResponse
+    {
+        $this->authorizeMedia($request, $mediaItem);
+
+        return response()->json([
+            'data' => $this->sessionService->sessionOptions($mediaItem),
+        ]);
     }
 
     private function isAnswerCorrect(ListeningQuestion $question, string $answer): bool
@@ -174,6 +204,13 @@ class ListeningAssessmentController extends Controller
     private function authorizeAssessment(Request $request, ListeningAssessment $assessment): void
     {
         if ($assessment->user_id !== $request->user()->id) {
+            abort(403);
+        }
+    }
+
+    private function authorizeMedia(Request $request, MediaItem $mediaItem): void
+    {
+        if ($mediaItem->user_id !== $request->user()->id) {
             abort(403);
         }
     }

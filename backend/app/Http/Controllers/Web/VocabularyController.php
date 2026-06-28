@@ -21,6 +21,17 @@ class VocabularyController extends Controller
         return view('user.vocab', ['items' => $items]);
     }
 
+    public function show(Request $request, Vocabulary $vocabulary): View
+    {
+        if ($vocabulary->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $vocabulary->load('examples');
+
+        return view('user.vocab-show', ['vocab' => $vocabulary]);
+    }
+
     public function destroy(Request $request, Vocabulary $vocabulary): RedirectResponse
     {
         if ($vocabulary->user_id !== $request->user()->id) {

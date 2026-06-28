@@ -9,6 +9,8 @@ class ListeningAttempt extends Model
 {
     protected $fillable = [
         'listening_assessment_id',
+        'media_item_id',
+        'type',
         'user_id',
         'score',
         'total',
@@ -36,5 +38,10 @@ class ListeningAttempt extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function mediaItem(): BelongsTo
+    {
+        return $this->belongsTo(MediaItem::class);
     }
 }

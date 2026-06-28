@@ -1,5 +1,13 @@
 import { clearAuth, getAuth, getSettings } from './storage';
-import type { DictionaryResult, MediaItem, QuizQuestion, Vocabulary } from './types';
+import type {
+  DictionaryResult,
+  ListeningQuestion,
+  ListeningSessionOption,
+  ListeningSessionStart,
+  MediaItem,
+  QuizQuestion,
+  Vocabulary,
+} from './types';
 
 class ApiError extends Error {
   constructor(
@@ -95,6 +103,60 @@ export const api = {
     return request<{ data: MediaItem; message?: string }>('/listening/media', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  },
+
+  listListeningSessionOptions(mediaId: number) {
+    return request<{ data: ListeningSessionOption[] }>(
+      `/listening/media/${mediaId}/assessments`
+    );
+  },
+
+  startListeningSession(mediaId: number, type: 'quiz' | 'test' | 'exam') {
+    return request<{ data: ListeningSessionStart }>(
+      `/listening/media/${mediaId}/sessions`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ type }),
+      }
+    );
+  },
+
+  getListeningSessionQuestions(assessmentId: number) {
+    return request<{
+      data: {
+        assessment_id: number;
+        type: string;
+        title: string;
+        time_limit_minutes?: number | null;
+        question_count: number;
+        questions: ListeningQuestion[];
+      };
+    }>(`/listening/assessments/${assessmentId}/questions`);
+  },
+
+  submitListeningAttempt(
+    assessmentId: number,
+    answers: { question_id: number; answer: string }[]
+  ) {
+    return request<{
+      data: {
+        attempt_id: number;
+        score: number;
+        total: number;
+        percentage: number;
+        passed: boolean;
+        results: {
+          question_id: number;
+          answer: string;
+          correct: boolean;
+          correct_answer?: string;
+          explanation?: string | null;
+        }[];
+      };
+    }>(`/listening/assessments/${assessmentId}/attempts`, {
+      method: 'POST',
+      body: JSON.stringify({ answers }),
     });
   },
 

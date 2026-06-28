@@ -46,7 +46,7 @@ Content:
 Return JSON with keys:
 - summary (string)
 - topics (string array)
-- key_vocabulary (array of objects with word and definition)
+- key_vocabulary (array of 5-12 objects: word, definition, optional part_of_speech, optional example — topic-specific words learners should review)
 - difficulty (beginner|intermediate|advanced)
 - main_ideas (string array)
 PROMPT;

@@ -51,5 +51,22 @@
         @yield('content')
     </main>
 </div>
+<script>
+document.querySelectorAll('[data-answer-toggle]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var panel = document.getElementById(btn.getAttribute('data-answer-toggle'));
+        if (!panel) return;
+
+        var hidden = panel.classList.toggle('answers-hidden');
+        btn.setAttribute('aria-pressed', hidden ? 'false' : 'true');
+        btn.setAttribute('title', hidden ? 'Hiện đáp án' : 'Ẩn đáp án');
+
+        var label = btn.querySelector('.answer-toggle-label');
+        if (label) {
+            label.textContent = hidden ? 'Hiện đáp án' : 'Ẩn đáp án';
+        }
+    });
+});
+</script>
 </body>
 </html>

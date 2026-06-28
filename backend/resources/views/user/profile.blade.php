@@ -9,7 +9,7 @@
         </div>
         <h2 style="margin:0;font-size:20px">{{ $user->name ?: 'Người dùng' }}</h2>
         <p style="margin:4px 0 0;opacity:0.8;font-size:14px">{{ $user->email }}</p>
-        <form action="{{ route('user.logout') }}" method="POST" style="margin-top:16px">
+        <form action="{{ route('user.logout') }}" method="POST" style="margin-top:16px" class="flc-form-submit">
             @csrf
             <button type="submit" class="btn btn-secondary btn-sm">Đăng xuất</button>
         </form>

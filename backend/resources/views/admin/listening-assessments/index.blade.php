@@ -52,7 +52,7 @@
                     @endif
                 </td>
                 <td>{{ $a->user?->email }}</td>
-                <td>{{ $a->questions_count }}</td>
+                <td>{{ $a->question_count }}</td>
                 <td>{{ $a->time_limit_minutes }} phút</td>
                 <td><span class="badge badge-{{ $a->status }}">{{ $a->status }}</span></td>
                 <td>{{ $a->attempts_count }}</td>
@@ -61,7 +61,7 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="9" class="muted">Chưa có bài quiz/test/exam.</td></tr>
+            <tr><td colspan="9" class="muted">Chưa có phiên làm bài nào.</td></tr>
         @endforelse
     </tbody>
 </table>

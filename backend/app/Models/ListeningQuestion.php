@@ -16,7 +16,7 @@ class ListeningQuestion extends Model
     public const TYPE_COMPREHENSION = 'comprehension';
 
     protected $fillable = [
-        'listening_assessment_id',
+        'media_item_id',
         'order',
         'question_type',
         'prompt',
@@ -34,8 +34,8 @@ class ListeningQuestion extends Model
         ];
     }
 
-    public function assessment(): BelongsTo
+    public function mediaItem(): BelongsTo
     {
-        return $this->belongsTo(ListeningAssessment::class, 'listening_assessment_id');
+        return $this->belongsTo(MediaItem::class);
     }
 }

@@ -2,10 +2,12 @@
 
 namespace App\Jobs;
 
+use App\Exceptions\TranscriptUnavailableException;
 use App\Models\MediaItem;
 use App\Services\ContentAnalysisService;
 use App\Services\ListeningAssessmentGeneratorService;
 use App\Services\MediaContentResolverService;
+use App\Services\MediaKeyVocabularyImporter;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -23,6 +25,7 @@ class ProcessMediaContentJob implements ShouldQueue
     public function handle(
         MediaContentResolverService $contentResolver,
         ContentAnalysisService $analysisService,
+        MediaKeyVocabularyImporter $vocabularyImporter,
         ListeningAssessmentGeneratorService $assessmentGenerator,
     ): void {
         $mediaItem = MediaItem::query()->find($this->mediaItemId);
@@ -51,9 +54,7 @@ class ProcessMediaContentJob implements ShouldQueue
             $analysis['source_content'] = $content;
             $analysis['content_source'] = $contentSource;
 
-            if (isset($resolved['metadata'])) {
-                $analysis['youtube_metadata'] = $resolved['metadata'];
-            }
+            $analysis['vocabulary_import'] = $vocabularyImporter->importFromAnalysis($mediaItem, $analysis);
 
             $mediaItem->update([
                 'transcript' => $contentSource === MediaContentResolverService::SOURCE_TRANSCRIPT ? $content : $mediaItem->transcript,
@@ -63,7 +64,14 @@ class ProcessMediaContentJob implements ShouldQueue
                 'analysis_error' => null,
             ]);
 
-            $assessmentGenerator->generateAll($mediaItem->fresh());
+            $assessmentGenerator->generateQuestionBank($mediaItem->fresh());
+        } catch (TranscriptUnavailableException $e) {
+            $contentResolver->appendTranscriptUnavailableNote($mediaItem->fresh());
+
+            $mediaItem->update([
+                'analysis_status' => MediaItem::ANALYSIS_FAILED,
+                'analysis_error' => $e->getMessage(),
+            ]);
         } catch (\Throwable $e) {
             Log::error('ProcessMediaContentJob failed', [
                 'media_item_id' => $this->mediaItemId,

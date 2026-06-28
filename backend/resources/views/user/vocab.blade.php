@@ -10,67 +10,45 @@
         </div>
     @else
         @foreach ($items as $vocab)
-            <div class="card">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-                    <div style="display:flex;align-items:flex-start;gap:8px;flex:1;min-width:0">
-                        <div>
+            @php
+                $meanings = is_array($vocab->meanings) ? $vocab->meanings : [];
+                $firstDef = $meanings[0]['definition'] ?? '';
+            @endphp
+            <div class="card vocab-card">
+                <div class="vocab-card-row">
+                    <a href="{{ route('user.home.vocab.show', $vocab) }}" class="vocab-card-link">
                         <p class="card-title">{{ $vocab->word }}</p>
                         @if ($vocab->phonetic)
-                            <p class="card-subtitle" style="font-style:italic">{{ $vocab->phonetic }}</p>
+                            <p class="card-subtitle vocab-card-phonetic">{{ $vocab->phonetic }}</p>
                         @endif
-                        @php
-                            $meanings = is_array($vocab->meanings) ? $vocab->meanings : [];
-                            $firstDef = $meanings[0]['definition'] ?? '';
-                        @endphp
                         @if ($firstDef)
-                            <p style="margin:8px 0 0;font-size:14px">{{ Str::limit($firstDef, 120) }}</p>
+                            <p class="vocab-card-preview">{{ Str::limit($firstDef, 100) }}</p>
                         @endif
-                        </div>
+                        <span class="vocab-card-hint">Xem chi tiết ›</span>
+                    </a>
+                    <div class="vocab-card-actions">
                         <button
                             type="button"
-                            class="btn btn-secondary btn-sm flc-pronounce"
+                            class="btn-icon flc-pronounce"
                             data-pronounce-url="{{ route('user.home.dictionary.pronounce', $vocab->word) }}"
                             data-word="{{ $vocab->word }}"
                             title="Nghe phát âm"
-                            style="flex-shrink:0"
+                            aria-label="Nghe phát âm"
                         >🔊</button>
+                        <div class="action-menu">
+                            <button type="button" class="btn-icon action-menu-trigger" aria-label="Tùy chọn" aria-haspopup="true">⋮</button>
+                            <div class="action-menu-panel" hidden>
+                                <form action="{{ route('user.home.vocab.destroy', $vocab) }}" method="POST" class="flc-form-submit"
+                                      onsubmit="return confirm('Xóa &quot;{{ $vocab->word }}&quot; khỏi danh sách?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="action-menu-danger">Xóa</button>
+                                </form>
+                            </div>
+                        </div>
                     </div>
-                    <form action="{{ route('user.home.vocab.destroy', $vocab) }}" method="POST" class="inline-form"
-                          onsubmit="return confirm('Xóa &quot;{{ $vocab->word }}&quot; khỏi danh sách?')">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-secondary btn-sm">Xóa</button>
-                    </form>
                 </div>
             </div>
         @endforeach
     @endif
-
-    <script>
-        document.querySelectorAll('.flc-pronounce').forEach((btn) => {
-            btn.addEventListener('click', async () => {
-                const pronounceUrl = btn.dataset.pronounceUrl;
-                const word = btn.dataset.word || '';
-                if (pronounceUrl) {
-                    try {
-                        const res = await fetch(pronounceUrl, {
-                            headers: { Accept: 'application/json' },
-                        });
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data.audio_url) {
-                                await new Audio(data.audio_url).play();
-                                return;
-                            }
-                        }
-                    } catch (_) {}
-                }
-                if (word && 'speechSynthesis' in window) {
-                    const utterance = new SpeechSynthesisUtterance(word);
-                    utterance.lang = 'en-US';
-                    speechSynthesis.speak(utterance);
-                }
-            });
-        });
-    </script>
 @endsection

@@ -36,16 +36,42 @@ export interface MediaItem {
   analysis_error?: string | null;
   analyzed_at?: string | null;
   language?: string;
+  question_bank_status?: 'pending' | 'generating' | 'ready' | 'failed' | null;
+  question_bank_count?: number;
 }
 
-export interface ListeningAssessmentSummary {
-  id: number;
+/** Session template (quiz/test/exam) — random câu khi bắt đầu, không có id sẵn. */
+export interface ListeningSessionOption {
   type: 'quiz' | 'test' | 'exam';
   title: string;
   question_count: number;
   time_limit_minutes?: number | null;
-  status: string;
+  available: boolean;
+  bank_count?: number;
+  bank_status?: string;
 }
+
+export interface ListeningQuestion {
+  id: number;
+  order: number;
+  question_type: string;
+  prompt: string;
+  options?: string[] | null;
+  audio_start_seconds?: number | null;
+  audio_end_seconds?: number | null;
+}
+
+export interface ListeningSessionStart {
+  assessment_id: number;
+  type: string;
+  title: string;
+  time_limit_minutes?: number | null;
+  question_count: number;
+  questions: ListeningQuestion[];
+}
+
+/** @deprecated Use ListeningSessionOption */
+export type ListeningAssessmentSummary = ListeningSessionOption;
 
 export interface QuizQuestion {
   vocabulary_id: number;

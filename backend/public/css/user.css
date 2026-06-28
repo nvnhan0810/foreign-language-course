@@ -76,7 +76,7 @@ a {
 .user-shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 100dvh;
   max-width: 640px;
   margin: 0 auto;
   background: var(--bg);
@@ -84,11 +84,15 @@ a {
 
 .user-header {
   background: var(--card);
-  padding: 16px 20px;
   border-bottom: 1px solid var(--border);
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  padding-bottom: 12px;
+  padding-left: calc(16px + env(safe-area-inset-left, 0px));
+  padding-right: calc(16px + env(safe-area-inset-right, 0px));
   position: sticky;
   top: 0;
   z-index: 10;
@@ -96,14 +100,21 @@ a {
 
 .user-header h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-main {
   flex: 1;
   padding: 16px;
-  padding-bottom: 80px;
+  padding-left: calc(16px + env(safe-area-inset-left, 0px));
+  padding-right: calc(16px + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px);
+  overscroll-behavior-y: contain;
 }
 
 .user-nav {
@@ -117,7 +128,12 @@ a {
   border-top: 1px solid var(--border);
   display: flex;
   justify-content: space-around;
-  padding: 8px 0;
+  align-items: center;
+  padding: 8px 0 env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  min-height: calc(56px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
   z-index: 10;
 }
 
@@ -127,10 +143,15 @@ a {
   align-items: center;
   gap: 2px;
   padding: 6px 12px;
+  min-width: 56px;
+  min-height: 48px;
+  justify-content: center;
   color: var(--muted);
   font-size: 11px;
   border-radius: 8px;
   text-decoration: none;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .user-nav a.active {
@@ -273,11 +294,14 @@ a {
   text-align: left;
   padding: 14px 16px;
   margin-bottom: 10px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
   background: var(--card);
   font-size: 15px;
+  line-height: 1.35;
   cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color 0.15s, transform 0.1s;
 }
 
 .quiz-option:hover {
@@ -412,4 +436,315 @@ a {
 
 .list-item .chevron {
   color: var(--muted);
+}
+
+/* ── Mobile / WebView app shell ── */
+.user-body {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.user-header-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--primary);
+  font-size: 22px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.user-header-back:active {
+  background: rgba(67, 97, 238, 0.12);
+}
+
+.user-header-spacer {
+  width: 44px;
+  height: 44px;
+}
+
+.flc-app .user-login-page {
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: calc(24px + env(safe-area-inset-left, 0px));
+  padding-right: calc(24px + env(safe-area-inset-right, 0px));
+}
+
+.flc-app .profile-header {
+  padding-top: calc(24px + env(safe-area-inset-top, 0px));
+  margin-left: calc(-16px - env(safe-area-inset-left, 0px));
+  margin-right: calc(-16px - env(safe-area-inset-right, 0px));
+}
+
+.user-nav a:active {
+  transform: scale(0.96);
+}
+
+.flc-app .btn,
+.flc-app .quiz-option,
+.flc-app .choice-card,
+.flc-app .list-item {
+  min-height: 48px;
+}
+
+.flc-app .form-control {
+  font-size: 16px;
+}
+
+.flc-app .user-nav a .icon {
+  font-size: 22px;
+}
+
+.video-embed {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  margin: 16px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+}
+
+.video-embed iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.session-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-bottom: 10px;
+}
+
+.question-card {
+  margin-bottom: 14px;
+}
+
+.question-label {
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--primary);
+  font-size: 13px;
+}
+
+.question-prompt {
+  margin: 0 0 14px;
+  line-height: 1.45;
+}
+
+.choice-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.choice-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.choice-card input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+}
+
+.choice-card span {
+  flex: 1;
+  line-height: 1.35;
+  font-size: 15px;
+}
+
+.choice-card.selected,
+.choice-card:has(input:checked) {
+  border-color: var(--primary);
+  background: rgba(67, 97, 238, 0.08);
+}
+
+.choice-card:active {
+  transform: scale(0.99);
+}
+
+.result-card {
+  text-align: center;
+  background: rgba(67, 97, 238, 0.08);
+}
+
+.result-score {
+  font-size: 36px;
+  font-weight: 800;
+  margin: 0;
+  color: var(--primary);
+}
+
+.btn-submit-sticky {
+  position: sticky;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
+  z-index: 5;
+  margin-top: 8px;
+  box-shadow: 0 4px 16px rgba(67, 97, 238, 0.35);
+}
+
+.flc-app .quiz-option {
+  touch-action: manipulation;
+}
+
+.flc-app .quiz-option:active {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .user-nav a:active,
+  .choice-card:active,
+  .quiz-option:active {
+    transform: none;
+  }
+}
+
+/* ── Vocabulary list & detail ── */
+.vocab-card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.vocab-card-link {
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.vocab-card-link:active {
+  opacity: 0.85;
+}
+
+.vocab-card-phonetic {
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.vocab-card-preview {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.vocab-card-hint {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.vocab-card-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.vocab-detail-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.vocab-detail-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-icon {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  touch-action: manipulation;
+}
+
+.btn-icon:active {
+  background: rgba(67, 97, 238, 0.1);
+}
+
+.action-menu {
+  position: relative;
+}
+
+.action-menu-trigger {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -2px;
+  color: var(--muted);
+}
+
+.action-menu-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 140px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  z-index: 20;
+}
+
+.action-menu-danger {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  background: transparent;
+  color: var(--danger);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.action-menu-danger:active {
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.vocab-card:last-child .action-menu-panel {
+  top: auto;
+  bottom: 100%;
+  margin-bottom: 4px;
 }

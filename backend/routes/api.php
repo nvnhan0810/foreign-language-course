@@ -44,6 +44,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/media/{mediaItem}', [ListeningMediaController::class, 'show']);
         Route::get('/media/{mediaItem}/audio', [ListeningMediaController::class, 'audio']);
         Route::get('/media/{mediaItem}/assessments', [ListeningMediaController::class, 'assessments']);
+        Route::get('/media/{mediaItem}/session-options', [ListeningAssessmentController::class, 'sessionOptions']);
+        Route::post('/media/{mediaItem}/sessions', [ListeningAssessmentController::class, 'startSession']);
 
         Route::get('/assessments/{listeningAssessment}', [ListeningAssessmentController::class, 'show']);
         Route::get('/assessments/{listeningAssessment}/questions', [ListeningAssessmentController::class, 'questions']);

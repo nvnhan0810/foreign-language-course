@@ -22,6 +22,14 @@ class MediaItem extends Model
 
     public const ANALYSIS_FAILED = 'failed';
 
+    public const QUESTION_BANK_PENDING = 'pending';
+
+    public const QUESTION_BANK_GENERATING = 'generating';
+
+    public const QUESTION_BANK_READY = 'ready';
+
+    public const QUESTION_BANK_FAILED = 'failed';
+
     protected $fillable = [
         'user_id',
         'title',
@@ -36,6 +44,8 @@ class MediaItem extends Model
         'transcript',
         'analysis_payload',
         'analyzed_at',
+        'question_bank_status',
+        'question_bank_count',
         'type',
         'frequency',
         'notes',
@@ -66,6 +76,17 @@ class MediaItem extends Model
     public function listeningAssessments(): HasMany
     {
         return $this->hasMany(ListeningAssessment::class);
+    }
+
+    public function listeningQuestions(): HasMany
+    {
+        return $this->hasMany(ListeningQuestion::class)->orderBy('order');
+    }
+
+    public function isQuestionBankReady(): bool
+    {
+        return $this->question_bank_status === self::QUESTION_BANK_READY
+            && $this->question_bank_count > 0;
     }
 
     public function isAnalysisReady(): bool

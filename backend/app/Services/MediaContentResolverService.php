@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Exceptions\TranscriptUnavailableException;
 use App\Models\MediaItem;
+use Illuminate\Support\Facades\Log;
 
 class MediaContentResolverService
 {
@@ -14,13 +16,14 @@ class MediaContentResolverService
 
     public const SOURCE_TITLE = 'title_only';
 
+    public const TRANSCRIPT_UNAVAILABLE_NOTE = '[Hệ thống] Không lấy được phụ đề/transcript cho video YouTube. Bật caption trên YouTube hoặc dán transcript thủ công, rồi phân tích lại.';
+
     public function __construct(
         private readonly YouTubeTranscriptService $youtubeTranscript,
-        private readonly YouTubeMetadataService $youtubeMetadata,
     ) {}
 
     /**
-     * @return array{content: string, source: string, metadata?: array<string, mixed>}
+     * @return array{content: string, source: string}
      */
     public function resolve(MediaItem $mediaItem): array
     {
@@ -44,19 +47,16 @@ class MediaContentResolverService
                 ];
             }
 
-            $metadata = $this->youtubeMetadata->fetch($mediaItem->source_id);
+            Log::warning('YouTube transcript unavailable, skipping analysis', [
+                'media_item_id' => $mediaItem->id,
+                'video_id' => $mediaItem->source_id,
+                'language' => $mediaItem->language,
+            ]);
 
-            if ($metadata) {
-                $content = $this->youtubeMetadata->toContentText($metadata, $mediaItem->title);
-
-                if (mb_strlen(trim($content)) >= 20) {
-                    return [
-                        'content' => $content,
-                        'source' => self::SOURCE_METADATA,
-                        'metadata' => $metadata,
-                    ];
-                }
-            }
+            throw new TranscriptUnavailableException(
+                $mediaItem->id,
+                $mediaItem->source_id,
+            );
         }
 
         if ($mediaItem->notes && trim($mediaItem->notes) !== '') {
@@ -76,5 +76,20 @@ class MediaContentResolverService
         throw new \RuntimeException(
             'Could not obtain content for this media item. Add notes/transcript manually or try again later.'
         );
+    }
+
+    public function appendTranscriptUnavailableNote(MediaItem $mediaItem): void
+    {
+        $existing = trim($mediaItem->notes ?? '');
+
+        if (str_contains($existing, 'Không lấy được phụ đề/transcript')) {
+            return;
+        }
+
+        $mediaItem->update([
+            'notes' => $existing === ''
+                ? self::TRANSCRIPT_UNAVAILABLE_NOTE
+                : $existing."\n\n".self::TRANSCRIPT_UNAVAILABLE_NOTE,
+        ]);
     }
 }

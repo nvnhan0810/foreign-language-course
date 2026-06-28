@@ -2,11 +2,13 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#4361ee">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Đăng nhập — FLC</title>
     <link rel="stylesheet" href="{{ asset('css/user.css') }}?v={{ filemtime(public_path('css/user.css')) }}">
 </head>
-<body>
+<body class="user-body {{ ($isFlcApp ?? false) ? 'flc-app' : '' }}">
 <div class="user-login-page">
     <div class="user-login-card">
         <div class="user-login-icon">🌐</div>

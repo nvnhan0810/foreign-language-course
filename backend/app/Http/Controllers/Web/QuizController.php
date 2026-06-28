@@ -14,8 +14,12 @@ class QuizController extends Controller
 {
     public function __construct(private readonly QuizSelectionService $quiz) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
+        if ($request->query('autostart') === '1' && ! session()->has('quiz_question')) {
+            return $this->next($request);
+        }
+
         return view('user.quiz', [
             'question' => session('quiz_question'),
             'feedback' => session('quiz_feedback'),

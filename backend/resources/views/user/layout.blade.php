@@ -2,21 +2,33 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#4361ee">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
     <title>@yield('title', 'FLC')</title>
     <link rel="stylesheet" href="{{ asset('css/user.css') }}?v={{ filemtime(public_path('css/user.css')) }}">
+    <script defer src="{{ asset('js/user-app.js') }}?v={{ filemtime(public_path('js/user-app.js')) }}"></script>
 </head>
-<body>
+<body class="user-body {{ ($isFlcApp ?? false) ? 'flc-app' : '' }}">
 <div class="user-shell">
     @hasSection('header')
         @yield('header')
     @else
         <header class="user-header">
+            @hasSection('back_url')
+                <a href="@yield('back_url')" class="user-header-back" aria-label="Quay lại">←</a>
+            @else
+                <span class="user-header-spacer" aria-hidden="true"></span>
+            @endif
             <h1>@yield('heading', 'FLC')</h1>
+            <span class="user-header-spacer" aria-hidden="true"></span>
         </header>
     @endif
 
-    <main class="user-main">
+    <main class="user-main" @if(request()->routeIs('user.home.quiz') && request()->query('autostart') === '1') data-autostart-quiz="1" @endif>
         @if (session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
         @endif
@@ -37,12 +49,12 @@
     </main>
 
     @unless (View::hasSection('hide_nav'))
-        <nav class="user-nav">
+        <nav class="user-nav" aria-label="Điều hướng chính">
             <a href="{{ route('user.home.lookup') }}" class="{{ request()->routeIs('user.home.lookup') ? 'active' : '' }}">
                 <span class="icon">📖</span>
                 Tra từ
             </a>
-            <a href="{{ route('user.home.vocab') }}" class="{{ request()->routeIs('user.home.vocab') ? 'active' : '' }}">
+            <a href="{{ route('user.home.vocab') }}" class="{{ request()->routeIs('user.home.vocab*') ? 'active' : '' }}">
                 <span class="icon">🔖</span>
                 Từ vựng
             </a>

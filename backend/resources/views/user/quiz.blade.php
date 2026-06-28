@@ -8,7 +8,7 @@
 
     @if (!$question)
         <div style="text-align:center;padding:40px 0">
-            <form action="{{ route('user.home.quiz.next') }}" method="POST">
+            <form action="{{ route('user.home.quiz.next') }}" method="POST" class="flc-form-submit">
                 @csrf
                 <button type="submit" class="btn">▶ Bắt đầu Quiz</button>
             </form>
@@ -23,7 +23,7 @@
 
         @if ($feedback === null)
             @foreach ($question['options'] ?? [] as $option)
-                <form action="{{ route('user.home.quiz.answer') }}" method="POST">
+                <form action="{{ route('user.home.quiz.answer') }}" method="POST" class="flc-form-submit">
                     @csrf
                     <input type="hidden" name="vocabulary_id" value="{{ $question['vocabulary_id'] ?? '' }}">
                     <input type="hidden" name="question_type" value="{{ $question['question_type'] ?? '' }}">
@@ -46,7 +46,7 @@
                 {{ $feedback }}
             </div>
 
-            <form action="{{ route('user.home.quiz.next') }}" method="POST" style="margin-top:16px">
+            <form action="{{ route('user.home.quiz.next') }}" method="POST" class="flc-form-submit" style="margin-top:16px">
                 @csrf
                 <button type="submit" class="btn btn-block">Câu tiếp theo</button>
             </form>

@@ -14,7 +14,7 @@
     @endif
     <form action="{{ route('admin.media-items.regenerate-assessments', $mediaItem) }}" method="POST" class="inline-form">
         @csrf
-        <button type="submit" class="btn btn-sm btn-secondary">Tạo lại quiz/test/exam</button>
+        <button type="submit" class="btn btn-sm btn-secondary">Tạo lại ngân hàng câu hỏi</button>
     </form>
     <form action="{{ route('admin.media-items.destroy', $mediaItem) }}" method="POST" class="inline-form" onsubmit="return confirm('Xóa media và tất cả bài quiz/test/exam?')">
         @csrf @method('DELETE')
@@ -57,19 +57,40 @@
             @php $a = $mediaItem->analysis_payload; @endphp
             <p><strong>Tóm tắt:</strong> {{ $a['summary'] ?? '—' }}</p>
             <p><strong>Độ khó:</strong> {{ $a['difficulty'] ?? '—' }}</p>
-            <p><strong>Nguồn nội dung:</strong> {{ $a['content_source'] ?? 'transcript' }}</p>
+            @php
+                $contentSource = $a['content_source'] ?? 'transcript';
+                $contentSourceLabels = [
+                    'transcript' => 'Phụ đề / transcript video',
+                    'metadata' => 'Chỉ metadata YouTube (title + mô tả)',
+                    'notes' => 'Ghi chú admin',
+                    'title_only' => 'Chỉ tiêu đề',
+                ];
+            @endphp
+            <p>
+                <strong>Nguồn nội dung:</strong>
+                {{ $contentSourceLabels[$contentSource] ?? $contentSource }}
+            </p>
             @if (!empty($a['topics']))
                 <p><strong>Chủ đề:</strong> {{ implode(', ', $a['topics']) }}</p>
             @endif
             @if (!empty($a['key_vocabulary']))
-                <p><strong>Từ vựng:</strong></p>
+                <p><strong>Từ vựng chủ đề:</strong></p>
                 <ul>
                     @foreach (array_slice($a['key_vocabulary'], 0, 10) as $v)
                         <li><strong>{{ $v['word'] ?? '' }}</strong> — {{ $v['definition'] ?? '' }}</li>
                     @endforeach
                 </ul>
             @endif
-            <p class="muted">Nguồn: {{ $a['source'] ?? 'unknown' }}</p>
+            @if (!empty($a['vocabulary_import']))
+                @php $vi = $a['vocabulary_import']; @endphp
+                <p class="muted">
+                    Đã thêm {{ $vi['imported'] ?? 0 }} từ vào danh sách ôn tập của user
+                    @if (!empty($vi['skipped']))
+                        ({{ $vi['skipped'] }} từ đã có sẵn)
+                    @endif
+                </p>
+            @endif
+            <p class="muted">Nguồn phân tích: {{ $a['source'] ?? 'unknown' }}</p>
         @else
             <p class="muted">Chưa có phân tích.</p>
         @endif
@@ -77,7 +98,36 @@
 </div>
 
 <div class="card">
-    <h3 style="margin-top:0">Quiz / Test / Exam</h3>
+    <h3 style="margin-top:0">Ngân hàng câu hỏi</h3>
+    <dl class="detail-list">
+        <dt>Trạng thái</dt>
+        <dd><span class="badge badge-{{ $mediaItem->question_bank_status ?? 'pending' }}">{{ $mediaItem->question_bank_status ?? 'pending' }}</span></dd>
+        <dt>Số câu hỏi</dt>
+        <dd>{{ $mediaItem->question_bank_count ?? 0 }}</dd>
+    </dl>
+
+    <p class="muted" style="margin-top:12px">
+        Quiz / Test / Exam được random từ ngân hàng khi user bắt đầu làm bài
+        (quiz: {{ config('listening.assessments.quiz.question_count') }} câu,
+        test: {{ config('listening.assessments.test.question_count') }},
+        exam: {{ config('listening.assessments.exam.question_count') }}).
+    </p>
+
+    @if ($mediaItem->isAnalysisReady())
+        <form action="{{ route('admin.media-items.regenerate-assessments', $mediaItem) }}" method="POST" class="inline-form" style="margin-top:12px">
+            @csrf
+            <button type="submit" class="btn btn-sm btn-secondary">Tạo lại ngân hàng câu hỏi</button>
+        </form>
+    @endif
+</div>
+
+@include('admin.partials.question-bank-table', [
+    'questions' => $mediaItem->listeningQuestions,
+    'panelId' => 'media-question-bank-panel',
+])
+
+<div class="card">
+    <h3 style="margin-top:0">Phiên làm bài gần đây</h3>
     <table>
         <thead>
             <tr>
@@ -85,45 +135,27 @@
                 <th>Tiêu đề</th>
                 <th>Câu hỏi</th>
                 <th>Thời gian</th>
-                <th>Trạng thái</th>
                 <th>Lượt làm</th>
                 <th></th>
             </tr>
         </thead>
         <tbody>
-            @forelse ($mediaItem->listeningAssessments as $assessment)
+            @forelse ($mediaItem->listeningAssessments->sortByDesc('created_at')->take(10) as $assessment)
                 <tr>
                     <td><span class="badge">{{ $assessment->type }}</span></td>
                     <td>{{ $assessment->title }}</td>
-                    <td>{{ $assessment->questions_count }}</td>
+                    <td>{{ $assessment->question_count }}</td>
                     <td>{{ $assessment->time_limit_minutes }} phút</td>
-                    <td><span class="badge badge-{{ $assessment->status }}">{{ $assessment->status }}</span></td>
-                    <td>{{ $assessment->attempts_count }}</td>
+                    <td>{{ $assessment->attempts_count ?? 0 }}</td>
                     <td>
                         <a href="{{ route('admin.listening-assessments.show', $assessment) }}" class="btn btn-sm">Xem</a>
-                        <form action="{{ route('admin.listening-assessments.regenerate', $assessment) }}" method="POST" class="inline-form">
-                            @csrf
-                            <button type="submit" class="btn btn-sm btn-secondary">Tạo lại</button>
-                        </form>
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7" class="muted">Chưa có bài quiz/test/exam. Nhấn "Phân tích lại" hoặc "Tạo lại quiz/test/exam".</td></tr>
+                <tr><td colspan="6" class="muted">Chưa có phiên làm bài nào.</td></tr>
             @endforelse
         </tbody>
     </table>
-
-    @if ($mediaItem->isAnalysisReady())
-        <div class="form-actions" style="margin-top:12px">
-            @foreach (['quiz', 'test', 'exam'] as $t)
-                <form action="{{ route('admin.media-items.regenerate-assessments', $mediaItem) }}" method="POST" class="inline-form">
-                    @csrf
-                    <input type="hidden" name="type" value="{{ $t }}">
-                    <button type="submit" class="btn btn-sm btn-secondary">Tạo lại {{ $t }}</button>
-                </form>
-            @endforeach
-        </div>
-    @endif
 </div>
 
 @if ($mediaItem->transcript || !empty($mediaItem->analysis_payload['source_content']))

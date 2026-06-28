@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\MediaItem;
+use App\Services\ListeningSessionService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class MediaController extends Controller
 {
+    public function __construct(
+        private readonly ListeningSessionService $sessionService,
+    ) {}
+
     public function index(Request $request): View
     {
         $items = $request->user()
@@ -25,14 +30,9 @@ class MediaController extends Controller
             abort(403);
         }
 
-        $assessments = $mediaItem->listeningAssessments()
-            ->orderBy('type')
-            ->orderBy('id')
-            ->get();
-
         return view('user.media-show', [
             'media' => $mediaItem,
-            'assessments' => $assessments,
+            'sessionOptions' => $this->sessionService->sessionOptions($mediaItem),
         ]);
     }
 }

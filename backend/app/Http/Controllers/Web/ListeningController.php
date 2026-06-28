@@ -5,13 +5,42 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\ListeningAssessment;
 use App\Models\ListeningAttempt;
-use App\Models\ListeningQuestion;
+use App\Models\MediaItem;
+use App\Services\ListeningSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use RuntimeException;
 
 class ListeningController extends Controller
 {
+    public function __construct(
+        private readonly ListeningSessionService $sessionService,
+    ) {}
+
+    public function start(Request $request, MediaItem $mediaItem): RedirectResponse
+    {
+        if ($mediaItem->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'type' => ['required', 'in:quiz,test,exam'],
+        ]);
+
+        try {
+            $session = $this->sessionService->startSession(
+                $mediaItem,
+                $request->user(),
+                $data['type']
+            );
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('user.listening.show', $session['assessment_id']);
+    }
+
     public function show(Request $request, ListeningAssessment $listeningAssessment): View|RedirectResponse
     {
         $this->authorizeAssessment($request, $listeningAssessment);
@@ -22,9 +51,7 @@ class ListeningController extends Controller
 
         $listeningAssessment->load('mediaItem');
 
-        $questions = $listeningAssessment->questions()
-            ->orderBy('order')
-            ->get();
+        $questions = $listeningAssessment->sessionQuestions();
 
         return view('user.listening', [
             'assessment' => $listeningAssessment,
@@ -46,7 +73,7 @@ class ListeningController extends Controller
             'answers.*' => ['required', 'string'],
         ]);
 
-        $questions = $listeningAssessment->questions()->get()->keyBy('id');
+        $questions = $listeningAssessment->sessionQuestions()->keyBy('id');
         $score = 0;
         $results = [];
 
@@ -74,6 +101,8 @@ class ListeningController extends Controller
 
         ListeningAttempt::query()->create([
             'listening_assessment_id' => $listeningAssessment->id,
+            'media_item_id' => $listeningAssessment->media_item_id,
+            'type' => $listeningAssessment->type,
             'user_id' => $request->user()->id,
             'score' => $score,
             'total' => $total,
@@ -98,7 +127,7 @@ class ListeningController extends Controller
         }
     }
 
-    private function isAnswerCorrect(ListeningQuestion $question, string $answer): bool
+    private function isAnswerCorrect($question, string $answer): bool
     {
         $normalized = strtolower(trim($answer));
         $correct = strtolower(trim((string) $question->correct_answer));
