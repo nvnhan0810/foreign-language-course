@@ -62,9 +62,7 @@ class LookupController extends Controller
         $existing = $request->user()->vocabularies()->where('word', $word)->first();
 
         if ($existing) {
-            return redirect()->route('user.home.lookup')
-                ->with('success', 'Từ đã có trong danh sách.')
-                ->with('lookup_saved', true);
+            return $this->redirectToLookupAfterSave($data, 'Từ đã có trong danh sách.');
         }
 
         $lookup = $this->dictionary->lookup($word);
@@ -86,9 +84,31 @@ class LookupController extends Controller
             }
         }
 
+        return $this->redirectToLookupAfterSave($data, 'Đã lưu từ.', $lookup);
+    }
+
+    /**
+     * @param  array{word: string, phonetic?: string|null, meanings?: array<int, mixed>|null}  $data
+     * @param  array<string, mixed>|null  $lookup
+     */
+    private function redirectToLookupAfterSave(array $data, string $message, ?array $lookup = null): RedirectResponse
+    {
+        $lookup ??= $this->dictionary->lookup(Str::lower(trim($data['word'])));
+
+        if ($lookup === null) {
+            $lookup = [
+                'word' => $data['word'],
+                'phonetic' => $data['phonetic'] ?? null,
+                'audio_url' => null,
+                'meanings' => $data['meanings'] ?? [],
+            ];
+        }
+
         return redirect()->route('user.home.lookup')
-            ->with('success', 'Đã lưu từ.')
-            ->with('lookup_saved', true);
+            ->with('success', $message)
+            ->with('lookup_saved', true)
+            ->with('lookup_word', $data['word'])
+            ->with('lookup_result', $lookup);
     }
 
     public function pronounce(Request $request, string $word): JsonResponse|RedirectResponse
