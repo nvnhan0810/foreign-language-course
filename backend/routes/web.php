@@ -45,6 +45,7 @@ Route::name('user.')->middleware(\App\Http\Middleware\DetectFlcMobileApp::class)
             Route::delete('vocab/{vocabulary}', [WebVocabularyController::class, 'destroy'])->name('vocab.destroy');
 
             Route::get('media', [MediaController::class, 'index'])->name('media');
+            Route::get('media/{mediaItem}/audio', [MediaController::class, 'audio'])->name('media.audio');
             Route::get('media/{mediaItem}', [MediaController::class, 'show'])->name('media.show');
 
             Route::get('quiz', [QuizController::class, 'index'])->name('quiz');

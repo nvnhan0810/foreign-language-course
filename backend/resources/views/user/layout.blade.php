@@ -28,6 +28,10 @@
         </header>
     @endif
 
+    @hasSection('below_header')
+        @yield('below_header')
+    @endif
+
     <main class="user-main" @if(request()->routeIs('user.home.quiz') && request()->query('autostart') === '1') data-autostart-quiz="1" @endif>
         @if (session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>

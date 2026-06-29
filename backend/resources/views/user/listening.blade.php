@@ -12,6 +12,12 @@
 @section('hide_nav', true)
 @section('back_url', $backUrl)
 
+@if (!$result && $assessment->mediaItem)
+    @section('below_header')
+        @include('user.partials.listening-media-player', ['media' => $assessment->mediaItem])
+    @endsection
+@endif
+
 @section('content')
     @if ($result)
         <div class="card result-card">

@@ -518,6 +518,41 @@ a {
   border: 0;
 }
 
+.listening-media-sticky {
+  position: sticky;
+  top: calc(52px + env(safe-area-inset-top, 0px));
+  z-index: 9;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.listening-media-sticky .video-embed--compact {
+  margin: 0;
+  padding-bottom: 36%;
+  border-radius: 0;
+}
+
+.listening-media-sticky .audio-player-bar {
+  padding: 10px 16px;
+  padding-left: calc(16px + env(safe-area-inset-left, 0px));
+  padding-right: calc(16px + env(safe-area-inset-right, 0px));
+}
+
+.audio-player-label {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audio-player-bar audio {
+  width: 100%;
+  height: 40px;
+}
+
 .session-row {
   display: flex;
   align-items: center;
