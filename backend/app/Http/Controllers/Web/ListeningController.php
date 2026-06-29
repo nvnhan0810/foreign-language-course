@@ -29,7 +29,7 @@ class ListeningController extends Controller
         ]);
 
         try {
-            $session = $this->sessionService->startSession(
+            $session = $this->sessionService->resumeOrStartSession(
                 $mediaItem,
                 $request->user(),
                 $data['type']
@@ -50,13 +50,54 @@ class ListeningController extends Controller
         }
 
         $listeningAssessment->load('mediaItem');
+        $result = session('listening_result');
+        $sessionKey = $this->sessionCacheKey($listeningAssessment);
+
+        if ($result) {
+            session()->forget($sessionKey);
+        } elseif ($this->hasCompletedAttempt($listeningAssessment, $request)) {
+            session()->forget($sessionKey);
+
+            $lastAttempt = $listeningAssessment->attempts()
+                ->where('user_id', $request->user()->id)
+                ->latest('completed_at')
+                ->first();
+
+            return view('user.listening', [
+                'assessment' => $listeningAssessment,
+                'questions' => collect(),
+                'result' => [
+                    'score' => $lastAttempt->score,
+                    'total' => $lastAttempt->total,
+                    'percentage' => $lastAttempt->percentage,
+                ],
+            ]);
+        } elseif (! session()->has($sessionKey)) {
+            $questionIds = array_map('intval', $listeningAssessment->question_ids ?? []);
+
+            try {
+                if ($questionIds === []) {
+                    $questionIds = $this->sessionService->initializeSessionQuestions($listeningAssessment);
+                } else {
+                    $questionIds = $this->sessionService->shuffleQuestionOrder($questionIds);
+                }
+
+                session([$sessionKey => $questionIds]);
+            } catch (RuntimeException $e) {
+                return redirect()
+                    ->route('user.home.media.show', $listeningAssessment->mediaItem)
+                    ->with('error', $e->getMessage());
+            }
+        } else {
+            $listeningAssessment->question_ids = session($sessionKey);
+        }
 
         $questions = $listeningAssessment->sessionQuestions();
 
         return view('user.listening', [
             'assessment' => $listeningAssessment,
             'questions' => $questions,
-            'result' => session('listening_result'),
+            'result' => $result,
         ]);
     }
 
@@ -111,6 +152,8 @@ class ListeningController extends Controller
             'completed_at' => now(),
         ]);
 
+        session()->forget($this->sessionCacheKey($listeningAssessment));
+
         return redirect()->route('user.listening.show', $listeningAssessment)
             ->with('listening_result', [
                 'score' => $score,
@@ -133,5 +176,17 @@ class ListeningController extends Controller
         $correct = strtolower(trim((string) $question->correct_answer));
 
         return $normalized === $correct;
+    }
+
+    private function sessionCacheKey(ListeningAssessment $listeningAssessment): string
+    {
+        return "listening.question_ids.{$listeningAssessment->id}";
+    }
+
+    private function hasCompletedAttempt(ListeningAssessment $listeningAssessment, Request $request): bool
+    {
+        return $listeningAssessment->attempts()
+            ->where('user_id', $request->user()->id)
+            ->exists();
     }
 }

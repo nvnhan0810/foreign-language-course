@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="{{ asset('css/user.css') }}?v={{ filemtime(public_path('css/user.css')) }}">
     <script defer src="{{ asset('js/user-app.js') }}?v={{ filemtime(public_path('js/user-app.js')) }}"></script>
 </head>
-<body class="user-body {{ ($isFlcApp ?? false) ? 'flc-app' : '' }}">
+<body class="user-body {{ ($isFlcApp ?? false) ? 'flc-app' : '' }}{{ View::hasSection('hide_nav') ? ' user-no-nav' : '' }}">
 <div class="user-shell">
     @hasSection('header')
         @yield('header')

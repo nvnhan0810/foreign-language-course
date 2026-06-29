@@ -48,6 +48,20 @@ class ListeningSessionService
     /**
      * @return array<string, mixed>
      */
+    public function resumeOrStartSession(MediaItem $mediaItem, User $user, string $type): array
+    {
+        $unfinished = $this->findUnfinishedAssessment($mediaItem, $user, $type);
+
+        if ($unfinished !== null) {
+            return $this->formatExistingSession($unfinished);
+        }
+
+        return $this->startSession($mediaItem, $user, $type);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     public function startSession(MediaItem $mediaItem, User $user, string $type): array
     {
         $config = config("listening.assessments.{$type}");
@@ -69,11 +83,7 @@ class ListeningSessionService
 
         return DB::transaction(function () use ($mediaItem, $user, $type, $config, $sessionSize) {
             /** @var Collection<int, ListeningQuestion> $selected */
-            $selected = $mediaItem->listeningQuestions()
-                ->inRandomOrder()
-                ->limit($sessionSize)
-                ->get()
-                ->values();
+            $selected = $this->pickRandomQuestions($mediaItem, $sessionSize);
 
             $questionIds = $selected->pluck('id')->all();
 
@@ -99,6 +109,101 @@ class ListeningSessionService
                 'questions' => $this->formatQuestionsForClient($selected),
             ];
         });
+    }
+
+    /**
+     * Shuffle display order only — keep the same question set.
+     *
+     * @param  array<int, int>  $questionIds
+     * @return array<int, int>
+     */
+    public function shuffleQuestionOrder(array $questionIds): array
+    {
+        $ids = array_values(array_map('intval', $questionIds));
+        shuffle($ids);
+
+        return $ids;
+    }
+
+    /**
+     * Pick questions from the bank when a session has none stored yet.
+     *
+     * @return array<int, int>
+     */
+    public function initializeSessionQuestions(ListeningAssessment $assessment): array
+    {
+        $assessment->loadMissing('mediaItem');
+
+        $mediaItem = $assessment->mediaItem;
+
+        if ($mediaItem === null) {
+            throw new RuntimeException('Assessment has no media item.');
+        }
+
+        $config = config("listening.assessments.{$assessment->type}");
+        $sessionSize = (int) (is_array($config) ? ($config['question_count'] ?? $assessment->question_count) : $assessment->question_count);
+
+        if ($sessionSize < 1) {
+            throw new RuntimeException('Invalid session size.');
+        }
+
+        $bankCount = $mediaItem->listeningQuestions()->count();
+
+        if (! $mediaItem->isQuestionBankReady() || $bankCount < $sessionSize) {
+            throw new RuntimeException('Question bank is not ready or too small.');
+        }
+
+        $questionIds = $this->pickRandomQuestions($mediaItem, $sessionSize)->pluck('id')->all();
+
+        $assessment->update([
+            'question_ids' => $questionIds,
+            'question_count' => count($questionIds),
+        ]);
+
+        return $questionIds;
+    }
+
+    public function findUnfinishedAssessment(MediaItem $mediaItem, User $user, string $type): ?ListeningAssessment
+    {
+        return ListeningAssessment::query()
+            ->where('media_item_id', $mediaItem->id)
+            ->where('user_id', $user->id)
+            ->where('type', $type)
+            ->where('status', ListeningAssessment::STATUS_READY)
+            ->whereDoesntHave('attempts', fn ($query) => $query->where('user_id', $user->id))
+            ->latest('created_at')
+            ->first();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatExistingSession(ListeningAssessment $assessment): array
+    {
+        $questions = $assessment->sessionQuestions();
+
+        return [
+            'assessment_id' => $assessment->id,
+            'type' => $assessment->type,
+            'title' => $assessment->title,
+            'time_limit_minutes' => $assessment->time_limit_minutes,
+            'question_count' => $questions->count(),
+            'questions' => $this->formatQuestionsForClient($questions),
+            'resumed' => true,
+        ];
+    }
+
+    /**
+     * @return Collection<int, ListeningQuestion>
+     */
+    private function pickRandomQuestions(MediaItem $mediaItem, int $sessionSize): Collection
+    {
+        return $mediaItem->listeningQuestions()
+            ->inRandomOrder()
+            ->limit($sessionSize)
+            ->get()
+            ->shuffle()
+            ->values();
     }
 
     /**

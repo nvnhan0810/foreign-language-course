@@ -117,6 +117,10 @@ a {
   overscroll-behavior-y: contain;
 }
 
+.user-no-nav .user-main {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+}
+
 .user-nav {
   position: fixed;
   bottom: 0;
@@ -636,9 +640,10 @@ a {
 
 .btn-submit-sticky {
   position: sticky;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
   z-index: 5;
   margin-top: 8px;
+  margin-bottom: 0;
   box-shadow: 0 4px 16px rgba(67, 97, 238, 0.35);
 }
 
