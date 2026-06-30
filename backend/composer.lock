@@ -2819,16 +2819,16 @@
         },
         {
             "name": "nvnhan0810/laravel-telegram-logging",
-            "version": "v1.0.0",
+            "version": "v1.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nvnhan0810/laravel-telegram-logging.git",
-                "reference": "bb40078e6928cb60a64731e3510085b5bfdc8060"
+                "reference": "31ab2dde51a2e8166e6e49b9c955d65189f7c0cd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nvnhan0810/laravel-telegram-logging/zipball/bb40078e6928cb60a64731e3510085b5bfdc8060",
-                "reference": "bb40078e6928cb60a64731e3510085b5bfdc8060",
+                "url": "https://api.github.com/repos/nvnhan0810/laravel-telegram-logging/zipball/31ab2dde51a2e8166e6e49b9c955d65189f7c0cd",
+                "reference": "31ab2dde51a2e8166e6e49b9c955d65189f7c0cd",
                 "shasum": ""
             },
             "require": {
@@ -2866,11 +2866,18 @@
                 }
             ],
             "description": "Laravel log channel — send warnings/errors to Telegram with optional queue and message templates.",
+            "homepage": "https://github.com/nvnhan0810/laravel-telegram-logging",
+            "keywords": [
+                "laravel",
+                "logging",
+                "monolog",
+                "telegram"
+            ],
             "support": {
                 "issues": "https://github.com/nvnhan0810/laravel-telegram-logging/issues",
-                "source": "https://github.com/nvnhan0810/laravel-telegram-logging/tree/v1.0.0"
+                "source": "https://github.com/nvnhan0810/laravel-telegram-logging"
             },
-            "time": "2026-06-08T15:22:06+00:00"
+            "time": "2026-06-29T14:45:09+00:00"
         },
         {
             "name": "paragonie/constant_time_encoding",
@@ -8991,5 +8998,5 @@
         "php": "^8.3"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }
