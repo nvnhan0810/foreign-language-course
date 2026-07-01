@@ -21,6 +21,47 @@
         </p>
     @endif
 
+    @php($transcriptEditing = $errors->has('transcript'))
+    <details class="transcript-collapse" @if ($transcriptEditing) open @endif>
+        <summary>
+            <span>Transcript</span>
+            <span class="transcript-collapse-icon" aria-hidden="true">▾</span>
+        </summary>
+        <div class="transcript-collapse-body" data-transcript>
+            <div class="transcript-view" data-transcript-view @if ($transcriptEditing) hidden @endif>
+                @if (filled($media->transcript))
+                    <p class="transcript-text">{{ $media->transcript }}</p>
+                @else
+                    <p class="muted">Chưa có transcript.</p>
+                @endif
+                <button type="button" class="btn btn-sm btn-secondary" data-transcript-edit>
+                    {{ filled($media->transcript) ? 'Sửa transcript' : 'Thêm transcript' }}
+                </button>
+            </div>
+
+            <form
+                method="POST"
+                action="{{ route('user.home.media.transcript', $media) }}"
+                class="transcript-form"
+                data-transcript-form
+                @unless ($transcriptEditing) hidden @endunless
+            >
+                @csrf
+                @method('PUT')
+                <textarea
+                    name="transcript"
+                    class="transcript-textarea"
+                    rows="10"
+                    placeholder="Nhập transcript của video hoặc audio..."
+                >{{ old('transcript', $media->transcript) }}</textarea>
+                <div class="transcript-form-actions">
+                    <button type="submit" class="btn btn-sm">Lưu</button>
+                    <button type="button" class="btn btn-sm btn-secondary" data-transcript-cancel>Huỷ</button>
+                </div>
+            </form>
+        </div>
+    </details>
+
     <h2 style="font-size:16px;margin:24px 0 12px">Bài kiểm tra nghe</h2>
 
     @if ($media->question_bank_status !== 'ready' || ($media->question_bank_count ?? 0) === 0)

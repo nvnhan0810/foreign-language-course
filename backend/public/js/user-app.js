@@ -83,6 +83,27 @@
     });
   });
 
+  document.querySelectorAll('[data-transcript]').forEach((container) => {
+    const view = container.querySelector('[data-transcript-view]');
+    const form = container.querySelector('[data-transcript-form]');
+    const editBtn = container.querySelector('[data-transcript-edit]');
+    const cancelBtn = container.querySelector('[data-transcript-cancel]');
+    if (!view || !form) return;
+
+    const showForm = () => {
+      view.hidden = true;
+      form.hidden = false;
+      form.querySelector('textarea')?.focus();
+    };
+    const showView = () => {
+      form.hidden = true;
+      view.hidden = false;
+    };
+
+    editBtn?.addEventListener('click', showForm);
+    cancelBtn?.addEventListener('click', showView);
+  });
+
   document.querySelectorAll('.choice-card input').forEach((input) => {
     input.addEventListener('change', () => {
       const group = input.closest('.choice-group');

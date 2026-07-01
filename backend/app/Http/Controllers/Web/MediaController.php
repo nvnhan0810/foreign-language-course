@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MediaItem;
 use App\Services\ListeningSessionService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -37,6 +38,25 @@ class MediaController extends Controller
             'media' => $mediaItem,
             'sessionOptions' => $this->sessionService->sessionOptions($mediaItem),
         ]);
+    }
+
+    public function updateTranscript(Request $request, MediaItem $mediaItem): RedirectResponse
+    {
+        if ($mediaItem->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'transcript' => ['nullable', 'string', 'max:100000'],
+        ]);
+
+        $mediaItem->update([
+            'transcript' => $validated['transcript'] ?? null,
+        ]);
+
+        return redirect()
+            ->route('user.home.media.show', $mediaItem)
+            ->with('success', 'Đã lưu transcript.');
     }
 
     public function audio(Request $request, MediaItem $mediaItem): StreamedResponse|JsonResponse
