@@ -1,22 +1,18 @@
-import 'dart:async';
-
 import 'package:flc_mobile/core/fcm/fcm_service.dart';
-import 'package:flc_mobile/router/app_router.dart';
 import 'package:flutter/foundation.dart';
-import 'package:go_router/go_router.dart';
+
+typedef WebAppPathHandler = void Function(String path);
 
 class FcmRedirectCoordinator {
   FcmRedirectCoordinator(this._fcm);
 
   final FcmService _fcm;
-  StreamSubscription<String>? _sub;
-  GoRouter? _router;
+  WebAppPathHandler? _handler;
   String? _queued;
-  Timer? _retryTimer;
 
-  void start(GoRouter router) {
-    _router = router;
-    _sub ??= _fcm.routes.listen(_handleRoute);
+  void start(WebAppPathHandler handler) {
+    _handler = handler;
+    _fcm.routes.listen(_handleRoute);
 
     final pending = _fcm.consumePendingRoute();
     if (pending != null) {
@@ -27,36 +23,24 @@ class FcmRedirectCoordinator {
   void _handleRoute(String route) {
     if (route.isEmpty) return;
     if (kDebugMode) debugPrint('[FCM_REDIRECT] route=$route');
+
+    final handler = _handler;
+    if (handler != null) {
+      handler(route);
+      return;
+    }
+
     _queued = route;
-    _drainQueueWithRetry();
   }
 
-  void _drainQueueWithRetry() {
-    _retryTimer?.cancel();
-    var attempts = 0;
-    _retryTimer = Timer.periodic(const Duration(milliseconds: 250), (timer) {
-      attempts += 1;
-      final route = _queued;
-      final router = _router;
-      final context = rootNavigatorKey.currentContext;
-
-      if (route != null && router != null && context != null) {
-        router.go(route);
-        _queued = null;
-        timer.cancel();
-        return;
-      }
-
-      if (attempts >= 20) {
-        timer.cancel();
-      }
-    });
+  void attachHandler(WebAppPathHandler handler) {
+    _handler = handler;
+    final queued = _queued;
+    if (queued != null) {
+      _queued = null;
+      handler(queued);
+    }
   }
 
-  Future<void> dispose() async {
-    await _sub?.cancel();
-    _sub = null;
-    _retryTimer?.cancel();
-    _retryTimer = null;
-  }
+  Future<void> dispose() async {}
 }

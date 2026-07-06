@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   quizPerDay: 2,
   mediaCheckMinutes: 30,
   notificationsEnabled: true,
+  theme: 'system',
 };
 
 export async function getSettings(): Promise<UserSettings> {

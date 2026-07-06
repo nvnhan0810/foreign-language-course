@@ -86,6 +86,7 @@ export interface UserSettings {
   quizPerDay: number;
   mediaCheckMinutes: number;
   notificationsEnabled: boolean;
+  theme: 'light' | 'dark' | 'system';
 }
 
 export interface AuthState {

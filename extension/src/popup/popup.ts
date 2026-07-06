@@ -7,7 +7,10 @@ import {
   clearPendingQuiz,
   getAuth,
   getPendingQuiz,
+  getSettings,
+  saveSettings,
 } from '../shared/storage';
+import { applyTheme, bindThemeToggleButtons, type ThemeMode } from '../shared/theme';
 import { getActiveTabYouTubeInfo } from '../shared/youtube-tab';
 import type {
   DictionaryResult,
@@ -22,6 +25,27 @@ let currentLookup: DictionaryResult | null = null;
 const $ = (id: string) => document.getElementById(id)!;
 
 async function init() {
+  const settings = await getSettings();
+  applyTheme(settings.theme);
+
+  let themeMode = settings.theme;
+  bindThemeToggleButtons(
+    () => themeMode,
+    async (mode: ThemeMode) => {
+      themeMode = mode;
+      applyTheme(mode);
+      await saveSettings({ theme: mode });
+    }
+  );
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !changes.settings) return;
+    const next = changes.settings.newValue as { theme?: ThemeMode } | undefined;
+    if (!next?.theme) return;
+    themeMode = next.theme;
+    applyTheme(next.theme);
+  });
+
   bindTabs();
   bindAuth();
   bindLookup();

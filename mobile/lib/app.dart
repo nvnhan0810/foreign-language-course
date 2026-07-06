@@ -1,26 +1,25 @@
-import 'dart:async';
-
-import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/core/theme/app_theme.dart';
+import 'package:flc_mobile/features/webapp/web_app_navigation.dart';
+import 'package:flc_mobile/features/webapp/web_app_screen.dart';
 import 'package:flc_mobile/init_dependencies.dart';
-import 'package:flc_mobile/router/app_router.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class FlcApp extends ConsumerStatefulWidget {
+class FlcApp extends StatefulWidget {
   const FlcApp({super.key});
 
   @override
-  ConsumerState<FlcApp> createState() => _FlcAppState();
+  State<FlcApp> createState() => _FlcAppState();
 }
 
-class _FlcAppState extends ConsumerState<FlcApp> with WidgetsBindingObserver {
+class _FlcAppState extends State<FlcApp> with WidgetsBindingObserver {
+  final _webNavigation = WebAppNavigationBridge();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      appFcmRedirectCoordinator.start(ref.read(routerProvider));
+      appFcmRedirectCoordinator.start(_webNavigation.navigateToPath);
     });
   }
 
@@ -33,28 +32,17 @@ class _FlcAppState extends ConsumerState<FlcApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      final loggedIn = ref.read(authStateProvider).valueOrNull ?? false;
-      if (loggedIn) {
-        unawaited(appFcmTokenRegistrar.registerIfLoggedIn());
-      }
+      appFcmTokenRegistrar.emitFcmToken();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<bool>>(authStateProvider, (previous, next) {
-      next.whenData((loggedIn) {
-        if (!loggedIn) return;
-        unawaited(appFcmTokenRegistrar.registerIfLoggedIn());
-      });
-    });
-
-    final router = ref.watch(routerProvider);
-    return MaterialApp.router(
+    return MaterialApp(
       title: 'Foreign Learner',
       theme: AppTheme.light(),
-      routerConfig: router,
       debugShowCheckedModeBanner: false,
+      home: WebAppScreen(navigationBridge: _webNavigation),
     );
   }
 }

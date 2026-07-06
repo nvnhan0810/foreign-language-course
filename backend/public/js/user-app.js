@@ -2,6 +2,57 @@
   'use strict';
 
   const FCM_TOKEN_EVENT = 'flc:fcm-token';
+  const THEME_STORAGE_KEY = 'flc-theme';
+
+  function getStoredTheme() {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+  }
+
+  function resolveTheme(mode) {
+    if (mode === 'dark') return 'dark';
+    if (mode === 'light') return 'light';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function updateThemeColor(resolved) {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute('content', resolved === 'dark' ? '#1a2332' : '#4361ee');
+    }
+  }
+
+  function applyTheme(mode) {
+    const resolved = resolveTheme(mode);
+    document.documentElement.dataset.theme = resolved;
+    updateThemeColor(resolved);
+
+    document.querySelectorAll('[data-theme-choice]').forEach((button) => {
+      button.classList.toggle('active', button.dataset.themeChoice === mode);
+    });
+  }
+
+  function initTheme() {
+    const mode = getStoredTheme();
+    applyTheme(mode);
+
+    document.querySelectorAll('[data-theme-choice]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const choice = button.dataset.themeChoice;
+        if (!choice) return;
+        localStorage.setItem(THEME_STORAGE_KEY, choice);
+        applyTheme(choice);
+      });
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (getStoredTheme() === 'system') {
+        applyTheme('system');
+      }
+    });
+  }
+
+  initTheme();
 
   function speakWord(word) {
     if (!word || !('speechSynthesis' in window)) return;

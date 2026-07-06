@@ -17,6 +17,15 @@
 @endsection
 
 @section('content')
+    <div class="theme-settings">
+        <h2>Giao diện</h2>
+        <div class="theme-toggle" role="group" aria-label="Chọn giao diện">
+            <button type="button" data-theme-choice="light">☀️ Sáng</button>
+            <button type="button" data-theme-choice="dark">🌙 Tối</button>
+            <button type="button" data-theme-choice="system">💻 Hệ thống</button>
+        </div>
+    </div>
+
     <h2 style="font-size:18px;margin:0 0 16px">Thống kê</h2>
     <div class="stats-row">
         <div class="stat-card">

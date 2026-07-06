@@ -1,3 +1,5 @@
+@import url('../shared/theme.css');
+
 #flc-selection-root {
   position: fixed;
   inset: 0;
@@ -8,7 +10,7 @@
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 13px;
   line-height: 1.45;
-  color: #1a1a2e;
+  color: var(--flc-text);
   pointer-events: none;
   margin: 0;
   padding: 0;
@@ -27,8 +29,8 @@
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4361ee, #3a0ca3);
-  box-shadow: 0 2px 12px rgba(67, 97, 238, 0.55);
+  background: linear-gradient(135deg, var(--flc-primary), var(--flc-primary-dark));
+  box-shadow: 0 2px 12px var(--flc-primary-soft);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -38,7 +40,7 @@
 
 #flc-selection-root .flc-fab:hover {
   transform: scale(1.08);
-  box-shadow: 0 4px 16px rgba(67, 97, 238, 0.65);
+  box-shadow: 0 4px 16px var(--flc-primary-soft-strong);
 }
 
 #flc-selection-root .flc-fab img {
@@ -54,10 +56,10 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--flc-surface);
+  border: 1px solid var(--flc-border);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 8px 32px var(--flc-shadow);
   padding: 0;
 }
 
@@ -78,9 +80,9 @@
   bottom: 0;
   z-index: 1;
   padding: 10px 14px 12px;
-  background: #fff;
-  border-top: 1px solid #e2e8f0;
-  box-shadow: 0 -6px 16px rgba(15, 23, 42, 0.06);
+  background: var(--flc-surface);
+  border-top: 1px solid var(--flc-border);
+  box-shadow: 0 -6px 16px var(--flc-shadow-soft);
 }
 
 #flc-selection-root .flc-panel-footer[hidden] {
@@ -89,13 +91,13 @@
 
 #flc-selection-root .flc-selected-text {
   font-size: 12px;
-  color: #64748b;
+  color: var(--flc-muted);
   word-break: break-word;
   flex: 1;
 }
 
 #flc-selection-root .flc-selected-text em {
-  color: #4361ee;
+  color: var(--flc-primary);
   font-style: normal;
   font-weight: 600;
 }
@@ -105,16 +107,16 @@
   width: 24px;
   height: 24px;
   border: none;
-  background: #f1f5f9;
+  background: var(--flc-close-bg);
   border-radius: 6px;
   cursor: pointer;
   font-size: 16px;
   line-height: 1;
-  color: #64748b;
+  color: var(--flc-muted);
 }
 
 #flc-selection-root .flc-close:hover {
-  background: #e2e8f0;
+  background: var(--flc-close-hover);
 }
 
 #flc-selection-root .flc-word-head {
@@ -137,20 +139,20 @@
 
 #flc-selection-root .flc-word-head strong {
   font-size: 16px;
-  color: #1a1a2e;
+  color: var(--flc-text);
 }
 
 #flc-selection-root .flc-phonetic {
   display: block;
   font-size: 12px;
-  color: #64748b;
+  color: var(--flc-muted);
   margin-top: 2px;
 }
 
 #flc-selection-root .flc-meaning {
   margin-bottom: 10px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--flc-meaning-border);
 }
 
 #flc-selection-root .flc-meaning:last-child {
@@ -161,7 +163,7 @@
 
 #flc-selection-root .flc-pos {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--flc-muted);
   font-style: italic;
 }
 
@@ -172,7 +174,7 @@
 #flc-selection-root .flc-example {
   margin-top: 4px;
   font-size: 12px;
-  color: #475569;
+  color: var(--flc-text-secondary);
 }
 
 #flc-selection-root .flc-actions {
@@ -191,7 +193,7 @@
 }
 
 #flc-selection-root .flc-btn-primary {
-  background: #4361ee;
+  background: var(--flc-primary);
   color: #fff;
 }
 
@@ -201,18 +203,18 @@
 }
 
 #flc-selection-root .flc-btn-secondary {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--flc-hint-bg);
+  color: var(--flc-text-secondary);
 }
 
 #flc-selection-root .flc-msg {
   font-size: 13px;
-  color: #64748b;
+  color: var(--flc-muted);
   padding: 8px 0;
 }
 
 #flc-selection-root .flc-error {
-  color: #dc2626;
+  color: var(--flc-danger);
   font-size: 12px;
 }
 
@@ -220,15 +222,15 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #64748b;
+  color: var(--flc-muted);
   padding: 12px 0;
 }
 
 #flc-selection-root .flc-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #e2e8f0;
-  border-top-color: #4361ee;
+  border: 2px solid var(--flc-spinner-track);
+  border-top-color: var(--flc-primary);
   border-radius: 50%;
   animation: flc-spin 0.7s linear infinite;
 }

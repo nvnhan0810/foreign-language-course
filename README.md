@@ -25,7 +25,7 @@ flowchart LR
 |------|------------------|------------|
 | **Tra từ** | Bôi đen → **Tra từ với FLC**, hoặc popup tab Tra từ | Tab **Tra từ** |
 | **Lưu từ** | Tab **Từ của tôi** | Tab **Từ vựng** (đồng bộ) |
-| **Nghe** | Thêm link YouTube/audio, nhắc nghe lại | Tab **Nghe** — YouTube/MP3, listening quiz |
+| **Nghe** | Thêm link YouTube/audio; **listening quiz** (random từ ngân hàng câu hỏi) | Tab **Nghe** — YouTube/MP3, listening quiz random |
 | **Quiz** | Tab **Quiz**, notification Chrome | Tab **Quiz**, push FCM 11h & 20h |
 | **Tiến độ** | Options / sync | Tab **Cá nhân** — thống kê, lịch sử |
 
@@ -36,9 +36,9 @@ flowchart LR
 | Tình huống | Gợi ý |
 |------------|--------|
 | Đọc web, docs, forum trên Chrome | **Extension** |
-| Học trên điện thoại, nhận push nhắc quiz | **Mobile app** |
-| Tự thêm link YouTube nghe lại | **Extension** |
-| Bài nghe + listening quiz từ admin | **Mobile app** |
+| Học trên điện thoại, nhận push nhắc quiz | **Mobile app** (WebView → web app) |
+| Tự thêm link YouTube nghe lại + làm listening quiz | **Extension** hoặc **Mobile** |
+| Bài nghe + listening quiz (màn hình lớn, embed YouTube) | **Mobile app** |
 
 ---
 

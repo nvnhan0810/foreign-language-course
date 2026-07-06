@@ -50,6 +50,11 @@ export default defineConfig({
           }
         }
         mkdirSync(resolve(__dirname, 'dist/content'), { recursive: true });
+        mkdirSync(resolve(__dirname, 'dist/shared'), { recursive: true });
+        copyFileSync(
+          resolve(__dirname, 'src/shared/theme.css'),
+          resolve(__dirname, 'dist/shared/theme.css')
+        );
         copyFileSync(
           resolve(__dirname, 'src/content/content-overlay.css'),
           resolve(__dirname, 'dist/content/content-overlay.css')

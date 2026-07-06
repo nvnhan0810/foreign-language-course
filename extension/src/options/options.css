@@ -1,9 +1,12 @@
+@import url('../shared/theme.css');
+
 body {
   font-family: system-ui, sans-serif;
   max-width: 480px;
   margin: 40px auto;
   padding: 0 20px;
-  color: #1a1a2e;
+  color: var(--flc-text);
+  background: var(--flc-bg);
 }
 
 label {
@@ -14,7 +17,7 @@ label {
 .section {
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--flc-border);
 }
 
 .section h2 {
@@ -24,30 +27,31 @@ label {
 
 .hint {
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--flc-muted);
   margin: 0 0 12px;
   line-height: 1.4;
 }
 
 .hint code {
   font-size: 0.8rem;
-  background: #f1f5f9;
+  background: var(--flc-hint-bg);
   padding: 1px 4px;
   border-radius: 4px;
 }
 
 .preview {
   font-size: 0.875rem;
-  color: #4361ee;
+  color: var(--flc-primary);
   margin: -8px 0 12px;
   word-break: break-all;
 }
 
 .preview.error {
-  color: #dc2626;
+  color: var(--flc-danger);
 }
 
-.preset-row {
+.preset-row,
+.theme-toggle {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -59,8 +63,10 @@ input[type='number'] {
   width: 100%;
   padding: 8px;
   margin-top: 4px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--flc-input-border);
   border-radius: 6px;
+  background: var(--flc-surface);
+  color: var(--flc-text);
 }
 
 .checkbox {
@@ -71,25 +77,31 @@ input[type='number'] {
 
 button {
   padding: 10px 16px;
-  background: #4361ee;
+  background: var(--flc-primary);
   color: #fff;
   border: none;
   border-radius: 6px;
   cursor: pointer;
 }
 
-button.secondary {
-  background: #f1f5f9;
-  color: #334155;
+button.secondary,
+.theme-toggle button {
+  background: var(--flc-hint-bg);
+  color: var(--flc-text);
   font-size: 0.875rem;
   padding: 6px 12px;
 }
 
+.theme-toggle button.active {
+  background: var(--flc-primary);
+  color: #fff;
+}
+
 .status {
-  color: #16a34a;
+  color: var(--flc-success-text);
   margin-top: 12px;
 }
 
 .status.error {
-  color: #dc2626;
+  color: var(--flc-danger);
 }

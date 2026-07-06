@@ -8,7 +8,8 @@ import {
   renderDictionaryHtml,
 } from '../shared/dictionary-ui';
 import { ExtensionContextError, isExtensionContextValid, runtimeGetURL, runtimeSendMessage } from '../shared/extension-context';
-import { getAuth, setLookupWord } from '../shared/storage';
+import { getAuth, getSettings, setLookupWord } from '../shared/storage';
+import { applyTheme, type ThemeMode } from '../shared/theme';
 import type { DictionaryResult } from '../shared/types';
 
 const ROOT_ID = 'flc-selection-root';
@@ -27,6 +28,13 @@ let panelOpen = false;
 
 export function initSelectionUi(): void {
   ensureRoot();
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !changes.settings || !root) return;
+    const next = changes.settings.newValue as { theme?: ThemeMode } | undefined;
+    if (!next?.theme) return;
+    applyTheme(next.theme, root);
+  });
 
   document.addEventListener(
     'mouseup',
@@ -160,6 +168,7 @@ function ensureRoot(): HTMLElement {
 
   root.append(fab, panel);
   document.documentElement.appendChild(root);
+  void getSettings().then((settings) => applyTheme(settings.theme, root!));
 
   return root;
 }

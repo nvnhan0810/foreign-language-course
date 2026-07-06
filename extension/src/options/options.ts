@@ -1,6 +1,7 @@
 import { ensureHostPermissionForApi } from '../shared/api-permissions';
 import { DEFAULT_API_BASE_URL, normalizeApiBaseUrl } from '../shared/config';
 import { getSettings, saveSettings } from '../shared/storage';
+import { applyTheme, bindThemeToggleButtons, type ThemeMode } from '../shared/theme';
 
 const LOCAL_API = 'http://localhost:8080/api';
 
@@ -35,6 +36,18 @@ function updateApiPreview(): void {
 
 async function init() {
   const s = await getSettings();
+  applyTheme(s.theme);
+
+  let themeMode = s.theme;
+  bindThemeToggleButtons(
+    () => themeMode,
+    async (mode: ThemeMode) => {
+      themeMode = mode;
+      applyTheme(mode);
+      await saveSettings({ theme: mode });
+    }
+  );
+
   const apiInput = document.getElementById('api-base-url') as HTMLInputElement;
   apiInput.value = s.apiBaseUrl;
   (document.getElementById('quiz-per-day') as HTMLInputElement).value = String(s.quizPerDay);
@@ -85,6 +98,7 @@ async function init() {
       ),
       notificationsEnabled: (document.getElementById('notifications-enabled') as HTMLInputElement)
         .checked,
+      theme: themeMode,
     });
 
     apiInput.value = apiBaseUrl;
