@@ -42,6 +42,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('listening')->group(function () {
         Route::post('/media', [ListeningMediaController::class, 'store']);
         Route::get('/media/{mediaItem}', [ListeningMediaController::class, 'show']);
+        Route::put('/media/{mediaItem}/transcript', [ListeningMediaController::class, 'updateTranscript']);
         Route::get('/media/{mediaItem}/audio', [ListeningMediaController::class, 'audio']);
         Route::get('/media/{mediaItem}/assessments', [ListeningMediaController::class, 'assessments']);
         Route::get('/media/{mediaItem}/session-options', [ListeningAssessmentController::class, 'sessionOptions']);

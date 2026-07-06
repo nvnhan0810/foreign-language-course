@@ -1,26 +1,24 @@
 import 'package:flc_mobile/core/theme/app_theme.dart';
-import 'package:flc_mobile/features/webapp/web_app_navigation.dart';
-import 'package:flc_mobile/features/webapp/web_app_screen.dart';
 import 'package:flc_mobile/init_dependencies.dart';
+import 'package:flc_mobile/router/app_router.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-class FlcApp extends StatefulWidget {
+class FlcApp extends ConsumerStatefulWidget {
   const FlcApp({super.key});
 
   @override
-  State<FlcApp> createState() => _FlcAppState();
+  ConsumerState<FlcApp> createState() => _FlcAppState();
 }
 
-class _FlcAppState extends State<FlcApp> with WidgetsBindingObserver {
-  final _webNavigation = WebAppNavigationBridge();
+class _FlcAppState extends ConsumerState<FlcApp> with WidgetsBindingObserver {
+  GoRouter? _router;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      appFcmRedirectCoordinator.start(_webNavigation.navigateToPath);
-    });
   }
 
   @override
@@ -32,17 +30,30 @@ class _FlcAppState extends State<FlcApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      appFcmTokenRegistrar.emitFcmToken();
+      appFcmTokenRegistrar.registerIfLoggedIn();
     }
+  }
+
+  void _wireFcm(GoRouter router) {
+    appFcmRedirectCoordinator.start((path) {
+      if (!mounted) return;
+      router.go(path);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    final router = ref.watch(routerProvider);
+    if (_router != router) {
+      _router = router;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _wireFcm(router));
+    }
+
+    return MaterialApp.router(
       title: 'Foreign Learner',
       theme: AppTheme.light(),
       debugShowCheckedModeBanner: false,
-      home: WebAppScreen(navigationBridge: _webNavigation),
+      routerConfig: router,
     );
   }
 }

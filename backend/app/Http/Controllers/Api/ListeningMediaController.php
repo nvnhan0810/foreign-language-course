@@ -103,6 +103,24 @@ class ListeningMediaController extends Controller
         ]);
     }
 
+    public function updateTranscript(Request $request, MediaItem $mediaItem): JsonResponse
+    {
+        $this->authorizeMedia($request, $mediaItem);
+
+        $validated = $request->validate([
+            'transcript' => ['nullable', 'string', 'max:100000'],
+        ]);
+
+        $mediaItem->update([
+            'transcript' => $validated['transcript'] ?? null,
+        ]);
+
+        return response()->json([
+            'data' => $this->formatMediaItem($mediaItem->fresh()),
+            'message' => 'Đã lưu transcript.',
+        ]);
+    }
+
     public function audio(Request $request, MediaItem $mediaItem): StreamedResponse|JsonResponse
     {
         $this->authorizeMedia($request, $mediaItem);
@@ -135,7 +153,6 @@ class ListeningMediaController extends Controller
     private function formatMediaItem(MediaItem $item): array
     {
         $data = $item->toArray();
-        unset($data['transcript']);
 
         if ($item->relationLoaded('listeningAssessments')) {
             $data['listening_assessments'] = $item->listeningAssessments;

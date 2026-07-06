@@ -1,13 +1,19 @@
+import 'package:flc_mobile/core/api/api_client.dart';
+import 'package:flc_mobile/core/api/flc_api.dart';
+import 'package:flc_mobile/core/auth/auth_service.dart';
 import 'package:flc_mobile/core/fcm/fcm_redirect_coordinator.dart';
 import 'package:flc_mobile/core/fcm/fcm_service.dart';
 import 'package:flc_mobile/core/fcm/fcm_token_registrar.dart';
-import 'package:flc_mobile/core/fcm/flc_web_bridge.dart';
 import 'package:flc_mobile/core/notification/local_notifications_service.dart';
+import 'package:flc_mobile/core/storage/token_storage.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+late final TokenStorage appTokenStorage;
+late final ApiClient appApiClient;
+late final FlcApi appFlcApi;
+late final AuthService appAuthService;
 late final FcmService appFcmService;
-late final FlcWebBridge appFlcWebBridge;
 late final FcmTokenRegistrar appFcmTokenRegistrar;
 late final FcmRedirectCoordinator appFcmRedirectCoordinator;
 
@@ -20,6 +26,10 @@ Future<void> initDependencies() async {
     await dotenv.load(fileName: '.env.example');
   }
 
+  appTokenStorage = TokenStorage();
+  appApiClient = ApiClient(appTokenStorage);
+  appFlcApi = FlcApi(appApiClient);
+  appAuthService = AuthService(appTokenStorage);
   appFcmService = FcmService(localNoti: LocalNotificationsService.instance);
 
   try {
@@ -29,10 +39,10 @@ Future<void> initDependencies() async {
     await appFcmService.init();
   } catch (_) {}
 
-  appFlcWebBridge = FlcWebBridge(fcm: appFcmService);
   appFcmTokenRegistrar = FcmTokenRegistrar(
     fcm: appFcmService,
-    webBridge: appFlcWebBridge,
+    api: appFlcApi,
+    auth: appAuthService,
   );
   appFcmRedirectCoordinator = FcmRedirectCoordinator(appFcmService);
 
