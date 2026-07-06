@@ -54,6 +54,36 @@
 
   initTheme();
 
+  function initMediaDifficultyFilter() {
+    const filters = document.querySelectorAll('[data-difficulty-filter]');
+    const items = document.querySelectorAll('[data-media-list] .list-item[data-difficulty]');
+    const emptyState = document.querySelector('.media-filter-empty');
+    if (!filters.length || !items.length) return;
+
+    const applyFilter = (value) => {
+      let visible = 0;
+      items.forEach((item) => {
+        const show = value === 'all' || item.dataset.difficulty === value;
+        item.hidden = !show;
+        if (show) visible++;
+      });
+      if (emptyState) {
+        emptyState.hidden = visible > 0;
+      }
+      filters.forEach((button) => {
+        button.classList.toggle('active', button.dataset.difficultyFilter === value);
+      });
+    };
+
+    filters.forEach((button) => {
+      button.addEventListener('click', () => {
+        applyFilter(button.dataset.difficultyFilter || 'all');
+      });
+    });
+  }
+
+  initMediaDifficultyFilter();
+
   function speakWord(word) {
     if (!word || !('speechSynthesis' in window)) return;
     const utterance = new SpeechSynthesisUtterance(word);

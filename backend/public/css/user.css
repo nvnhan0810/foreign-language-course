@@ -935,6 +935,37 @@ a {
   color: var(--danger-text);
 }
 
+/* ── Media difficulty filter ── */
+.media-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.media-filter {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.media-filter.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.media-filter-empty {
+  text-align: center;
+  padding: 32px 16px;
+}
+
 /* ── Theme toggle ── */
 .theme-settings {
   margin-bottom: 24px;

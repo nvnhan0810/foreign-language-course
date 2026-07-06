@@ -1,5 +1,6 @@
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/models/flc_models.dart';
+import 'package:flc_mobile/widgets/theme_settings_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -173,6 +174,8 @@ class _ProfileContent extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 24),
+                const ThemeSettingsCard(),
                 const SizedBox(height: 24),
                 const _NotificationSettingsCard(),
                 const SizedBox(height: 32),

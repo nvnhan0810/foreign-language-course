@@ -1,5 +1,7 @@
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/core/theme/app_theme.dart';
+import 'package:flc_mobile/core/theme/theme_mode_provider.dart';
+import 'package:flc_mobile/core/theme/theme_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -117,10 +119,72 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     label: Text(_loading ? 'Đang đăng nhập...' : 'Đăng nhập bằng Google'),
                   ),
                 ),
-                const Spacer(flex: 2),
+                const Spacer(),
+                const _LoginThemeToggle(),
+                const SizedBox(height: 16),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoginThemeToggle extends ConsumerWidget {
+  const _LoginThemeToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final preference = ref.watch(themePreferenceProvider);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _ThemeIconButton(
+          icon: Icons.light_mode_outlined,
+          selected: preference == ThemePreference.light,
+          onTap: () => ref.read(themePreferenceProvider.notifier).setPreference(ThemePreference.light),
+        ),
+        const SizedBox(width: 8),
+        _ThemeIconButton(
+          icon: Icons.dark_mode_outlined,
+          selected: preference == ThemePreference.dark,
+          onTap: () => ref.read(themePreferenceProvider.notifier).setPreference(ThemePreference.dark),
+        ),
+        const SizedBox(width: 8),
+        _ThemeIconButton(
+          icon: Icons.computer_outlined,
+          selected: preference == ThemePreference.system,
+          onTap: () => ref.read(themePreferenceProvider.notifier).setPreference(ThemePreference.system),
+        ),
+      ],
+    );
+  }
+}
+
+class _ThemeIconButton extends StatelessWidget {
+  const _ThemeIconButton({
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? Colors.white.withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Icon(icon, color: Colors.white, size: 22),
         ),
       ),
     );

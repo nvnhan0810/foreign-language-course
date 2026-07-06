@@ -1,4 +1,5 @@
 import 'package:flc_mobile/core/theme/app_theme.dart';
+import 'package:flc_mobile/core/theme/theme_mode_provider.dart';
 import 'package:flc_mobile/init_dependencies.dart';
 import 'package:flc_mobile/router/app_router.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +45,7 @@ class _FlcAppState extends ConsumerState<FlcApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
+    final themePreference = ref.watch(themePreferenceProvider);
     if (_router != router) {
       _router = router;
       WidgetsBinding.instance.addPostFrameCallback((_) => _wireFcm(router));
@@ -52,6 +54,8 @@ class _FlcAppState extends ConsumerState<FlcApp> with WidgetsBindingObserver {
     return MaterialApp.router(
       title: 'Foreign Learner',
       theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: themePreferenceToMode(themePreference),
       debugShowCheckedModeBanner: false,
       routerConfig: router,
     );

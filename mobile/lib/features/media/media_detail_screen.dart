@@ -1,6 +1,7 @@
 import 'package:flc_mobile/core/api/api_client.dart';
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/models/flc_models.dart';
+import 'package:flc_mobile/widgets/difficulty_filter_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -268,23 +269,9 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
                     if (m != null) ...[
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .secondaryContainer
-                                .withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            m.difficultyLabel,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSecondaryContainer,
-                            ),
-                          ),
+                        child: DifficultyChip(
+                          label: m.difficultyLabel,
+                          difficulty: m.difficulty,
                         ),
                       ),
                       const SizedBox(height: 12),
