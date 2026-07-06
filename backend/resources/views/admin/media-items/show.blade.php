@@ -37,6 +37,7 @@
             @endif
             <dt>Ngôn ngữ</dt><dd>{{ $mediaItem->language }}</dd>
             <dt>Tần suất</dt><dd>{{ $mediaItem->frequency }}</dd>
+            <dt>Độ khó</dt><dd><span class="badge badge-difficulty-{{ $mediaItem->difficulty }}">{{ $mediaItem->difficultyLabel() }}</span></dd>
             <dt>Trạng thái phân tích</dt>
             <dd><span class="badge badge-{{ $mediaItem->analysis_status }}">{{ $mediaItem->analysis_status }}</span></dd>
             @if ($mediaItem->analyzed_at)

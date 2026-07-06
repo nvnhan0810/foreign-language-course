@@ -60,6 +60,15 @@
         </div>
 
         <div class="form-group">
+            <label for="difficulty">Độ khó</label>
+            <select name="difficulty" id="difficulty">
+                <option value="beginner" @selected(old('difficulty') === 'beginner')>Cơ bản</option>
+                <option value="intermediate" @selected(old('difficulty', 'intermediate') === 'intermediate')>Trung cấp</option>
+                <option value="advanced" @selected(old('difficulty') === 'advanced')>Nâng cao</option>
+            </select>
+        </div>
+
+        <div class="form-group">
             <label for="transcript">Transcript (tuỳ chọn)</label>
             <textarea name="transcript" id="transcript" placeholder="Dán transcript nếu upload MP3...">{{ old('transcript') }}</textarea>
         </div>

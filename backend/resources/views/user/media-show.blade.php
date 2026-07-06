@@ -6,6 +6,10 @@
 @section('back_url', route('user.home.media'))
 
 @section('content')
+    <p style="margin:0 0 16px">
+        <span class="difficulty-tag difficulty-tag--{{ $media->difficulty }}">{{ $media->difficultyLabel() }}</span>
+    </p>
+
     @if ($media->type === 'youtube' && $media->source_id)
         <div class="video-embed">
             <iframe

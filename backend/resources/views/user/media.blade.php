@@ -16,7 +16,10 @@
                 </div>
                 <div class="list-item-body">
                     <p class="title">{{ $media->title }}</p>
-                    <p class="subtitle">{{ strtoupper($media->type) }}</p>
+                    <p class="subtitle">
+                        <span class="difficulty-tag difficulty-tag--{{ $media->difficulty }}">{{ $media->difficultyLabel() }}</span>
+                        · {{ strtoupper($media->type) }}
+                    </p>
                 </div>
                 <span class="chevron">›</span>
             </a>

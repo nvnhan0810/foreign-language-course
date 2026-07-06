@@ -33,6 +33,7 @@
             <th>Tiêu đề</th>
             <th>User</th>
             <th>Loại</th>
+            <th>Độ khó</th>
             <th>Phân tích</th>
             <th>Quiz / Test / Exam</th>
             <th></th>
@@ -49,6 +50,7 @@
                 </td>
                 <td>{{ $m->user?->email }}</td>
                 <td><span class="badge">{{ $m->type }}</span></td>
+                <td><span class="badge badge-difficulty-{{ $m->difficulty }}">{{ $m->difficultyLabel() }}</span></td>
                 <td>
                     <span class="badge badge-{{ $m->analysis_status }}">{{ $m->analysis_status }}</span>
                 </td>
@@ -72,7 +74,7 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="6" class="muted">Chưa có media nào.</td></tr>
+            <tr><td colspan="7" class="muted">Chưa có media nào.</td></tr>
         @endforelse
     </tbody>
 </table>

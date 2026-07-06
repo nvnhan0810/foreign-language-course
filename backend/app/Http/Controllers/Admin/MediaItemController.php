@@ -76,6 +76,7 @@ class MediaItemController extends Controller
             ],
             'language' => ['sometimes', 'string', 'max:10'],
             'frequency' => ['sometimes', 'in:daily,weekly,monthly'],
+            'difficulty' => ['sometimes', 'in:beginner,intermediate,advanced'],
             'notes' => ['nullable', 'string'],
             'transcript' => ['nullable', 'string'],
             'auto_process' => ['sometimes', 'boolean'],
@@ -91,6 +92,7 @@ class MediaItemController extends Controller
             'type' => $type,
             'language' => $data['language'] ?? 'en',
             'frequency' => $data['frequency'] ?? 'weekly',
+            'difficulty' => MediaItem::normalizeDifficulty($data['difficulty'] ?? null),
             'notes' => $data['notes'] ?? null,
             'transcript' => $data['transcript'] ?? null,
             'is_active' => true,
@@ -159,6 +161,7 @@ class MediaItemController extends Controller
             'type' => ['required', 'in:youtube,mp3,audio'],
             'language' => ['sometimes', 'string', 'max:10'],
             'frequency' => ['required', 'in:daily,weekly,monthly'],
+            'difficulty' => ['sometimes', 'in:beginner,intermediate,advanced'],
             'notes' => ['nullable', 'string'],
             'transcript' => ['nullable', 'string'],
             'is_active' => ['sometimes', 'boolean'],
@@ -168,6 +171,7 @@ class MediaItemController extends Controller
 
         $mediaItem->update([
             ...$data,
+            'difficulty' => MediaItem::normalizeDifficulty($data['difficulty'] ?? $mediaItem->difficulty),
             'is_active' => $request->boolean('is_active'),
         ]);
 

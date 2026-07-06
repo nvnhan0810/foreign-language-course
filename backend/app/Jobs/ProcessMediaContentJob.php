@@ -59,6 +59,7 @@ class ProcessMediaContentJob implements ShouldQueue
             $mediaItem->update([
                 'transcript' => $contentSource === MediaContentResolverService::SOURCE_TRANSCRIPT ? $content : $mediaItem->transcript,
                 'analysis_payload' => $analysis,
+                'difficulty' => MediaItem::normalizeDifficulty($analysis['difficulty'] ?? null),
                 'analysis_status' => MediaItem::ANALYSIS_READY,
                 'analyzed_at' => now(),
                 'analysis_error' => null,

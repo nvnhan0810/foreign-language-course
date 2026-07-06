@@ -55,6 +55,15 @@
         </div>
 
         <div class="form-group">
+            <label for="difficulty">Độ khó</label>
+            <select name="difficulty" id="difficulty">
+                <option value="beginner" @selected(old('difficulty', $mediaItem->difficulty) === 'beginner')>Cơ bản</option>
+                <option value="intermediate" @selected(old('difficulty', $mediaItem->difficulty) === 'intermediate')>Trung cấp</option>
+                <option value="advanced" @selected(old('difficulty', $mediaItem->difficulty) === 'advanced')>Nâng cao</option>
+            </select>
+        </div>
+
+        <div class="form-group">
             <label for="transcript">Transcript</label>
             <textarea name="transcript" id="transcript">{{ old('transcript', $mediaItem->transcript) }}</textarea>
         </div>

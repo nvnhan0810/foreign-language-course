@@ -31,6 +31,7 @@
   --flc-badge-ready-text: #166534;
   --flc-primary-soft: rgba(67, 97, 238, 0.55);
   --flc-primary-soft-strong: rgba(67, 97, 238, 0.65);
+  --flc-primary-tint: rgba(67, 97, 238, 0.15);
   --flc-color-scheme: light;
 }
 
@@ -69,6 +70,7 @@ html[data-theme='dark'],
   --flc-badge-ready-text: #86efac;
   --flc-primary-soft: rgba(107, 138, 255, 0.55);
   --flc-primary-soft-strong: rgba(107, 138, 255, 0.65);
+  --flc-primary-tint: rgba(107, 138, 255, 0.2);
   --flc-color-scheme: dark;
 }
 

@@ -35,12 +35,14 @@ class MediaItemController extends Controller
             'url' => ['required', 'url', 'max:2048'],
             'type' => ['required', 'in:audio,youtube'],
             'frequency' => ['required', 'in:daily,weekly,monthly'],
+            'difficulty' => ['sometimes', 'in:beginner,intermediate,advanced'],
             'notes' => ['nullable', 'string'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
         $payload = [
             ...$data,
+            'difficulty' => MediaItem::normalizeDifficulty($data['difficulty'] ?? null),
             'is_active' => $data['is_active'] ?? true,
             'next_listen_at' => $this->schedule->initialNextListenAt($data['frequency']),
         ];
@@ -79,9 +81,14 @@ class MediaItemController extends Controller
             'url' => ['sometimes', 'url', 'max:2048'],
             'type' => ['sometimes', 'in:audio,youtube'],
             'frequency' => ['sometimes', 'in:daily,weekly,monthly'],
+            'difficulty' => ['sometimes', 'in:beginner,intermediate,advanced'],
             'notes' => ['nullable', 'string'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+
+        if (isset($data['difficulty'])) {
+            $data['difficulty'] = MediaItem::normalizeDifficulty($data['difficulty']);
+        }
 
         $mediaItem->update($data);
 

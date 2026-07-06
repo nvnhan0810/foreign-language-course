@@ -425,3 +425,18 @@ th {
   background: #fee2e2;
   color: #991b1b;
 }
+
+.badge-difficulty-beginner {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-difficulty-intermediate {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.badge-difficulty-advanced {
+  background: #fee2e2;
+  color: #991b1b;
+}

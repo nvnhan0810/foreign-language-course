@@ -1,8 +1,46 @@
 import {
   cleanYouTubeTitle,
+  isGenericYouTubeTitle,
   normalizeYouTubeUrl,
   YOUTUBE_CONTEXT_KEY,
 } from '../shared/youtube-tab';
+
+function readTitleFromDocument(): string {
+  const candidates: string[] = [];
+
+  const metaOg = document.querySelector('meta[property="og:title"]')?.getAttribute('content');
+  if (metaOg) candidates.push(metaOg);
+
+  const metaName = document.querySelector('meta[name="title"]')?.getAttribute('content');
+  if (metaName) candidates.push(metaName);
+
+  const selectors = [
+    'h1.ytd-watch-metadata yt-formatted-string',
+    'h1 yt-formatted-string',
+    '#title h1 yt-formatted-string',
+    '#title yt-formatted-string',
+    'yt-formatted-string.ytd-watch-metadata',
+    'ytd-watch-metadata h1',
+    '#above-the-fold #title',
+  ];
+
+  for (const selector of selectors) {
+    const el = document.querySelector(selector);
+    const text = el?.textContent?.trim();
+    if (text) candidates.push(text);
+  }
+
+  if (document.title) candidates.push(document.title);
+
+  for (const raw of candidates) {
+    const title = cleanYouTubeTitle(raw);
+    if (!isGenericYouTubeTitle(title)) {
+      return title;
+    }
+  }
+
+  return '';
+}
 
 function syncYouTubeContext(): void {
   const url = normalizeYouTubeUrl(location.href);
@@ -10,11 +48,10 @@ function syncYouTubeContext(): void {
     return;
   }
 
-  const metaTitle = document.querySelector('meta[property="og:title"]')?.getAttribute('content');
-  const h1 =
-    document.querySelector('h1 yt-formatted-string')?.textContent?.trim() ??
-    document.querySelector('h1.ytd-watch-metadata yt-formatted-string')?.textContent?.trim();
-  const title = cleanYouTubeTitle(metaTitle || h1 || document.title) || 'YouTube video';
+  const title = readTitleFromDocument();
+  if (!title) {
+    return;
+  }
 
   void chrome.storage.local.set({
     [YOUTUBE_CONTEXT_KEY]: {
@@ -31,6 +68,7 @@ function scheduleSync(delayMs = 600): void {
 
 syncYouTubeContext();
 scheduleSync(1500);
+scheduleSync(3500);
 
 let lastHref = location.href;
 window.setInterval(() => {

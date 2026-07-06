@@ -30,6 +30,19 @@ class MediaItem extends Model
 
     public const QUESTION_BANK_FAILED = 'failed';
 
+    public const DIFFICULTY_BEGINNER = 'beginner';
+
+    public const DIFFICULTY_INTERMEDIATE = 'intermediate';
+
+    public const DIFFICULTY_ADVANCED = 'advanced';
+
+    /** @var list<string> */
+    public const DIFFICULTIES = [
+        self::DIFFICULTY_BEGINNER,
+        self::DIFFICULTY_INTERMEDIATE,
+        self::DIFFICULTY_ADVANCED,
+    ];
+
     protected $fillable = [
         'user_id',
         'title',
@@ -48,6 +61,7 @@ class MediaItem extends Model
         'question_bank_count',
         'type',
         'frequency',
+        'difficulty',
         'notes',
         'is_active',
         'next_listen_at',
@@ -92,5 +106,21 @@ class MediaItem extends Model
     public function isAnalysisReady(): bool
     {
         return $this->analysis_status === self::ANALYSIS_READY;
+    }
+
+    public function difficultyLabel(): string
+    {
+        return match ($this->difficulty) {
+            self::DIFFICULTY_BEGINNER => 'Cơ bản',
+            self::DIFFICULTY_ADVANCED => 'Nâng cao',
+            default => 'Trung cấp',
+        };
+    }
+
+    public static function normalizeDifficulty(?string $value): string
+    {
+        return in_array($value, self::DIFFICULTIES, true)
+            ? $value
+            : self::DIFFICULTY_INTERMEDIATE;
     }
 }

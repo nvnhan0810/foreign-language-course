@@ -97,6 +97,7 @@ export const api = {
     url?: string;
     language?: string;
     frequency?: 'daily' | 'weekly' | 'monthly';
+    difficulty?: 'beginner' | 'intermediate' | 'advanced';
     notes?: string;
     auto_process?: boolean;
   }) {

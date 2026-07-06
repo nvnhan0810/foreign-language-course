@@ -12,6 +12,7 @@ import {
 } from '../shared/storage';
 import { applyTheme, bindThemeToggleButtons, type ThemeMode } from '../shared/theme';
 import { getActiveTabYouTubeInfo } from '../shared/youtube-tab';
+import { mediaDifficultyClass, mediaDifficultyLabel } from '../shared/media-difficulty';
 import type {
   DictionaryResult,
   ListeningQuestion,
@@ -283,10 +284,12 @@ function bindMedia() {
     const fd = new FormData(form);
     const type = fd.get('type') as 'audio' | 'youtube';
     const frequency = fd.get('frequency') as 'daily' | 'weekly' | 'monthly';
+    const difficulty = fd.get('difficulty') as 'beginner' | 'intermediate' | 'advanced';
     const payload = {
       title: fd.get('title') as string,
       url: fd.get('url') as string,
       frequency,
+      difficulty,
       is_active: true,
     };
 
@@ -297,6 +300,7 @@ function bindMedia() {
           url: payload.url,
           type: 'youtube',
           frequency: payload.frequency,
+          difficulty: payload.difficulty,
           auto_process: true,
         });
         $('media-form-status').textContent =
@@ -365,11 +369,15 @@ function renderMediaItem(m: MediaItem) {
   const bankStatus = m.question_bank_status ?? 'pending';
   const bankCount = m.question_bank_count ?? 0;
   const bankReady = bankStatus === 'ready' && bankCount > 0;
+  const difficulty = m.difficulty ?? 'intermediate';
 
   li.innerHTML = `
     <div class="media-item-main">
       <strong>${escapeHtml(m.title)}</strong>
-      <div class="muted">${freqLabel} · ${m.type} · ngân hàng: ${bankStatus}${bankReady ? ` (${bankCount} câu)` : ''}</div>
+      <div class="muted">
+        <span class="${mediaDifficultyClass(difficulty)}">${escapeHtml(mediaDifficultyLabel(difficulty))}</span>
+        · ${freqLabel} · ${m.type} · ngân hàng: ${bankStatus}${bankReady ? ` (${bankCount} câu)` : ''}
+      </div>
       <a href="${escapeHtml(m.url)}" target="_blank">${escapeHtml(m.url)}</a>
       <div class="media-session-actions" data-media-id="${m.id}"></div>
     </div>

@@ -28,6 +28,7 @@ export interface MediaItem {
   url: string;
   type: 'audio' | 'youtube' | 'mp3';
   frequency: 'daily' | 'weekly' | 'monthly';
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
   notes?: string | null;
   is_active: boolean;
   next_listen_at?: string | null;

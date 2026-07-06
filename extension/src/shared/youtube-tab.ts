@@ -1,5 +1,7 @@
 export const YOUTUBE_CONTEXT_KEY = 'flc_youtube_context';
 
+const GENERIC_YOUTUBE_TITLE = /^(youtube|youtube music|- youtube)$/i;
+
 export function normalizeYouTubeUrl(url: string): string | null {
   try {
     const parsed = new URL(url);
@@ -35,6 +37,49 @@ export function cleanYouTubeTitle(title: string): string {
     .trim();
 }
 
+export function isGenericYouTubeTitle(title: string): boolean {
+  const cleaned = cleanYouTubeTitle(title);
+  return !cleaned || GENERIC_YOUTUBE_TITLE.test(cleaned);
+}
+
+function readTitleFromDocument(): string {
+  const candidates: string[] = [];
+
+  const metaOg = document.querySelector('meta[property="og:title"]')?.getAttribute('content');
+  if (metaOg) candidates.push(metaOg);
+
+  const metaName = document.querySelector('meta[name="title"]')?.getAttribute('content');
+  if (metaName) candidates.push(metaName);
+
+  const selectors = [
+    'h1.ytd-watch-metadata yt-formatted-string',
+    'h1 yt-formatted-string',
+    '#title h1 yt-formatted-string',
+    '#title yt-formatted-string',
+    'yt-formatted-string.ytd-watch-metadata',
+    'ytd-watch-metadata h1',
+    '#above-the-fold #title',
+  ];
+
+  for (const selector of selectors) {
+    const el = document.querySelector(selector);
+    const text = el?.textContent?.trim();
+    if (text) candidates.push(text);
+  }
+
+  if (document.title) candidates.push(document.title);
+
+  for (const raw of candidates) {
+    const title = cleanYouTubeTitle(raw);
+    if (!isGenericYouTubeTitle(title)) {
+      return title;
+    }
+  }
+
+  return cleanYouTubeTitle(candidates[0] ?? '') || 'YouTube video';
+}
+
+/** Injected into the YouTube tab — must stay self-contained (no imports). */
 export function extractYouTubeFromPage(): { title: string; url: string } | null {
   const href = window.location.href;
   const parsed = new URL(href);
@@ -54,15 +99,43 @@ export function extractYouTubeFromPage(): { title: string; url: string } | null 
     return null;
   }
 
-  const url = `https://www.youtube.com/watch?v=${videoId}`;
-  const metaTitle = document.querySelector('meta[property="og:title"]')?.getAttribute('content');
-  const h1 =
-    document.querySelector('h1 yt-formatted-string')?.textContent?.trim() ??
-    document.querySelector('h1.ytd-watch-metadata yt-formatted-string')?.textContent?.trim();
-  const rawTitle = metaTitle || h1 || document.title || 'YouTube video';
-  const title = rawTitle.replace(/\s*[-–|]\s*YouTube(?: Music)?\s*$/i, '').trim() || 'YouTube video';
+  return {
+    url: `https://www.youtube.com/watch?v=${videoId}`,
+    title: readTitleFromDocument(),
+  };
+}
 
-  return { title, url };
+export async function fetchYouTubeTitleFromOEmbed(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`
+    );
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as { title?: string };
+    const title = data.title?.trim();
+    if (!title || isGenericYouTubeTitle(title)) return null;
+    return cleanYouTubeTitle(title);
+  } catch {
+    return null;
+  }
+}
+
+async function resolveYouTubeTitle(url: string, candidates: string[]): Promise<string> {
+  for (const raw of candidates) {
+    const title = cleanYouTubeTitle(raw);
+    if (!isGenericYouTubeTitle(title)) {
+      return title;
+    }
+  }
+
+  const fromOEmbed = await fetchYouTubeTitleFromOEmbed(url);
+  if (fromOEmbed) {
+    return fromOEmbed;
+  }
+
+  const fallback = cleanYouTubeTitle(candidates[0] ?? '');
+  return fallback || 'YouTube video';
 }
 
 export async function getActiveTabYouTubeInfo(): Promise<{
@@ -70,6 +143,7 @@ export async function getActiveTabYouTubeInfo(): Promise<{
   url: string;
 } | null> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  let pageResult: { title: string; url: string } | null = null;
 
   if (tab?.id) {
     try {
@@ -78,7 +152,7 @@ export async function getActiveTabYouTubeInfo(): Promise<{
         func: extractYouTubeFromPage,
       });
       if (result?.result?.url) {
-        return result.result;
+        pageResult = result.result;
       }
     } catch {
       /* fall through */
@@ -90,26 +164,22 @@ export async function getActiveTabYouTubeInfo(): Promise<{
     | { title?: string; url?: string; updatedAt?: number }
     | undefined;
 
-  if (ctx?.url && normalizeYouTubeUrl(ctx.url)) {
-    const tabUrl = tab?.url ? normalizeYouTubeUrl(tab.url) : null;
-    const ctxUrl = normalizeYouTubeUrl(ctx.url);
-    if (!tabUrl || tabUrl === ctxUrl) {
-      return {
-        title: ctx.title ?? 'YouTube video',
-        url: ctxUrl!,
-      };
-    }
+  const tabUrl = tab?.url ? normalizeYouTubeUrl(tab.url) : null;
+  const ctxUrl = ctx?.url ? normalizeYouTubeUrl(ctx.url) : null;
+  const pageUrl = pageResult?.url ? normalizeYouTubeUrl(pageResult.url) : null;
+  const url = tabUrl ?? pageUrl ?? ctxUrl;
+
+  if (!url) {
+    return null;
   }
 
-  if (tab?.url) {
-    const url = normalizeYouTubeUrl(tab.url);
-    if (url) {
-      return {
-        title: cleanYouTubeTitle(tab.title ?? '') || 'YouTube video',
-        url,
-      };
-    }
-  }
+  const candidates = [
+    pageResult?.title ?? '',
+    ctxUrl === url ? (ctx?.title ?? '') : '',
+    tab?.title ?? '',
+  ];
 
-  return null;
+  const title = await resolveYouTubeTitle(url, candidates);
+
+  return { title, url };
 }
