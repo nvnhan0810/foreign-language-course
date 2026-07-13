@@ -58,9 +58,13 @@
                 <input type="hidden" name="word" value="{{ $result['word'] ?? '' }}">
                 <input type="hidden" name="phonetic" value="{{ $result['phonetic'] ?? '' }}">
                 @foreach ($result['meanings'] ?? [] as $i => $meaning)
-                    @foreach ($meaning as $key => $value)
-                        <input type="hidden" name="meanings[{{ $i }}][{{ $key }}]" value="{{ $value }}">
-                    @endforeach
+                    @php
+                        $example = $meaning['example']
+                            ?? (is_array($meaning['examples'] ?? null) ? ($meaning['examples'][0] ?? '') : '');
+                    @endphp
+                    <input type="hidden" name="meanings[{{ $i }}][part_of_speech]" value="{{ $meaning['part_of_speech'] ?? '' }}">
+                    <input type="hidden" name="meanings[{{ $i }}][definition]" value="{{ $meaning['definition'] ?? '' }}">
+                    <input type="hidden" name="meanings[{{ $i }}][example]" value="{{ $example }}">
                 @endforeach
                 <button type="submit" class="btn btn-secondary btn-block">Lưu từ</button>
             </form>
