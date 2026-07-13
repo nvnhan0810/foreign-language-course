@@ -2,6 +2,7 @@ import { api, ApiError } from '../shared/api';
 import {
   escapeHtml,
   bindPronunciationButtons,
+  bindDictionaryTabs,
   isTranslatableSelection,
   lookupTermFromSelection,
   normalizeSelection,
@@ -160,7 +161,7 @@ function ensureRoot(): HTMLElement {
   fab = document.createElement('button');
   fab.type = 'button';
   fab.className = 'flc-fab';
-  fab.title = 'Tra với FLC';
+  fab.title = 'Look up with FLC';
   fab.style.display = 'none';
   try {
     fab.innerHTML = `<img src="${runtimeGetURL('icons/icon16.png')}" alt="FLC" />`;
@@ -302,12 +303,12 @@ async function openPanel(): Promise<void> {
   panel.innerHTML = `
     <div class="flc-panel-header">
       <div class="flc-selected-text">
-        ${multiWord ? `Đã chọn: <em>${escapeHtml(truncate(currentSelection, 80))}</em><br>Tra từ: <em>${escapeHtml(lookupWord)}</em>` : `Từ: <em>${escapeHtml(lookupWord)}</em>`}
+        ${multiWord ? `Selected: <em>${escapeHtml(truncate(currentSelection, 80))}</em><br>Looking up: <em>${escapeHtml(lookupWord)}</em>` : `Word: <em>${escapeHtml(lookupWord)}</em>`}
       </div>
-      <button type="button" class="flc-close" aria-label="Đóng">×</button>
+      <button type="button" class="flc-close" aria-label="Close">×</button>
     </div>
     <div class="flc-panel-body">
-      <div class="flc-loading"><span class="flc-spinner"></span> Đang tra...</div>
+      <div class="flc-loading"><span class="flc-spinner"></span> Looking up...</div>
     </div>
     <div class="flc-panel-footer" hidden></div>
   `;
@@ -322,10 +323,10 @@ async function openPanel(): Promise<void> {
 
   if (!auth.token) {
     body.innerHTML = `
-      <p class="flc-msg">Bạn cần đăng nhập Google trong extension FLC (icon trên thanh công cụ).</p>
+      <p class="flc-msg">Sign in with Google in the FLC extension (toolbar icon).</p>
     `;
     const actions = showPanelFooter(
-      `<button type="button" class="flc-btn flc-btn-secondary flc-open-extension">Mở FLC</button>`
+      `<button type="button" class="flc-btn flc-btn-secondary flc-open-extension">Open FLC</button>`
     );
     actions.querySelector('.flc-open-extension')?.addEventListener('click', () => {
       runtimeSendMessage({ type: 'OPEN_POPUP' });
@@ -338,9 +339,10 @@ async function openPanel(): Promise<void> {
     currentLookup = await api.lookup(lookupWord);
     body.innerHTML = renderDictionaryHtml(currentLookup);
     bindPronunciationButtons(body);
+    bindDictionaryTabs(body);
     const actions = showPanelFooter(`
-      <button type="button" class="flc-btn flc-btn-primary flc-save">Lưu từ</button>
-      <button type="button" class="flc-btn flc-btn-secondary flc-close-btn">Đóng</button>
+      <button type="button" class="flc-btn flc-btn-primary flc-save">Save word</button>
+      <button type="button" class="flc-btn flc-btn-secondary flc-close-btn">Close</button>
     `);
 
     actions.querySelector('.flc-save')?.addEventListener('click', () => void saveWord(actions));
@@ -353,9 +355,9 @@ async function openPanel(): Promise<void> {
       positionPanelNearSelection();
       return;
     }
-    body.innerHTML = `<p class="flc-error">${escapeHtml(e instanceof ApiError ? e.message : 'Không tra được từ.')}</p>`;
+    body.innerHTML = `<p class="flc-error">${escapeHtml(e instanceof ApiError ? e.message : 'Could not look up that word.')}</p>`;
     const actions = showPanelFooter(
-      `<button type="button" class="flc-btn flc-btn-secondary flc-close-btn">Đóng</button>`
+      `<button type="button" class="flc-btn flc-btn-secondary flc-close-btn">Close</button>`
     );
     actions.querySelector('.flc-close-btn')?.addEventListener('click', hideAll);
     positionPanelNearSelection();
@@ -370,7 +372,7 @@ function showExtensionReloadPanel(): void {
   panel.innerHTML = `
     <div class="flc-panel-header">
       <div class="flc-selected-text">FLC</div>
-      <button type="button" class="flc-close" aria-label="Đóng">×</button>
+      <button type="button" class="flc-close" aria-label="Close">×</button>
     </div>
     <div class="flc-panel-body"></div>
     <div class="flc-panel-footer" hidden></div>
@@ -383,9 +385,9 @@ function showExtensionReloadPanel(): void {
 }
 
 function showExtensionReloadInPanel(body: Element): void {
-  body.innerHTML = `<p class="flc-msg">Extension vừa được cập nhật hoặc tắt. Tải lại trang (F5) để tiếp tục tra từ.</p>`;
+  body.innerHTML = `<p class="flc-msg">The extension was updated or disabled. Reload the page (F5) to continue looking up words.</p>`;
   const actions = showPanelFooter(
-    `<button type="button" class="flc-btn flc-btn-secondary flc-close-btn">Đóng</button>`
+    `<button type="button" class="flc-btn flc-btn-secondary flc-close-btn">Close</button>`
   );
   actions.querySelector('.flc-close-btn')?.addEventListener('click', hideAll);
 }
@@ -401,7 +403,7 @@ async function saveWord(actionsEl: HTMLElement): Promise<void> {
   if (!currentLookup) return;
   const btn = actionsEl.querySelector('.flc-save') as HTMLButtonElement;
   btn.disabled = true;
-  btn.textContent = 'Đang lưu...';
+  btn.textContent = 'Saving...';
 
   try {
     await api.saveVocabulary({
@@ -409,17 +411,17 @@ async function saveWord(actionsEl: HTMLElement): Promise<void> {
       phonetic: currentLookup.phonetic ?? undefined,
       meanings: currentLookup.meanings,
     });
-    btn.textContent = 'Đã lưu ✓';
+    btn.textContent = 'Saved ✓';
     setTimeout(() => {
-      btn.textContent = 'Lưu từ';
+      btn.textContent = 'Save word';
       btn.disabled = false;
     }, 2000);
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = 'Lưu từ';
+    btn.textContent = 'Save word';
     const err = document.createElement('p');
     err.className = 'flc-error';
-    err.textContent = e instanceof ApiError ? e.message : 'Không lưu được.';
+    err.textContent = e instanceof ApiError ? e.message : 'Could not save.';
     panel?.querySelector('.flc-panel-body')?.appendChild(err);
   }
 }

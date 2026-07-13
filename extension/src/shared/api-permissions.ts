@@ -19,11 +19,11 @@ export async function ensureHostPermissionForApi(
       return {
         ok: false,
         message:
-          'Cần cho phép extension truy cập domain API. Nếu từ chối, các tính năng đồng bộ sẽ không hoạt động.',
+          'Please allow the extension to access the API domain. If denied, sync features will not work.',
       };
     }
     return { ok: true };
   } catch {
-    return { ok: false, message: 'Địa chỉ API không hợp lệ (ví dụ: flc.example.com hoặc https://flc.example.com/api).' };
+    return { ok: false, message: 'Invalid API address (e.g. flc.example.com or https://flc.example.com/api).' };
   }
 }

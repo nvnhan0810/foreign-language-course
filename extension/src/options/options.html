@@ -1,65 +1,65 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>FLC — Cài đặt</title>
+    <title>FLC — Settings</title>
     <link rel="stylesheet" href="options.css" />
   </head>
   <body>
     <main>
-      <h1>Cài đặt FLC</h1>
+      <h1>FLC Settings</h1>
 
       <section class="section">
-        <h2>Giao diện</h2>
-        <p class="hint">Áp dụng cho popup extension và bảng tra từ trên trang web.</p>
-        <div class="theme-toggle" role="group" aria-label="Chọn giao diện">
-          <button type="button" data-theme-choice="light">☀️ Sáng</button>
-          <button type="button" data-theme-choice="dark">🌙 Tối</button>
-          <button type="button" data-theme-choice="system">💻 Hệ thống</button>
+        <h2>Appearance</h2>
+        <p class="hint">Applies to the extension popup and the on-page lookup panel.</p>
+        <div class="theme-toggle" role="group" aria-label="Choose theme">
+          <button type="button" data-theme-choice="light">☀️ Light</button>
+          <button type="button" data-theme-choice="dark">🌙 Dark</button>
+          <button type="button" data-theme-choice="system">💻 System</button>
         </div>
       </section>
 
       <section class="section">
-        <h2>Domain API</h2>
+        <h2>API domain</h2>
         <p class="hint">
-          Nhập domain hoặc URL đầy đủ. Extension tự thêm <code>https://</code> và
-          <code>/api</code> nếu thiếu.
+          Enter a domain or full URL. The extension adds <code>https://</code> and
+          <code>/api</code> if missing.
         </p>
         <label>
-          Địa chỉ API
+          API address
           <input
             id="api-base-url"
             type="text"
             spellcheck="false"
             autocomplete="off"
-            placeholder="flc.nvnhan0810.com hoặc https://flc.nvnhan0810.com/api"
+            placeholder="flc.nvnhan0810.com or https://flc.nvnhan0810.com/api"
           />
         </label>
         <p id="api-preview" class="preview" hidden></p>
         <div class="preset-row">
           <button type="button" id="btn-api-production" class="secondary">Production</button>
           <button type="button" id="btn-api-local" class="secondary">Local (8080)</button>
-          <button type="button" id="btn-api-reset" class="secondary">Mặc định</button>
+          <button type="button" id="btn-api-reset" class="secondary">Default</button>
         </div>
       </section>
 
       <section class="section">
-        <h2>Thông báo &amp; quiz</h2>
+        <h2>Notifications &amp; quiz</h2>
         <label>
-          Số lần quiz mỗi ngày (ước lượng)
+          Quizzes per day (estimate)
           <input id="quiz-per-day" type="number" min="1" max="12" />
         </label>
         <label>
-          Kiểm tra nhắc nghe (phút)
+          Listening reminder check (minutes)
           <input id="media-check-minutes" type="number" min="15" max="1440" />
         </label>
         <label class="checkbox">
           <input id="notifications-enabled" type="checkbox" />
-          Bật thông báo
+          Enable notifications
         </label>
       </section>
 
-      <button type="button" id="btn-save">Lưu cài đặt</button>
+      <button type="button" id="btn-save">Save settings</button>
       <p id="status" class="status" role="status"></p>
     </main>
     <script type="module" src="options.js"></script>

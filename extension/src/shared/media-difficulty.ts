@@ -1,9 +1,9 @@
 export type MediaDifficulty = 'beginner' | 'intermediate' | 'advanced';
 
 const DIFFICULTY_LABELS: Record<MediaDifficulty, string> = {
-  beginner: 'Cơ bản',
-  intermediate: 'Trung cấp',
-  advanced: 'Nâng cao',
+  beginner: 'Beginner',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
 };
 
 export function mediaDifficultyLabel(

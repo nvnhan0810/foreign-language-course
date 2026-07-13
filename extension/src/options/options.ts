@@ -24,11 +24,11 @@ function updateApiPreview(): void {
   }
 
   try {
-    preview.textContent = `Sẽ lưu: ${normalizeApiBaseUrl(raw)}`;
+    preview.textContent = `Will save: ${normalizeApiBaseUrl(raw)}`;
     preview.hidden = false;
     preview.classList.remove('error');
   } catch {
-    preview.textContent = 'Địa chỉ không hợp lệ';
+    preview.textContent = 'Invalid address';
     preview.hidden = false;
     preview.classList.add('error');
   }
@@ -80,13 +80,13 @@ async function init() {
     try {
       apiBaseUrl = normalizeApiBaseUrl(apiInput.value);
     } catch {
-      setStatus('Địa chỉ API không hợp lệ.', true);
+      setStatus('Invalid API address.', true);
       return;
     }
 
     const perm = await ensureHostPermissionForApi(apiBaseUrl);
     if (!perm.ok) {
-      setStatus(perm.message ?? 'Không có quyền truy cập API.', true);
+      setStatus(perm.message ?? 'No permission to access the API.', true);
       return;
     }
 
@@ -103,7 +103,7 @@ async function init() {
 
     apiInput.value = apiBaseUrl;
     updateApiPreview();
-    setStatus(`Đã lưu. API: ${apiBaseUrl}`);
+    setStatus(`Saved. API: ${apiBaseUrl}`);
   });
 }
 

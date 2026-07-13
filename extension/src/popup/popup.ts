@@ -1,5 +1,11 @@
 import { api, ApiError } from '../shared/api';
-import { escapeHtml, bindPronunciationButtons, pronunciationButtonHtml, playPronunciation } from '../shared/dictionary-ui';
+import {
+  escapeHtml,
+  bindPronunciationButtons,
+  bindDictionaryTabs,
+  renderDictionaryHtml,
+  playPronunciation,
+} from '../shared/dictionary-ui';
 import { loginWithGoogle } from '../shared/googleAuth';
 import {
   cacheSync,
@@ -144,7 +150,7 @@ async function googleLogin() {
     await loginWithGoogle();
     await refreshAuthUi();
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Đăng nhập Google thất bại.';
+    const msg = e instanceof Error ? e.message : 'Google sign-in failed.';
     if (chrome.runtime.lastError?.message) {
       setAuthError(chrome.runtime.lastError.message);
     } else {
@@ -187,36 +193,19 @@ async function doLookup() {
   } catch (e) {
     currentLookup = null;
     $('lookup-result').classList.add('hidden');
-    $('btn-save-word').classList.add('hidden');
+    $('lookup-actions').classList.add('hidden');
     $('lookup-error').textContent =
-      e instanceof ApiError ? e.message : 'Không tra được từ.';
+      e instanceof ApiError ? e.message : 'Could not look up that word.';
   }
 }
 
 function renderLookup(data: DictionaryResult) {
   const el = $('lookup-result');
   el.classList.remove('hidden');
-  $('btn-save-word').classList.remove('hidden');
-  const meaningsHtml = data.meanings
-    .slice(0, 6)
-    .map(
-      (m) => `
-      <div class="meaning">
-        <div class="pos">${m.part_of_speech ?? ''}</div>
-        <div>${escapeHtml(m.definition)}</div>
-        ${m.example ? `<div class="example">"${escapeHtml(m.example)}"</div>` : ''}
-      </div>`
-    )
-    .join('');
-  el.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <strong>${escapeHtml(data.word)}</strong>
-      ${pronunciationButtonHtml(data.word, data.audio_url, 'secondary flc-speak')}
-    </div>
-    ${data.phonetic ? `<div class="muted">${escapeHtml(data.phonetic)}</div>` : ''}
-    ${meaningsHtml}
-  `;
+  $('lookup-actions').classList.remove('hidden');
+  el.innerHTML = renderDictionaryHtml(data, 6);
   bindPronunciationButtons(el);
+  bindDictionaryTabs(el);
 }
 
 async function saveWord() {
@@ -228,13 +217,13 @@ async function saveWord() {
       meanings: currentLookup.meanings,
     });
     $('lookup-error').textContent = '';
-    $('btn-save-word').textContent = 'Đã lưu ✓';
+    $('btn-save-word').textContent = 'Saved ✓';
     setTimeout(() => {
-      $('btn-save-word').textContent = 'Lưu từ';
+      $('btn-save-word').textContent = 'Save word';
     }, 2000);
   } catch (e) {
     $('lookup-error').textContent =
-      e instanceof ApiError ? e.message : 'Không lưu được.';
+      e instanceof ApiError ? e.message : 'Could not save.';
   }
 }
 
@@ -262,7 +251,7 @@ async function loadVocab() {
     vocabCache = [];
     const empty = $('vocab-empty');
     empty.classList.remove('hidden');
-    empty.textContent = 'Không tải được danh sách.';
+    empty.textContent = 'Could not load the list.';
   }
 }
 
@@ -274,13 +263,13 @@ function renderVocabList(data: Vocabulary[]) {
 
   if (data.length === 0) {
     empty.classList.remove('hidden');
-    empty.textContent = 'Chưa có từ nào.';
+    empty.textContent = 'No words yet.';
     return;
   }
 
   const filtered = data.filter((v) => vocabMatches(v, query));
   empty.classList.toggle('hidden', filtered.length > 0);
-  empty.textContent = query ? 'Không tìm thấy từ khớp.' : 'Chưa có từ nào.';
+  empty.textContent = query ? 'No matching words.' : 'No words yet.';
   for (const v of filtered) {
     list.appendChild(renderVocabItem(v));
   }
@@ -294,12 +283,12 @@ function renderVocabItem(v: Vocabulary) {
     <div>
       <div style="display:flex;align-items:center;gap:8px">
         <strong>${escapeHtml(v.word)}</strong>
-        <button type="button" class="secondary flc-speak" data-word="${escapeHtml(v.word)}" title="Nghe phát âm">🔊</button>
+        <button type="button" class="secondary flc-speak" data-word="${escapeHtml(v.word)}" title="Pronounce">🔊</button>
       </div>
       <div class="muted">${escapeHtml(def)}</div>
-      <div class="muted">Quiz: ${v.times_quizzed} lần</div>
+      <div class="muted">Quiz: ${v.times_quizzed} times</div>
     </div>
-    <button type="button" class="secondary">Xóa</button>
+    <button type="button" class="secondary">Delete</button>
   `;
   li.querySelector('.flc-speak')?.addEventListener('click', () => {
     void playVocabPronunciation(v.word);
@@ -341,19 +330,19 @@ function bindMedia() {
         });
         $('media-form-status').textContent =
           res.message ??
-          'Đã lưu YouTube. Hệ thống phân tích và tạo ngân hàng câu hỏi — làm quiz trên tab Media khi sẵn sàng.';
+          'YouTube saved. The system will analyze and build a question bank — take the quiz on the Media tab when ready.';
       } else {
         await api.createMedia({
           ...payload,
           type: 'audio',
         });
-        $('media-form-status').textContent = 'Đã thêm link audio.';
+        $('media-form-status').textContent = 'Audio link added.';
       }
       form.reset();
       await loadMedia();
     } catch (err) {
       $('media-form-status').textContent =
-        err instanceof ApiError ? err.message : 'Lỗi thêm media';
+        err instanceof ApiError ? err.message : 'Failed to add media';
     }
   });
 }
@@ -369,17 +358,17 @@ async function prefillMediaFromActiveTab(): Promise<boolean> {
     const info = await getActiveTabYouTubeInfo();
     if (!info) {
       statusEl.textContent =
-        'Không lấy được video từ tab hiện tại. Mở trang video YouTube (watch/shorts) rồi bấm "Lấy từ tab YouTube".';
+        'Could not get a video from the current tab. Open a YouTube video (watch/shorts), then tap "Get from YouTube tab".';
       return false;
     }
 
     titleInput.value = info.title;
     urlInput.value = info.url;
     typeSelect.value = 'youtube';
-    statusEl.textContent = 'Đã điền tiêu đề và URL từ tab YouTube hiện tại.';
+    statusEl.textContent = 'Filled title and URL from the current YouTube tab.';
     return true;
   } catch {
-    statusEl.textContent = 'Không đọc được tab YouTube. Thử reload extension rồi mở lại video.';
+    statusEl.textContent = 'Could not read the YouTube tab. Reload the extension, then open the video again.';
     return false;
   }
 }
@@ -401,7 +390,7 @@ function renderMediaItem(m: MediaItem) {
   const li = document.createElement('li');
   li.className = 'item media-item';
   const freqLabel =
-    m.frequency === 'daily' ? 'ngày' : m.frequency === 'weekly' ? 'tuần' : 'tháng';
+    m.frequency === 'daily' ? 'daily' : m.frequency === 'weekly' ? 'weekly' : 'monthly';
   const bankStatus = m.question_bank_status ?? 'pending';
   const bankCount = m.question_bank_count ?? 0;
   const bankReady = bankStatus === 'ready' && bankCount > 0;
@@ -412,19 +401,19 @@ function renderMediaItem(m: MediaItem) {
       <strong>${escapeHtml(m.title)}</strong>
       <div class="muted">
         <span class="${mediaDifficultyClass(difficulty)}">${escapeHtml(mediaDifficultyLabel(difficulty))}</span>
-        · ${freqLabel} · ${m.type} · ngân hàng: ${bankStatus}${bankReady ? ` (${bankCount} câu)` : ''}
+        · ${freqLabel} · ${m.type} · bank: ${bankStatus}${bankReady ? ` (${bankCount} questions)` : ''}
       </div>
       <a href="${escapeHtml(m.url)}" target="_blank">${escapeHtml(m.url)}</a>
       <div class="media-session-actions" data-media-id="${m.id}"></div>
     </div>
-    <button type="button" class="secondary media-delete-btn">Xóa</button>
+    <button type="button" class="secondary media-delete-btn">Delete</button>
   `;
 
   const actionsEl = li.querySelector('.media-session-actions') as HTMLElement;
   if (bankReady) {
     void renderMediaSessionButtons(actionsEl, m.id);
   } else {
-    actionsEl.innerHTML = `<span class="muted">Chưa có ngân hàng câu hỏi — đợi admin phân tích xong.</span>`;
+    actionsEl.innerHTML = `<span class="muted">No question bank yet — wait for analysis to finish.</span>`;
   }
 
   li.querySelector('.media-delete-btn')?.addEventListener('click', async () => {
@@ -436,7 +425,7 @@ function renderMediaItem(m: MediaItem) {
 }
 
 async function renderMediaSessionButtons(container: HTMLElement, mediaId: number) {
-  container.innerHTML = '<span class="muted">Đang tải...</span>';
+  container.innerHTML = '<span class="muted">Loading...</span>';
   try {
     const { data } = await api.listListeningSessionOptions(mediaId);
     container.innerHTML = '';
@@ -446,16 +435,16 @@ async function renderMediaSessionButtons(container: HTMLElement, mediaId: number
       btn.className = 'secondary media-session-btn';
       btn.textContent = option.available
         ? `${option.type.toUpperCase()} (${option.question_count})`
-        : `${option.type.toUpperCase()} (chưa đủ câu)`;
+        : `${option.type.toUpperCase()} (not enough questions)`;
       btn.disabled = !option.available;
       btn.title = option.available
-        ? `Random ${option.question_count} câu từ ngân hàng ${option.bank_count ?? 0} câu`
-        : `Cần ${option.question_count} câu, hiện có ${option.bank_count ?? 0}`;
+        ? `Random ${option.question_count} questions from a bank of ${option.bank_count ?? 0}`
+        : `Needs ${option.question_count} questions, currently ${option.bank_count ?? 0}`;
       btn.addEventListener('click', () => void startListeningQuiz(mediaId, option.type));
       container.appendChild(btn);
     }
   } catch (e) {
-    container.innerHTML = `<span class="error">${e instanceof ApiError ? e.message : 'Không tải được quiz.'}</span>`;
+    container.innerHTML = `<span class="error">${e instanceof ApiError ? e.message : 'Could not load quiz.'}</span>`;
   }
 }
 
@@ -472,7 +461,7 @@ function hideListeningQuiz() {
 async function startListeningQuiz(mediaId: number, type: 'quiz' | 'test' | 'exam') {
   const area = $('listening-quiz-area');
   area.classList.remove('hidden');
-  area.innerHTML = '<p class="muted">Đang tạo bài random...</p>';
+  area.innerHTML = '<p class="muted">Creating a random set...</p>';
 
   try {
     const { data } = await api.startListeningSession(mediaId, type);
@@ -481,7 +470,7 @@ async function startListeningQuiz(mediaId: number, type: 'quiz' | 'test' | 'exam
     renderListeningQuiz(data.title, data.questions, data.time_limit_minutes);
     area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (e) {
-    area.innerHTML = `<p class="error">${e instanceof ApiError ? e.message : 'Không bắt đầu được bài nghe.'}</p>`;
+    area.innerHTML = `<p class="error">${e instanceof ApiError ? e.message : 'Could not start the listening session.'}</p>`;
   }
 }
 
@@ -492,16 +481,18 @@ function renderListeningQuiz(
 ) {
   const area = $('listening-quiz-area');
   const timeNote =
-    timeLimitMinutes != null ? `<p class="muted">Thời gian gợi ý: ${timeLimitMinutes} phút · câu hỏi random mỗi lần làm</p>` : '';
+    timeLimitMinutes != null
+      ? `<p class="muted">Suggested time: ${timeLimitMinutes} min · random questions each attempt</p>`
+      : '';
 
   area.innerHTML = `
     <div class="listening-quiz-header">
       <strong>${escapeHtml(title)}</strong>
       ${timeNote}
-      <button type="button" id="btn-close-listening" class="link">Đóng</button>
+      <button type="button" id="btn-close-listening" class="link">Close</button>
     </div>
     <div id="listening-questions"></div>
-    <button type="button" id="btn-submit-listening" class="primary">Nộp bài</button>
+    <button type="button" id="btn-submit-listening" class="primary">Submit</button>
     <p id="listening-feedback" class="muted"></p>
   `;
 
@@ -520,7 +511,7 @@ function renderListeningQuiz(
             `<label class="listening-option"><input type="radio" name="lq-${q.id}" value="${escapeHtml(opt)}" /> ${escapeHtml(opt)}</label>`
         )
         .join('');
-      block.innerHTML = `<p><strong>Câu ${index + 1}</strong></p><p>${escapeHtml(q.prompt)}</p>${optsHtml}`;
+      block.innerHTML = `<p><strong>Question ${index + 1}</strong></p><p>${escapeHtml(q.prompt)}</p>${optsHtml}`;
       block.querySelectorAll('input[type="radio"]').forEach((input) => {
         input.addEventListener('change', () => {
           listeningAnswers.set(q.id, (input as HTMLInputElement).value);
@@ -528,9 +519,9 @@ function renderListeningQuiz(
       });
     } else {
       block.innerHTML = `
-        <p><strong>Câu ${index + 1}</strong></p>
+        <p><strong>Question ${index + 1}</strong></p>
         <p>${escapeHtml(q.prompt)}</p>
-        <textarea rows="2" placeholder="Câu trả lời..." data-question-id="${q.id}"></textarea>
+        <textarea rows="2" placeholder="Your answer..." data-question-id="${q.id}"></textarea>
       `;
       block.querySelector('textarea')?.addEventListener('input', (e) => {
         listeningAnswers.set(q.id, (e.target as HTMLTextAreaElement).value.trim());
@@ -547,7 +538,7 @@ async function submitListeningQuiz(total: number) {
   if (!activeListeningAssessmentId) return;
 
   if (listeningAnswers.size < total) {
-    $('listening-feedback').textContent = 'Trả lời hết các câu trước khi nộp.';
+    $('listening-feedback').textContent = 'Answer all questions before submitting.';
     return;
   }
 
@@ -557,7 +548,7 @@ async function submitListeningQuiz(total: number) {
   }));
 
   $('btn-submit-listening').setAttribute('disabled', 'true');
-  $('listening-feedback').textContent = 'Đang chấm...';
+  $('listening-feedback').textContent = 'Grading...';
 
   try {
     const { data } = await api.submitListeningAttempt(activeListeningAssessmentId, answers);
@@ -568,16 +559,16 @@ async function submitListeningQuiz(total: number) {
     });
 
     $('listening-questions').innerHTML = `
-      <p><strong>Kết quả: ${data.score}/${data.total} (${data.percentage}%) — ${data.passed ? 'Đạt' : 'Chưa đạt'}</strong></p>
+      <p><strong>Result: ${data.score}/${data.total} (${data.percentage}%) — ${data.passed ? 'Passed' : 'Not passed'}</strong></p>
       ${lines.join('')}
     `;
     $('btn-submit-listening').classList.add('hidden');
-    $('listening-feedback').textContent = 'Bấm Quiz/Test/Exam lại để làm bộ câu random mới.';
+    $('listening-feedback').textContent = 'Tap Quiz/Test/Exam again for a new random set.';
     activeListeningAssessmentId = null;
     listeningAnswers.clear();
   } catch (e) {
     $('listening-feedback').textContent =
-      e instanceof ApiError ? e.message : 'Không nộp được bài.';
+      e instanceof ApiError ? e.message : 'Could not submit.';
     $('btn-submit-listening').removeAttribute('disabled');
   }
 }
@@ -593,8 +584,8 @@ async function fetchQuiz() {
     renderQuiz(data);
   } catch (e) {
     $('quiz-area').innerHTML = `<p class="error">${
-      e instanceof ApiError ? e.message : 'Không lấy được câu hỏi.'
-    }</p><button type="button" id="btn-next-quiz">Thử lại</button>`;
+      e instanceof ApiError ? e.message : 'Could not fetch a question.'
+    }</p><button type="button" id="btn-next-quiz">Retry</button>`;
     $('btn-next-quiz')?.addEventListener('click', () => void fetchQuiz());
   }
 }
@@ -602,11 +593,11 @@ async function fetchQuiz() {
 function renderQuiz(q: QuizQuestion) {
   const area = $('quiz-area');
   area.innerHTML = `
-    <p><strong>${q.question_type === 'word_to_definition' ? 'Chọn nghĩa đúng' : 'Chọn từ đúng'}</strong></p>
+    <p><strong>${q.question_type === 'word_to_definition' ? 'Choose the correct meaning' : 'Choose the correct word'}</strong></p>
     <p>${escapeHtml(q.prompt)}</p>
     <div id="quiz-options"></div>
     <p id="quiz-feedback" class="muted"></p>
-    <button type="button" id="btn-next-quiz" class="secondary">Câu tiếp</button>
+    <button type="button" id="btn-next-quiz" class="secondary">Next</button>
   `;
   const opts = $('quiz-options');
   for (const opt of q.options) {
@@ -629,7 +620,7 @@ async function answerQuiz(q: QuizQuestion, chosen: string, btn: HTMLButtonElemen
       b.classList.add('correct');
     }
   });
-  $('quiz-feedback').textContent = correct ? 'Chính xác!' : `Đáp án: ${q.correct_answer}`;
+  $('quiz-feedback').textContent = correct ? 'Correct!' : `Answer: ${q.correct_answer}`;
   await api.submitQuizAttempt({
     vocabulary_id: q.vocabulary_id,
     question_type: q.question_type,

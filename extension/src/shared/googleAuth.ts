@@ -14,7 +14,7 @@ export async function loginWithGoogle(): Promise<void> {
   });
 
   if (!responseUrl) {
-    throw new Error('Đăng nhập bị hủy.');
+    throw new Error('Sign-in was cancelled.');
   }
 
   const parsed = new URL(responseUrl);
@@ -25,7 +25,7 @@ export async function loginWithGoogle(): Promise<void> {
 
   const token = parsed.searchParams.get('token');
   if (!token) {
-    throw new Error('Không nhận được token từ server.');
+    throw new Error('No token received from server.');
   }
 
   await saveAuth({

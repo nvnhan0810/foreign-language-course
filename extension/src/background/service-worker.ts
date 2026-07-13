@@ -14,7 +14,7 @@ chrome.runtime.onMessage.addListener((message) => {
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: 'flc-lookup',
-    title: 'Tra từ với FLC: "%s"',
+    title: 'Look up with FLC: "%s"',
     contexts: ['selection'],
   });
   scheduleAlarms();
@@ -87,7 +87,7 @@ async function triggerQuizNotification() {
     chrome.notifications.create(id, {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
-      title: 'FLC — Ôn từ vựng',
+      title: 'FLC — Vocabulary review',
       message: truncate(data.prompt, 120),
       priority: 1,
     });
@@ -112,7 +112,7 @@ async function notifyMedia(item: MediaItem) {
   chrome.notifications.create(id, {
     type: 'basic',
     iconUrl: 'icons/icon128.png',
-    title: 'FLC — Nghe lại',
+    title: 'FLC — Listen again',
     message: `${item.title} (${labelFrequency(item.frequency)})`,
     priority: 1,
   });
@@ -120,9 +120,9 @@ async function notifyMedia(item: MediaItem) {
 
 function labelFrequency(f: string): string {
   const map: Record<string, string> = {
-    daily: 'hàng ngày',
-    weekly: 'hàng tuần',
-    monthly: 'hàng tháng',
+    daily: 'daily',
+    weekly: 'weekly',
+    monthly: 'monthly',
   };
   return map[f] ?? f;
 }

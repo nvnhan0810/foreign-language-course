@@ -41,14 +41,14 @@ async function request<T>(
 
   if (res.status === 401) {
     await clearAuth();
-    throw new ApiError('Phiên đăng nhập hết hạn.', 401);
+    throw new ApiError('Session expired.', 401);
   }
 
   const body = await res.json().catch(() => ({}));
 
   if (!res.ok) {
     throw new ApiError(
-      (body as { message?: string }).message ?? 'Lỗi API',
+      (body as { message?: string }).message ?? 'API error',
       res.status
     );
   }

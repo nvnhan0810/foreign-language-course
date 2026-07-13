@@ -1,5 +1,5 @@
 export class ExtensionContextError extends Error {
-  constructor(message = 'Extension vừa được cập nhật. Hãy tải lại trang (F5).') {
+  constructor(message = 'The extension was updated. Please reload the page (F5).') {
     super(message);
     this.name = 'ExtensionContextError';
   }
