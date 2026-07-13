@@ -16,7 +16,7 @@
             @endphp
             <div class="card vocab-card">
                 <div class="vocab-card-row">
-                    <a href="{{ route('user.home.vocab.show', $vocab) }}" class="vocab-card-link">
+                    <a href="{{ route('user.home.vocab.show', $vocab->id) }}" class="vocab-card-link">
                         <p class="card-title">{{ $vocab->word }}</p>
                         @if ($vocab->phonetic)
                             <p class="card-subtitle vocab-card-phonetic">{{ $vocab->phonetic }}</p>
@@ -38,7 +38,7 @@
                         <div class="action-menu">
                             <button type="button" class="btn-icon action-menu-trigger" aria-label="Tùy chọn" aria-haspopup="true">⋮</button>
                             <div class="action-menu-panel" hidden>
-                                <form action="{{ route('user.home.vocab.destroy', $vocab) }}" method="POST" class="flc-form-submit"
+                                <form action="{{ route('user.home.vocab.destroy', $vocab->id) }}" method="POST" class="flc-form-submit"
                                       onsubmit="return confirm('Xóa &quot;{{ $vocab->word }}&quot; khỏi danh sách?')">
                                     @csrf
                                     @method('DELETE')

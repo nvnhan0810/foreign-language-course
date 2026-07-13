@@ -25,7 +25,7 @@
                 <div class="action-menu">
                     <button type="button" class="btn-icon action-menu-trigger" aria-label="Tùy chọn" aria-haspopup="true">⋮</button>
                     <div class="action-menu-panel" hidden>
-                        <form action="{{ route('user.home.vocab.destroy', $vocab) }}" method="POST" class="flc-form-submit"
+                        <form action="{{ route('user.home.vocab.destroy', $vocab->id) }}" method="POST" class="flc-form-submit"
                               onsubmit="return confirm('Xóa &quot;{{ $vocab->word }}&quot; khỏi danh sách?')">
                             @csrf
                             @method('DELETE')
