@@ -116,7 +116,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('G', style: TextStyle(fontWeight: FontWeight.bold)),
-                    label: Text(_loading ? 'Đang đăng nhập...' : 'Đăng nhập bằng Google'),
+                    label: Text(_loading ? 'Signing in...' : 'Sign in with Google'),
                   ),
                 ),
                 const Spacer(),

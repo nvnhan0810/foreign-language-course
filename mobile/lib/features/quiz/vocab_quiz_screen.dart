@@ -59,7 +59,7 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
     setState(() {
       _selectedChoice = choice;
       _wasCorrect = correct;
-      _feedback = correct ? 'Đúng!' : 'Sai. Đáp án: ${q.correctAnswer}';
+      _feedback = correct ? 'Correct!' : 'Wrong. Answer: ${q.correctAnswer}';
     });
     await ref.read(flcApiProvider).submitVocabQuizAttempt(
           vocabularyId: q.vocabularyId,
@@ -79,7 +79,7 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Text(
-            'Quiz từ vựng (ôn từ đã lưu)',
+            'Vocabulary quiz (review saved words)',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 16),
@@ -90,7 +90,7 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
                 child: FilledButton.icon(
                   onPressed: _next, 
                   icon: const Icon(Icons.play_arrow),
-                  label: const Text('Bắt đầu Quiz', style: TextStyle(fontSize: 16)),
+                  label: const Text('Start Quiz', style: TextStyle(fontSize: 16)),
                 ),
               ),
             ),
@@ -104,7 +104,7 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
                 child: Column(
                   children: [
                     Text(
-                      _question!.questionType == 'word_to_definition' ? 'Chọn nghĩa đúng' : 'Chọn từ đúng',
+                      _question!.questionType == 'word_to_definition' ? 'Choose the correct meaning' : 'Choose the correct word',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.bold,
@@ -211,7 +211,7 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
                 height: 50,
                 child: FilledButton(
                   onPressed: _next,
-                  child: const Text('Câu tiếp theo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: const Text('Next question', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
           ],

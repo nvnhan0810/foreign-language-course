@@ -57,7 +57,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(_error!),
-            TextButton(onPressed: _load, child: const Text('Thử lại')),
+            TextButton(onPressed: _load, child: const Text('Retry')),
           ],
         ),
       );
@@ -65,7 +65,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
 
     final allItems = _items ?? [];
     if (allItems.isEmpty) {
-      return const Center(child: Text('Chưa có media. Thêm từ extension hoặc admin.'));
+      return const Center(child: Text('No media yet. Add from the extension or admin.'));
     }
 
     final filtered = _filteredItems;
@@ -87,7 +87,7 @@ class _MediaListScreenState extends ConsumerState<MediaListScreen> {
                       const SizedBox(height: 80),
                       Center(
                         child: Text(
-                          'Không có media ở mức độ này.',
+                          'No media at this difficulty.',
                           style: TextStyle(color: muted),
                         ),
                       ),

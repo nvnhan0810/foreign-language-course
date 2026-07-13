@@ -29,7 +29,7 @@ class _LookupScreenState extends ConsumerState<LookupScreen> {
   Future<void> _lookup() async {
     final text = _controller.text.trim();
     if (!isValidLookupInput(text)) {
-      setState(() => _error = 'Nhập từ/câu tiếng Anh hợp lệ.');
+      setState(() => _error = 'Enter a valid English word or phrase.');
       return;
     }
     final word = lookupTermFromText(text);
@@ -63,7 +63,7 @@ class _LookupScreenState extends ConsumerState<LookupScreen> {
       setState(() => _saved = true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã lưu từ')),
+          const SnackBar(content: Text('Word saved')),
         );
       }
     } on ApiException catch (e) {
@@ -79,14 +79,14 @@ class _LookupScreenState extends ConsumerState<LookupScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         const Text(
-          'Tra từ Anh–Anh (giống extension)',
+          'English dictionary lookup (same as extension)',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         TextField(
           controller: _controller,
           decoration: InputDecoration(
-            hintText: 'Nhập từ hoặc dán vào đây...',
+            hintText: 'Enter a word or paste here...',
             prefixIcon: const Icon(Icons.search),
             filled: true,
             fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
@@ -110,7 +110,7 @@ class _LookupScreenState extends ConsumerState<LookupScreen> {
                     height: 24, 
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
                   )
-                : const Text('Tra từ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                : const Text('Look up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ),
         if (_error != null) ...[
@@ -123,7 +123,7 @@ class _LookupScreenState extends ConsumerState<LookupScreen> {
           const SizedBox(height: 12),
           FilledButton.tonal(
             onPressed: _saved || _loading ? null : _save,
-            child: Text(_saved ? 'Đã lưu' : 'Lưu từ'),
+            child: Text(_saved ? 'Saved' : 'Save word'),
           ),
         ],
       ],

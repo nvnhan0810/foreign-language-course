@@ -1,4 +1,4 @@
-/// Giống extension: lấy từ đầu tiên từ selection / câu.
+/// Same as extension: take the first word from a selection / phrase.
 String lookupTermFromText(String text) {
   final trimmed = text
       .replaceAll(RegExp(r'[\u200B-\u200D\uFEFF]'), '')

@@ -50,7 +50,7 @@ class _ListeningQuizScreenState extends ConsumerState<ListeningQuizScreen> {
         .toList();
     if (payload.length < _questions.length) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Trả lời hết các câu trước khi nộp.')),
+        const SnackBar(content: Text('Answer all questions before submitting.')),
       );
       return;
     }
@@ -81,7 +81,7 @@ class _ListeningQuizScreenState extends ConsumerState<ListeningQuizScreen> {
 
     if (_result != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Kết quả')),
+        appBar: AppBar(title: const Text('Results')),
         body: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -92,7 +92,7 @@ class _ListeningQuizScreenState extends ConsumerState<ListeningQuizScreen> {
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               Text(
-                _result!.passed ? 'Đạt' : 'Chưa đạt',
+                _result!.passed ? 'Passed' : 'Not passed',
                 style: TextStyle(
                   color: _result!.passed ? Colors.green : Colors.orange,
                   fontWeight: FontWeight.bold,
@@ -133,7 +133,7 @@ class _ListeningQuizScreenState extends ConsumerState<ListeningQuizScreen> {
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: FilledButton(
                 onPressed: _loading ? null : _submit,
-                child: const Text('Nộp bài'),
+                child: const Text('Submit'),
               ),
             );
           }
@@ -145,7 +145,7 @@ class _ListeningQuizScreenState extends ConsumerState<ListeningQuizScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Câu ${i + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text('Question ${i + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Text(q.prompt),
                   const SizedBox(height: 8),
@@ -170,7 +170,7 @@ class _ListeningQuizScreenState extends ConsumerState<ListeningQuizScreen> {
                     TextField(
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
-                        hintText: 'Câu trả lời...',
+                        hintText: 'Your answer...',
                       ),
                       maxLines: 3,
                       onChanged: (v) => _answers[q.id] = v,

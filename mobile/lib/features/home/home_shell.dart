@@ -20,11 +20,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   int _index = 0;
 
   static const _tabs = [
-    _Tab('/home/lookup', Icons.menu_book, 'Tra từ'),
-    _Tab('/home/vocab', Icons.bookmark, 'Từ vựng'),
-    _Tab('/home/media', Icons.headphones, 'Nghe'),
+    _Tab('/home/lookup', Icons.menu_book, 'Lookup'),
+    _Tab('/home/vocab', Icons.bookmark, 'Vocabulary'),
+    _Tab('/home/media', Icons.headphones, 'Listen'),
     _Tab('/home/quiz', Icons.quiz, 'Quiz'),
-    _Tab('/home/profile', Icons.person, 'Cá nhân'),
+    _Tab('/home/profile', Icons.person, 'Profile'),
   ];
 
   @override

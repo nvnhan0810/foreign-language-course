@@ -145,9 +145,9 @@ class MediaItem {
   final int? questionBankCount;
 
   String get difficultyLabel => switch (difficulty) {
-        'beginner' => 'Cơ bản',
-        'advanced' => 'Nâng cao',
-        _ => 'Trung cấp',
+        'beginner' => 'Beginner',
+        'advanced' => 'Advanced',
+        _ => 'Intermediate',
       };
 
   bool get isYoutube => type == 'youtube';

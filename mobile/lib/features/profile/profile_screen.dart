@@ -56,13 +56,13 @@ class _ProfileError extends StatelessWidget {
             const Icon(Icons.error_outline, size: 48, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
-              'Không tải được hồ sơ',
+              'Could not load profile',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            FilledButton(onPressed: onRetry, child: const Text('Thử lại')),
+            FilledButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),
@@ -118,7 +118,7 @@ class _ProfileContent extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      user.name.isNotEmpty ? user.name : 'Người dùng',
+                      user.name.isNotEmpty ? user.name : 'User',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -137,7 +137,7 @@ class _ProfileContent extends StatelessWidget {
           actions: [
             IconButton(
               icon: const Icon(Icons.logout),
-              tooltip: 'Đăng xuất',
+              tooltip: 'Sign out',
               onPressed: () => _logout(context),
             ),
           ],
@@ -149,26 +149,26 @@ class _ProfileContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Thống kê',
+                  'Stats',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     _StatCard(
-                      label: 'Từ vựng',
+                      label: 'Vocabulary',
                       value: '${stats.vocabularyCount}',
                       icon: Icons.bookmark,
                     ),
                     const SizedBox(width: 16),
                     _StatCard(
-                      label: 'Bài nghe',
+                      label: 'Listening',
                       value: '${stats.mediaCount}',
                       icon: Icons.headphones,
                     ),
                     const SizedBox(width: 16),
                     _StatCard(
-                      label: 'Điểm TB',
+                      label: 'Avg score',
                       value: stats.averageScoreLabel,
                       icon: Icons.star,
                     ),
@@ -180,7 +180,7 @@ class _ProfileContent extends StatelessWidget {
                 const _NotificationSettingsCard(),
                 const SizedBox(height: 32),
                 const Text(
-                  'Lịch sử làm bài',
+                  'Attempt history',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
@@ -189,7 +189,7 @@ class _ProfileContent extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Center(
                       child: Text(
-                        'Chưa có bài làm nào.\nHãy thử quiz từ vựng hoặc bài nghe!',
+                        'No attempts yet.\nTry a vocabulary quiz or listening exercise!',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -361,13 +361,13 @@ class _NotificationSettingsCard extends ConsumerWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: SwitchListTile(
             title: const Text(
-              'Nhắc quiz từ vựng',
+              'Vocabulary quiz reminders',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
               settings.globalVocabQuizPushEnabled
-                  ? 'Lịch: $midday & $evening ($tz). Chạm noti mở thẳng Quiz.'
-                  : 'Admin đã tắt nhắc push toàn hệ thống.',
+                  ? 'Schedule: $midday & $evening ($tz). Tap a notification to open Quiz.'
+                  : 'Admin has disabled push reminders system-wide.',
             ),
             value: settings.isActive,
             onChanged: settings.globalVocabQuizPushEnabled

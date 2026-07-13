@@ -100,7 +100,7 @@ class ApiClient {
       return await fn();
     } on DioException catch (e) {
       final data = e.response?.data;
-      var message = 'Lỗi kết nối API';
+      var message = 'API connection error';
       if (data is Map && data['message'] != null) {
         message = data['message'].toString();
       } else if (e.message != null) {

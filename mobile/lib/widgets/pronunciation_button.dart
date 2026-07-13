@@ -44,7 +44,7 @@ class _PronunciationButtonState extends ConsumerState<PronunciationButton> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không phát được âm thanh')),
+          const SnackBar(content: Text('Could not play audio')),
         );
       }
     } finally {
@@ -56,7 +56,7 @@ class _PronunciationButtonState extends ConsumerState<PronunciationButton> {
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: _loading ? null : _play,
-      tooltip: 'Nghe phát âm',
+      tooltip: 'Pronounce',
       icon: _loading
           ? SizedBox(
               width: widget.iconSize,

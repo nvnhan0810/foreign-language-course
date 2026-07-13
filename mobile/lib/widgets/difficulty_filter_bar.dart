@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 const mediaDifficultyFilters = <String?, String>{
-  null: 'Tất cả',
-  'beginner': 'Cơ bản',
-  'intermediate': 'Trung cấp',
-  'advanced': 'Nâng cao',
+  null: 'All',
+  'beginner': 'Beginner',
+  'intermediate': 'Intermediate',
+  'advanced': 'Advanced',
 };
 
 class DifficultyFilterBar extends StatelessWidget {

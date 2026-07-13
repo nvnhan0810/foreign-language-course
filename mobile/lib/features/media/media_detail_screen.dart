@@ -102,7 +102,7 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
     if (url == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không tìm thấy link YouTube cho bài này.')),
+        const SnackBar(content: Text('No YouTube link found for this item.')),
       );
       return;
     }
@@ -110,7 +110,7 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
     final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không mở được YouTube. Thử lại sau.')),
+        const SnackBar(content: Text('Could not open YouTube. Try again later.')),
       );
     }
   }
@@ -126,7 +126,7 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
       final assessmentId = session['assessment_id'] as int?;
       final title = session['title'] as String? ?? option.title;
       if (assessmentId == null) {
-        throw ApiException('Không nhận được phiên làm bài.');
+        throw ApiException('Could not start the session.');
       }
       if (!mounted) return;
       context.push('/listening/$assessmentId', extra: title);
@@ -163,7 +163,7 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã lưu transcript.')),
+          const SnackBar(content: Text('Transcript saved.')),
         );
       }
     } on ApiException catch (e) {
@@ -195,7 +195,7 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
                         maxLines: 10,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
-                          hintText: 'Nhập transcript của video hoặc audio...',
+                          hintText: 'Enter the video or audio transcript...',
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -209,12 +209,12 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
                                     height: 18,
                                     child: CircularProgressIndicator(strokeWidth: 2),
                                   )
-                                : const Text('Lưu'),
+                                : const Text('Save'),
                           ),
                           const SizedBox(width: 8),
                           TextButton(
                             onPressed: _savingTranscript ? null : _cancelEditTranscript,
-                            child: const Text('Huỷ'),
+                            child: const Text('Cancel'),
                           ),
                         ],
                       ),
@@ -224,7 +224,7 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        hasTranscript ? m.transcript! : 'Chưa có transcript.',
+                        hasTranscript ? m.transcript! : 'No transcript yet.',
                         style: TextStyle(
                           color: hasTranscript ? null : Colors.grey.shade600,
                           height: 1.5,
@@ -235,7 +235,7 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
                         alignment: Alignment.centerLeft,
                         child: OutlinedButton(
                           onPressed: _startEditTranscript,
-                          child: Text(hasTranscript ? 'Sửa transcript' : 'Thêm transcript'),
+                          child: Text(hasTranscript ? 'Edit transcript' : 'Add transcript'),
                         ),
                       ),
                     ],
@@ -259,7 +259,7 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(_error!),
-                      TextButton(onPressed: _load, child: const Text('Thử lại')),
+                      TextButton(onPressed: _load, child: const Text('Retry')),
                     ],
                   ),
                 )
@@ -287,7 +287,7 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
                         child: OutlinedButton.icon(
                           onPressed: () => _openInYoutube(m),
                           icon: const Icon(Icons.open_in_new),
-                          label: const Text('Mở trên YouTube'),
+                          label: const Text('Open on YouTube'),
                         ),
                       ),
                     ],
@@ -336,7 +336,7 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
                     if (m != null) _buildTranscriptSection(m),
                     const SizedBox(height: 8),
                     const Text(
-                      'Bài quiz / test / thi',
+                      'Quiz / test / exam',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                     ),
                     const SizedBox(height: 8),
@@ -345,7 +345,7 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
                         padding: EdgeInsets.all(16),
                         child: Center(
                           child: Text(
-                            'Chưa có bài. Đợi AI tạo ngân hàng câu hỏi.',
+                            'No sessions yet. Waiting for AI to build the question bank.',
                             style: TextStyle(color: Colors.grey),
                           ),
                         ),
@@ -383,9 +383,9 @@ class _MediaDetailScreenState extends ConsumerState<MediaDetailScreen> {
                             subtitle: Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
-                                '${o.questionCount} câu'
-                                '${o.timeLimitMinutes != null ? ' · ${o.timeLimitMinutes} phút' : ''}'
-                                '${!o.available ? ' · Chưa sẵn sàng' : ''}',
+                                '${o.questionCount} questions'
+                                '${o.timeLimitMinutes != null ? ' · ${o.timeLimitMinutes} min' : ''}'
+                                '${!o.available ? ' · Not ready' : ''}',
                                 style: TextStyle(color: Colors.grey.shade600),
                               ),
                             ),

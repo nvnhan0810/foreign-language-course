@@ -23,7 +23,7 @@ class ThemeSettingsCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Giao diện',
+              'Appearance',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
@@ -31,17 +31,17 @@ class ThemeSettingsCard extends ConsumerWidget {
               segments: const [
                 ButtonSegment(
                   value: ThemePreference.light,
-                  label: Text('Sáng'),
+                  label: Text('Light'),
                   icon: Icon(Icons.light_mode_outlined, size: 18),
                 ),
                 ButtonSegment(
                   value: ThemePreference.dark,
-                  label: Text('Tối'),
+                  label: Text('Dark'),
                   icon: Icon(Icons.dark_mode_outlined, size: 18),
                 ),
                 ButtonSegment(
                   value: ThemePreference.system,
-                  label: Text('Hệ thống'),
+                  label: Text('System'),
                   icon: Icon(Icons.computer_outlined, size: 18),
                 ),
               ],

@@ -1,6 +1,7 @@
 import 'package:flc_mobile/core/api/api_client.dart';
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/models/flc_models.dart';
+import 'package:flc_mobile/widgets/dictionary_card.dart';
 import 'package:flc_mobile/widgets/pronunciation_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,11 +62,11 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Xóa từ?'),
-        content: Text('Xóa "${v.word}" khỏi danh sách?'),
+        title: const Text('Delete word?'),
+        content: Text('Remove "${v.word}" from your list?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xóa')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
         ],
       ),
     );
@@ -80,7 +81,7 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
-          hintText: 'Tìm từ đã lưu...',
+          hintText: 'Search saved words...',
           prefixIcon: const Icon(Icons.search),
           filled: true,
           fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
@@ -116,14 +117,14 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(_error!),
-            TextButton(onPressed: _load, child: const Text('Thử lại')),
+            TextButton(onPressed: _load, child: const Text('Retry')),
           ],
         ),
       );
     }
     final allItems = _items ?? [];
     if (allItems.isEmpty) {
-      return const Center(child: Text('Chưa có từ nào. Tra từ và bấm Lưu.'));
+      return const Center(child: Text('No words yet. Look up a word and tap Save.'));
     }
 
     final items = _filteredItems;
@@ -132,7 +133,7 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
         _searchField(),
         Expanded(
           child: items.isEmpty
-              ? const Center(child: Text('Không tìm thấy từ khớp.'))
+              ? const Center(child: Text('No matching words.'))
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView.builder(
@@ -188,9 +189,9 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
                                 expand: false,
                                 initialChildSize: 0.6,
                                 builder: (_, scroll) => Container(
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(ctx).colorScheme.surface,
+                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                                   ),
                                   child: ListView(
                                     controller: scroll,
@@ -207,56 +208,7 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
                                           ),
                                         ),
                                       ),
-                                      Text(v.word, style: Theme.of(ctx).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
-                                      PronunciationButton(word: v.word),
-                                      if (v.phonetic != null)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 4.0),
-                                          child: Text(
-                                            v.phonetic!,
-                                            style: TextStyle(color: Colors.grey.shade600, fontSize: 16, fontStyle: FontStyle.italic),
-                                          ),
-                                        ),
-                                      const SizedBox(height: 16),
-                                      const Divider(),
-                                      const SizedBox(height: 8),
-                                      ...v.meanings.map(
-                                        (m) => Padding(
-                                          padding: const EdgeInsets.only(bottom: 16.0),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              if (m.partOfSpeech != null)
-                                                Container(
-                                                  margin: const EdgeInsets.only(bottom: 8),
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: Theme.of(ctx).colorScheme.primaryContainer.withValues(alpha: 0.5),
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: Text(
-                                                    m.partOfSpeech!,
-                                                    style: TextStyle(
-                                                      color: Theme.of(ctx).colorScheme.primary,
-                                                      fontStyle: FontStyle.italic,
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ),
-                                              Text(m.definition, style: const TextStyle(fontSize: 16)),
-                                              if (m.example != null)
-                                                Padding(
-                                                  padding: const EdgeInsets.only(top: 8.0),
-                                                  child: Text(
-                                                    '"${m.example}"',
-                                                    style: TextStyle(color: Colors.grey.shade600, fontStyle: FontStyle.italic),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
+                                      DictionaryCard.fromVocabulary(v),
                                     ],
                                   ),
                                 ),

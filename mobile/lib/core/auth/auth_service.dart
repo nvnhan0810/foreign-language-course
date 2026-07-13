@@ -29,7 +29,7 @@ class AuthService {
 
     final token = parsed.queryParameters['token'];
     if (token == null || token.isEmpty) {
-      throw Exception('Không nhận được token từ server.');
+      throw Exception('No token received from server.');
     }
 
     await _tokenStorage.save(
