@@ -25,15 +25,15 @@
                 <td><code>{{ $entry->pattern }}</code></td>
                 <td>{{ $entry->label ?? '—' }}</td>
                 <td>
-                    @if ($entry->is_active)
+                    @if ($entry->isActive)
                         <span class="badge">Active</span>
                     @else
                         <span class="badge badge-off">Tắt</span>
                     @endif
                 </td>
                 <td>
-                    <a href="{{ route('admin.allowed-emails.edit', $entry) }}" class="btn btn-sm btn-secondary">Sửa</a>
-                    <form action="{{ route('admin.allowed-emails.destroy', $entry) }}" method="POST" class="inline-form" onsubmit="return confirm('Xóa mục này?')">
+                    <a href="{{ route('admin.allowed-emails.edit', $entry->id) }}" class="btn btn-sm btn-secondary">Sửa</a>
+                    <form action="{{ route('admin.allowed-emails.destroy', $entry->id) }}" method="POST" class="inline-form" onsubmit="return confirm('Xóa mục này?')">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-danger">Xóa</button>

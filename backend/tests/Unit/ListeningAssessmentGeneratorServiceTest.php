@@ -2,9 +2,9 @@
 
 namespace Tests\Unit;
 
-use App\Models\ListeningQuestion;
-use App\Services\CursorAgentService;
-use App\Services\ListeningAssessmentGeneratorService;
+use Flc\Listening\Domain\ListeningQuestion;
+use Flc\Media\Infrastructure\Content\DefaultListeningAssessmentGenerator;
+use Flc\Media\Infrastructure\External\CursorAgentService;
 use Mockery;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -22,13 +22,17 @@ class ListeningAssessmentGeneratorServiceTest extends TestCase
         $cursor = Mockery::mock(CursorAgentService::class);
         $cursor->shouldReceive('isConfigured')->andReturn(false);
 
-        $service = new ListeningAssessmentGeneratorService($cursor);
-        $method = new ReflectionMethod($service, 'generateLocally');
+        $generator = new DefaultListeningAssessmentGenerator(
+            $cursor,
+            Mockery::mock(\Flc\Media\Application\Repository\MediaItemRepository::class),
+            Mockery::mock(\Flc\Listening\Application\Repository\ListeningAssessmentRepository::class),
+        );
+        $method = new ReflectionMethod($generator, 'generateLocally');
         $method->setAccessible(true);
 
         /** @var array<int, array<string, mixed>> $questions */
         $questions = $method->invoke(
-            $service,
+            $generator,
             'Being thoughtful means considering other people\'s feelings carefully. Thoughtful people listen before they speak.',
             'Thoughtfulness in conversation',
             'quiz',

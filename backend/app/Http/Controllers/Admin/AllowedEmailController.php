@@ -3,54 +3,96 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AllowedEmailEntry;
+use Flc\Identity\Application\Command\CreateAllowedEmail;
+use Flc\Identity\Application\Command\DeleteAllowedEmail;
+use Flc\Identity\Application\Command\UpdateAllowedEmail;
+use Flc\Identity\Application\Query\GetAllowedEmail;
+use Flc\Identity\Application\Query\ListAllowedEmails;
+use Flc\Identity\Domain\AllowedEmail;
+use Flc\Shared\Application\CommandBus;
+use Flc\Shared\Application\PaginatedResult;
+use Flc\Shared\Application\QueryBus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\View\View;
 
 class AllowedEmailController extends Controller
 {
-    public function index(): View
+    public function __construct(
+        private readonly QueryBus $queries,
+        private readonly CommandBus $commands,
+    ) {}
+
+    public function index(Request $request): View
     {
+        /** @var PaginatedResult<AllowedEmail> $page */
+        $page = $this->queries->ask(new ListAllowedEmails);
+
+        $entries = new LengthAwarePaginator(
+            $page->items,
+            $page->total,
+            $page->perPage,
+            $page->currentPage,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ],
+        );
+
         return view('admin.allowed-emails.index', [
-            'entries' => AllowedEmailEntry::query()->orderByDesc('created_at')->paginate(20),
+            'entries' => $entries,
         ]);
     }
 
     public function create(): View
     {
         return view('admin.allowed-emails.form', [
-            'entry' => new AllowedEmailEntry,
+            'entry' => new AllowedEmail(null, '', null, true),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
-        AllowedEmailEntry::query()->create($data);
+        $this->commands->dispatch(new CreateAllowedEmail(
+            pattern: $data['pattern'],
+            label: $data['label'],
+            isActive: $data['is_active'],
+        ));
 
         return redirect()->route('admin.allowed-emails.index')
             ->with('success', 'Đã thêm email vào allowlist.');
     }
 
-    public function edit(AllowedEmailEntry $allowed_email): View
+    public function edit(int $allowed_email): View
     {
+        $entry = $this->queries->ask(new GetAllowedEmail($allowed_email));
+
+        abort_if($entry === null, 404);
+
         return view('admin.allowed-emails.form', [
-            'entry' => $allowed_email,
+            'entry' => $entry,
         ]);
     }
 
-    public function update(Request $request, AllowedEmailEntry $allowed_email): RedirectResponse
+    public function update(Request $request, int $allowed_email): RedirectResponse
     {
-        $allowed_email->update($this->validated($request));
+        $data = $this->validated($request);
+        $this->commands->dispatch(new UpdateAllowedEmail(
+            id: $allowed_email,
+            pattern: $data['pattern'],
+            label: $data['label'],
+            isActive: $data['is_active'],
+        ));
 
         return redirect()->route('admin.allowed-emails.index')
             ->with('success', 'Đã cập nhật.');
     }
 
-    public function destroy(AllowedEmailEntry $allowed_email): RedirectResponse
+    public function destroy(int $allowed_email): RedirectResponse
     {
-        $allowed_email->delete();
+        $this->commands->dispatch(new DeleteAllowedEmail($allowed_email));
 
         return redirect()->route('admin.allowed-emails.index')
             ->with('success', 'Đã xóa.');

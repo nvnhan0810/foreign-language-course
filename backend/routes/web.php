@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\AllowedEmailController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DictionaryController;
 use App\Http\Controllers\Admin\ListeningAssessmentController;
 use App\Http\Controllers\Admin\MediaItemController;
 use App\Http\Controllers\Admin\SettingsController;
@@ -81,6 +82,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::resource('users', UserController::class)->only(['index', 'show', 'destroy']);
         Route::resource('vocabularies', VocabularyController::class)->only(['index', 'edit', 'update', 'destroy']);
+        Route::resource('dictionary', DictionaryController::class)->except(['show']);
 
         Route::post('media-items/{mediaItem}/process', [MediaItemController::class, 'process'])->name('media-items.process');
         Route::post('media-items/{mediaItem}/regenerate-assessments', [MediaItemController::class, 'regenerateAssessments'])->name('media-items.regenerate-assessments');

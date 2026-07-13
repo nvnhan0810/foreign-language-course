@@ -2,11 +2,12 @@
 
 namespace Tests\Unit;
 
-use App\Exceptions\TranscriptUnavailableException;
-use App\Models\MediaItem;
+use App\Models\MediaItem as EloquentMediaItem;
 use App\Models\User;
-use App\Services\MediaContentResolverService;
-use App\Services\YouTubeTranscriptService;
+use Flc\Media\Application\Exception\TranscriptUnavailableException;
+use Flc\Media\Infrastructure\Content\DefaultMediaContentResolver;
+use Flc\Media\Infrastructure\External\YouTubeTranscriptService;
+use Flc\Media\Infrastructure\Persistence\EloquentMediaItemRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
@@ -24,11 +25,11 @@ class MediaContentResolverServiceTest extends TestCase
     public function test_youtube_without_transcript_throws_and_does_not_use_metadata(): void
     {
         $user = User::factory()->create();
-        $mediaItem = MediaItem::query()->create([
+        $model = EloquentMediaItem::query()->create([
             'user_id' => $user->id,
             'title' => 'Sample video',
             'url' => 'https://www.youtube.com/watch?v=abc123',
-            'type' => MediaItem::TYPE_YOUTUBE,
+            'type' => EloquentMediaItem::TYPE_YOUTUBE,
             'source_id' => 'abc123',
             'language' => 'en',
             'frequency' => 'weekly',
@@ -40,10 +41,11 @@ class MediaContentResolverServiceTest extends TestCase
             ->with('abc123', 'en')
             ->andReturn(null);
 
-        $service = new MediaContentResolverService($youtube);
+        $resolver = new DefaultMediaContentResolver($youtube);
+        $mediaItem = EloquentMediaItemRepository::toDomain($model);
 
         try {
-            $service->resolve($mediaItem);
+            $resolver->resolve($mediaItem);
             $this->fail('Expected TranscriptUnavailableException');
         } catch (TranscriptUnavailableException $e) {
             $this->assertSame($mediaItem->id, $e->mediaItemId);
@@ -53,52 +55,44 @@ class MediaContentResolverServiceTest extends TestCase
     public function test_append_transcript_unavailable_note_adds_system_note(): void
     {
         $user = User::factory()->create();
-        $mediaItem = MediaItem::query()->create([
+        $model = EloquentMediaItem::query()->create([
             'user_id' => $user->id,
             'title' => 'Sample video',
             'url' => 'https://www.youtube.com/watch?v=abc123',
-            'type' => MediaItem::TYPE_YOUTUBE,
+            'type' => EloquentMediaItem::TYPE_YOUTUBE,
             'source_id' => 'abc123',
             'language' => 'en',
             'frequency' => 'weekly',
             'notes' => 'Ghi chú của admin',
         ]);
 
-        $service = new MediaContentResolverService(
-            Mockery::mock(YouTubeTranscriptService::class)
-        );
+        $repo = new EloquentMediaItemRepository;
+        $repo->appendTranscriptUnavailableNote($model->id);
 
-        $service->appendTranscriptUnavailableNote($mediaItem->fresh());
+        $model->refresh();
 
-        $mediaItem->refresh();
-
-        $this->assertStringContainsString('Ghi chú của admin', $mediaItem->notes);
-        $this->assertStringContainsString('Không lấy được phụ đề/transcript', $mediaItem->notes);
+        $this->assertStringContainsString('Ghi chú của admin', $model->notes);
+        $this->assertStringContainsString('Không lấy được phụ đề/transcript', $model->notes);
     }
 
     public function test_append_transcript_unavailable_note_is_idempotent(): void
     {
         $user = User::factory()->create();
-        $mediaItem = MediaItem::query()->create([
+        $note = 'Không lấy được phụ đề/transcript cho video YouTube. Bật caption trên YouTube hoặc dán transcript thủ công, rồi phân tích lại.';
+        $model = EloquentMediaItem::query()->create([
             'user_id' => $user->id,
             'title' => 'Sample video',
             'url' => 'https://www.youtube.com/watch?v=abc123',
-            'type' => MediaItem::TYPE_YOUTUBE,
+            'type' => EloquentMediaItem::TYPE_YOUTUBE,
             'source_id' => 'abc123',
             'language' => 'en',
             'frequency' => 'weekly',
-            'notes' => MediaContentResolverService::TRANSCRIPT_UNAVAILABLE_NOTE,
+            'notes' => $note,
         ]);
 
-        $service = new MediaContentResolverService(
-            Mockery::mock(YouTubeTranscriptService::class)
-        );
+        $repo = new EloquentMediaItemRepository;
+        $repo->appendTranscriptUnavailableNote($model->id);
 
-        $service->appendTranscriptUnavailableNote($mediaItem->fresh());
-
-        $this->assertSame(
-            MediaContentResolverService::TRANSCRIPT_UNAVAILABLE_NOTE,
-            $mediaItem->fresh()->notes
-        );
+        $this->assertSame($note, $model->fresh()->notes);
     }
 }

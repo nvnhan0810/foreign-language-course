@@ -4,18 +4,25 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ListeningAssessment;
-use App\Models\ListeningAttempt;
-use App\Models\ListeningQuestion;
 use App\Models\MediaItem;
-use App\Services\ListeningSessionService;
+use Flc\Listening\Application\Command\StartListeningSession;
+use Flc\Listening\Application\Command\SubmitListeningAttempt;
+use Flc\Listening\Application\Query\GetListeningAssessmentQuestions;
+use Flc\Listening\Application\Query\GetListeningAttempts;
+use Flc\Listening\Application\Query\GetListeningSessionOptions;
+use Flc\Shared\Application\CommandBus;
+use Flc\Shared\Application\QueryBus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class ListeningAssessmentController extends Controller
 {
     public function __construct(
-        private readonly ListeningSessionService $sessionService,
+        private readonly QueryBus $queries,
+        private readonly CommandBus $commands,
     ) {}
 
     public function show(Request $request, ListeningAssessment $listeningAssessment): JsonResponse
@@ -31,36 +38,30 @@ class ListeningAssessmentController extends Controller
     {
         $this->authorizeAssessment($request, $listeningAssessment);
 
-        if ($listeningAssessment->status !== ListeningAssessment::STATUS_READY) {
+        try {
+            $payload = $this->queries->ask(new GetListeningAssessmentQuestions(
+                $listeningAssessment->id,
+                $request->user()->id,
+            ));
+        } catch (AccessDeniedHttpException) {
+            abort(403);
+        }
+
+        if (! ($payload['ready'] ?? false)) {
             return response()->json([
                 'message' => 'Assessment is not ready yet.',
-                'data' => ['status' => $listeningAssessment->status],
+                'data' => ['status' => $payload['status'] ?? null],
             ], 422);
         }
 
-        $questions = $this->sessionService->formatQuestionsForClient(
-            $listeningAssessment->sessionQuestions()
-        );
+        unset($payload['ready']);
 
-        return response()->json([
-            'data' => [
-                'assessment_id' => $listeningAssessment->id,
-                'type' => $listeningAssessment->type,
-                'title' => $listeningAssessment->title,
-                'time_limit_minutes' => $listeningAssessment->time_limit_minutes,
-                'question_count' => count($questions),
-                'questions' => $questions,
-            ],
-        ]);
+        return response()->json(['data' => $payload]);
     }
 
     public function submitAttempt(Request $request, ListeningAssessment $listeningAssessment): JsonResponse
     {
         $this->authorizeAssessment($request, $listeningAssessment);
-
-        if ($listeningAssessment->status !== ListeningAssessment::STATUS_READY) {
-            return response()->json(['message' => 'Assessment is not ready yet.'], 422);
-        }
 
         $data = $request->validate([
             'answers' => ['required', 'array', 'min:1'],
@@ -69,68 +70,36 @@ class ListeningAssessmentController extends Controller
             'started_at' => ['nullable', 'date'],
         ]);
 
-        $questions = $listeningAssessment->sessionQuestions()->keyBy('id');
-        $score = 0;
-        $results = [];
-
-        foreach ($data['answers'] as $answer) {
-            $question = $questions->get($answer['question_id']);
-
-            if (! $question || $question->media_item_id !== $listeningAssessment->media_item_id) {
-                abort(422, 'Invalid question for this session.');
-            }
-
-            $isCorrect = $this->isAnswerCorrect($question, $answer['answer']);
-
-            if ($isCorrect) {
-                $score++;
-            }
-
-            $results[] = [
-                'question_id' => $question->id,
-                'answer' => $answer['answer'],
-                'correct' => $isCorrect,
-                'correct_answer' => $question->correct_answer,
-                'explanation' => $question->explanation,
-            ];
+        try {
+            $result = $this->commands->dispatch(new SubmitListeningAttempt(
+                assessmentId: $listeningAssessment->id,
+                userId: $request->user()->id,
+                answers: array_map(static fn (array $answer) => [
+                    'question_id' => (int) $answer['question_id'],
+                    'answer' => $answer['answer'],
+                ], $data['answers']),
+                startedAt: $data['started_at'] ?? null,
+                strict: true,
+            ));
+        } catch (AccessDeniedHttpException) {
+            abort(403);
+        } catch (UnprocessableEntityHttpException $e) {
+            abort(422, $e->getMessage());
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        $total = $questions->count();
-        $percentage = $total > 0 ? round(($score / $total) * 100, 2) : 0;
-
-        $attempt = ListeningAttempt::query()->create([
-            'listening_assessment_id' => $listeningAssessment->id,
-            'media_item_id' => $listeningAssessment->media_item_id,
-            'type' => $listeningAssessment->type,
-            'user_id' => $request->user()->id,
-            'score' => $score,
-            'total' => $total,
-            'percentage' => $percentage,
-            'answers' => $results,
-            'started_at' => $data['started_at'] ?? now(),
-            'completed_at' => now(),
-        ]);
-
-        return response()->json([
-            'data' => [
-                'attempt_id' => $attempt->id,
-                'score' => $score,
-                'total' => $total,
-                'percentage' => $percentage,
-                'passed' => $percentage >= $this->passThreshold($listeningAssessment->type),
-                'results' => $results,
-            ],
-        ]);
+        return response()->json(['data' => $result]);
     }
 
     public function attempts(Request $request, ListeningAssessment $listeningAssessment): JsonResponse
     {
         $this->authorizeAssessment($request, $listeningAssessment);
 
-        $attempts = $listeningAssessment->attempts()
-            ->where('user_id', $request->user()->id)
-            ->orderByDesc('completed_at')
-            ->get(['id', 'score', 'total', 'percentage', 'started_at', 'completed_at']);
+        $attempts = $this->queries->ask(new GetListeningAttempts(
+            $listeningAssessment->id,
+            $request->user()->id,
+        ));
 
         return response()->json(['data' => $attempts]);
     }
@@ -144,11 +113,11 @@ class ListeningAssessmentController extends Controller
         ]);
 
         try {
-            $session = $this->sessionService->startSession(
-                $mediaItem,
-                $request->user(),
-                $data['type']
-            );
+            $session = $this->commands->dispatch(new StartListeningSession(
+                $mediaItem->id,
+                $request->user()->id,
+                $data['type'],
+            ));
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
@@ -161,44 +130,8 @@ class ListeningAssessmentController extends Controller
         $this->authorizeMedia($request, $mediaItem);
 
         return response()->json([
-            'data' => $this->sessionService->sessionOptions($mediaItem),
+            'data' => $this->queries->ask(new GetListeningSessionOptions($mediaItem->id)),
         ]);
-    }
-
-    private function isAnswerCorrect(ListeningQuestion $question, string $answer): bool
-    {
-        $normalizedAnswer = $this->normalize($answer);
-        $normalizedCorrect = $this->normalize($question->correct_answer);
-
-        if ($normalizedAnswer === $normalizedCorrect) {
-            return true;
-        }
-
-        if ($question->question_type === ListeningQuestion::TYPE_TRUE_FALSE) {
-            $answerIsTrue = in_array($normalizedAnswer, ['true', 't', 'yes', '1'], true);
-            $correctIsTrue = in_array($normalizedCorrect, ['true', 't', 'yes', '1'], true);
-            $answerIsFalse = in_array($normalizedAnswer, ['false', 'f', 'no', '0'], true);
-            $correctIsFalse = in_array($normalizedCorrect, ['false', 'f', 'no', '0'], true);
-
-            return ($answerIsTrue && $correctIsTrue) || ($answerIsFalse && $correctIsFalse);
-        }
-
-        return false;
-    }
-
-    private function normalize(string $value): string
-    {
-        return strtolower(trim(preg_replace('/\s+/', ' ', $value) ?? ''));
-    }
-
-    private function passThreshold(string $type): int
-    {
-        return match ($type) {
-            ListeningAssessment::TYPE_QUIZ => 60,
-            ListeningAssessment::TYPE_TEST => 70,
-            ListeningAssessment::TYPE_EXAM => 75,
-            default => 70,
-        };
     }
 
     private function authorizeAssessment(Request $request, ListeningAssessment $assessment): void

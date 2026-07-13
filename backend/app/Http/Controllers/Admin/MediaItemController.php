@@ -6,10 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Jobs\ProcessMediaContentJob;
 use App\Models\MediaItem;
 use App\Models\User;
-use App\Services\ListeningAssessmentGeneratorService;
-use App\Services\MediaScheduleService;
-use App\Services\MediaStorageService;
-use App\Services\YouTubeUrlParser;
+use Flc\Media\Application\ListeningAssessmentGenerator;
+use Flc\Media\Infrastructure\External\YouTubeUrlParser;
+use Flc\Media\Infrastructure\Scheduling\MediaScheduleService;
+use Flc\Media\Infrastructure\Storage\MediaStorageService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -21,7 +21,7 @@ class MediaItemController extends Controller
     public function __construct(
         private readonly MediaStorageService $storage,
         private readonly YouTubeUrlParser $youtubeParser,
-        private readonly ListeningAssessmentGeneratorService $assessmentGenerator,
+        private readonly ListeningAssessmentGenerator $assessmentGenerator,
     ) {}
 
     public function index(Request $request): View
@@ -219,7 +219,7 @@ class MediaItemController extends Controller
         }
 
         try {
-            $this->assessmentGenerator->generateQuestionBank($mediaItem);
+            $this->assessmentGenerator->generateQuestionBank($mediaItem->id);
         } catch (\Throwable $e) {
             return back()->with('error', 'Tạo ngân hàng câu hỏi thất bại: '.$e->getMessage());
         }

@@ -4,23 +4,27 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Vocabulary;
-use App\Models\VocabularyExample;
-use App\Services\DictionaryService;
+use Flc\Shared\Application\CommandBus;
+use Flc\Shared\Application\QueryBus;
+use Flc\Vocabulary\Application\Command\DeleteUserVocabulary;
+use Flc\Vocabulary\Application\Command\SaveUserVocabulary;
+use Flc\Vocabulary\Application\Command\UpdateUserVocabulary;
+use Flc\Vocabulary\Application\Query\GetUserVocabulary;
+use Flc\Vocabulary\Application\Query\ListUserVocabularies;
+use Flc\Vocabulary\Domain\UserVocabulary;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class VocabularyController extends Controller
 {
-    public function __construct(private readonly DictionaryService $dictionary) {}
+    public function __construct(
+        private readonly CommandBus $commands,
+        private readonly QueryBus $queries,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
-        $items = $request->user()
-            ->vocabularies()
-            ->with('examples')
-            ->orderByDesc('created_at')
-            ->get();
+        $items = $this->queries->ask(new ListUserVocabularies($request->user()->id));
 
         return response()->json(['data' => $items]);
     }
@@ -33,68 +37,62 @@ class VocabularyController extends Controller
             'meanings' => ['nullable', 'array'],
         ]);
 
-        $word = Str::lower(trim($data['word']));
-        $existing = $request->user()->vocabularies()->where('word', $word)->first();
+        $result = $this->commands->dispatch(new SaveUserVocabulary(
+            userId: $request->user()->id,
+            word: $data['word'],
+            phonetic: $data['phonetic'] ?? null,
+            meanings: $data['meanings'] ?? null,
+        ));
 
-        if ($existing) {
-            return response()->json(['data' => $existing->load('examples')], 200);
-        }
+        /** @var UserVocabulary $vocabulary */
+        $vocabulary = $result['vocabulary'];
+        $status = $result['created'] ? 201 : 200;
 
-        $lookup = $this->dictionary->lookup($word);
-        $meanings = $data['meanings'] ?? $lookup['meanings'] ?? [];
-
-        $vocabulary = $request->user()->vocabularies()->create([
-            'word' => $word,
-            'phonetic' => $data['phonetic'] ?? $lookup['phonetic'] ?? null,
-            'meanings' => $meanings,
-        ]);
-
-        foreach (array_slice($meanings, 0, 5) as $meaning) {
-            if (! empty($meaning['example'])) {
-                VocabularyExample::query()->create([
-                    'vocabulary_id' => $vocabulary->id,
-                    'example' => $meaning['example'],
-                    'definition_ref' => $meaning['definition'] ?? null,
-                ]);
-            }
-        }
-
-        return response()->json(['data' => $vocabulary->load('examples')], 201);
+        return response()->json(['data' => $vocabulary->toApiArray()], $status);
     }
 
     public function show(Request $request, Vocabulary $vocabulary): JsonResponse
     {
-        $this->authorizeVocabulary($request, $vocabulary);
+        $data = $this->queries->ask(new GetUserVocabulary($request->user()->id, $vocabulary->id));
+        if ($data === null) {
+            abort(403);
+        }
 
-        return response()->json(['data' => $vocabulary->load('examples')]);
+        return response()->json(['data' => $data]);
     }
 
     public function update(Request $request, Vocabulary $vocabulary): JsonResponse
     {
-        $this->authorizeVocabulary($request, $vocabulary);
-
         $data = $request->validate([
             'phonetic' => ['sometimes', 'nullable', 'string', 'max:120'],
             'meanings' => ['sometimes', 'array'],
         ]);
 
-        $vocabulary->update($data);
+        try {
+            /** @var UserVocabulary $updated */
+            $updated = $this->commands->dispatch(new UpdateUserVocabulary(
+                $request->user()->id,
+                $vocabulary->id,
+                $data,
+            ));
+        } catch (\RuntimeException) {
+            abort(403);
+        }
 
-        return response()->json(['data' => $vocabulary->fresh('examples')]);
+        return response()->json(['data' => $updated->toApiArray()]);
     }
 
     public function destroy(Request $request, Vocabulary $vocabulary): JsonResponse
     {
-        $this->authorizeVocabulary($request, $vocabulary);
-        $vocabulary->delete();
+        $deleted = $this->commands->dispatch(new DeleteUserVocabulary(
+            $request->user()->id,
+            $vocabulary->id,
+        ));
 
-        return response()->json(['message' => 'Đã xóa từ.']);
-    }
-
-    private function authorizeVocabulary(Request $request, Vocabulary $vocabulary): void
-    {
-        if ($vocabulary->user_id !== $request->user()->id) {
+        if (! $deleted) {
             abort(403);
         }
+
+        return response()->json(['message' => 'Đã xóa từ.']);
     }
 }

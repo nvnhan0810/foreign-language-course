@@ -1,20 +1,47 @@
 class Meaning {
-  Meaning({this.partOfSpeech, required this.definition, this.example});
+  Meaning({
+    this.partOfSpeech,
+    required this.definition,
+    this.example,
+    this.examples = const [],
+    this.synonyms = const [],
+    this.antonyms = const [],
+  });
 
   final String? partOfSpeech;
   final String definition;
   final String? example;
+  final List<String> examples;
+  final List<String> synonyms;
+  final List<String> antonyms;
 
-  factory Meaning.fromJson(Map<String, dynamic> json) => Meaning(
-        partOfSpeech: json['part_of_speech'] as String?,
-        definition: json['definition'] as String? ?? '',
-        example: json['example'] as String?,
-      );
+  factory Meaning.fromJson(Map<String, dynamic> json) {
+    final examples = (json['examples'] as List<dynamic>? ?? [])
+        .whereType<String>()
+        .toList();
+    final legacyExample = json['example'] as String?;
+
+    return Meaning(
+      partOfSpeech: json['part_of_speech'] as String?,
+      definition: json['definition'] as String? ?? '',
+      example: legacyExample ?? (examples.isNotEmpty ? examples.first : null),
+      examples: examples.isNotEmpty
+          ? examples
+          : (legacyExample != null ? [legacyExample] : const []),
+      synonyms:
+          (json['synonyms'] as List<dynamic>? ?? []).whereType<String>().toList(),
+      antonyms:
+          (json['antonyms'] as List<dynamic>? ?? []).whereType<String>().toList(),
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         if (partOfSpeech != null) 'part_of_speech': partOfSpeech,
         'definition': definition,
         if (example != null) 'example': example,
+        if (examples.isNotEmpty) 'examples': examples,
+        if (synonyms.isNotEmpty) 'synonyms': synonyms,
+        if (antonyms.isNotEmpty) 'antonyms': antonyms,
       };
 }
 
@@ -24,14 +51,20 @@ class DictionaryResult {
     this.phonetic,
     this.audioUrl,
     required this.meanings,
+    this.synonyms = const [],
+    this.antonyms = const [],
     this.source,
+    this.curated = false,
   });
 
   final String word;
   final String? phonetic;
   final String? audioUrl;
   final List<Meaning> meanings;
+  final List<String> synonyms;
+  final List<String> antonyms;
   final String? source;
+  final bool curated;
 
   factory DictionaryResult.fromJson(Map<String, dynamic> json) => DictionaryResult(
         word: json['word'] as String? ?? '',
@@ -40,7 +73,12 @@ class DictionaryResult {
         meanings: (json['meanings'] as List<dynamic>? ?? [])
             .map((e) => Meaning.fromJson(e as Map<String, dynamic>))
             .toList(),
+        synonyms:
+            (json['synonyms'] as List<dynamic>? ?? []).whereType<String>().toList(),
+        antonyms:
+            (json['antonyms'] as List<dynamic>? ?? []).whereType<String>().toList(),
         source: json['source'] as String?,
+        curated: json['curated'] as bool? ?? false,
       );
 }
 

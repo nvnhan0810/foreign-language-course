@@ -83,10 +83,10 @@ Bôi đen từ → chuột phải **Tra từ với FLC**.
 
 | Thành phần | Công nghệ |
 |------------|------------|
-| **Backend** | Laravel · PostgreSQL · Sanctum |
+| **Backend** | Laravel · PostgreSQL · Sanctum · [DDD/CQRS/ES](docs/ARCHITECTURE_DDD_CQRS.md) |
 | **Extension** | Chrome MV3 · TypeScript · Vite |
 | **Mobile** | Flutter · Riverpod · Firebase Cloud Messaging |
-| **Dictionary** | [Free Dictionary API](https://dictionaryapi.dev/) |
+| **Dictionary** | My Dictionary (ES) + [Free Dictionary API](https://dictionaryapi.dev/) |
 
 ---
 
@@ -94,8 +94,8 @@ Bôi đen từ → chuột phải **Tra từ với FLC**.
 
 | Thư mục | Mô tả |
 |---------|--------|
-| `docs/` | Tài liệu + hình minh họa |
-| `backend/` | Laravel API + Admin |
+| `docs/` | Tài liệu + hình minh họa ([ARCHITECTURE_DDD_CQRS](docs/ARCHITECTURE_DDD_CQRS.md), [DICTIONARY_DB](docs/DICTIONARY_DB.md)) |
+| `backend/` | Laravel API + Admin (`app/` delivery, `src/Flc/` domain) |
 | `extension/` | Chrome Extension MV3 |
 | `mobile/` | Flutter app (iOS / Android) |
 

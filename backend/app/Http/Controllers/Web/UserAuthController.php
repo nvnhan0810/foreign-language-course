@@ -4,7 +4,8 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\EmailAllowlistService;
+use Flc\Identity\Application\Query\IsEmailAllowed;
+use Flc\Shared\Application\QueryBus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -14,7 +15,7 @@ use Laravel\Socialite\Facades\Socialite;
 
 class UserAuthController extends Controller
 {
-    public function __construct(private readonly EmailAllowlistService $allowlist) {}
+    public function __construct(private readonly QueryBus $queries) {}
 
     public function showLogin(): View|RedirectResponse
     {
@@ -50,7 +51,7 @@ class UserAuthController extends Controller
                 ->with('error', 'Tài khoản Google không có email.');
         }
 
-        if (! $this->allowlist->isAllowed($email)) {
+        if (! $this->queries->ask(new IsEmailAllowed($email))) {
             return redirect()->route('user.login')
                 ->with('error', 'Email chưa được phép sử dụng. Liên hệ quản trị để thêm vào allowlist.');
         }

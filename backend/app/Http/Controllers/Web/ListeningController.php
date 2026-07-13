@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\ListeningAssessment;
-use App\Models\ListeningAttempt;
 use App\Models\MediaItem;
-use App\Services\ListeningSessionService;
+use Flc\Listening\Application\Command\InitializeSessionQuestions;
+use Flc\Listening\Application\Command\ResumeOrStartListeningSession;
+use Flc\Listening\Application\Command\SubmitListeningAttempt;
+use Flc\Listening\Application\Repository\ListeningAssessmentRepository;
+use Flc\Shared\Application\CommandBus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,7 +18,8 @@ use RuntimeException;
 class ListeningController extends Controller
 {
     public function __construct(
-        private readonly ListeningSessionService $sessionService,
+        private readonly CommandBus $commands,
+        private readonly ListeningAssessmentRepository $assessments,
     ) {}
 
     public function start(Request $request, MediaItem $mediaItem): RedirectResponse
@@ -29,11 +33,11 @@ class ListeningController extends Controller
         ]);
 
         try {
-            $session = $this->sessionService->resumeOrStartSession(
-                $mediaItem,
-                $request->user(),
-                $data['type']
-            );
+            $session = $this->commands->dispatch(new ResumeOrStartListeningSession(
+                $mediaItem->id,
+                $request->user()->id,
+                $data['type'],
+            ));
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -52,24 +56,22 @@ class ListeningController extends Controller
         $listeningAssessment->load('mediaItem');
         $result = session('listening_result');
         $sessionKey = $this->sessionCacheKey($listeningAssessment);
+        $userId = $request->user()->id;
 
         if ($result) {
             session()->forget($sessionKey);
-        } elseif ($this->hasCompletedAttempt($listeningAssessment, $request)) {
+        } elseif ($this->assessments->hasCompletedAttempt($listeningAssessment->id, $userId)) {
             session()->forget($sessionKey);
 
-            $lastAttempt = $listeningAssessment->attempts()
-                ->where('user_id', $request->user()->id)
-                ->latest('completed_at')
-                ->first();
+            $lastAttempt = $this->assessments->latestAttemptForUser($listeningAssessment->id, $userId);
 
             return view('user.listening', [
                 'assessment' => $listeningAssessment,
                 'questions' => collect(),
                 'result' => [
-                    'score' => $lastAttempt->score,
-                    'total' => $lastAttempt->total,
-                    'percentage' => $lastAttempt->percentage,
+                    'score' => $lastAttempt?->score,
+                    'total' => $lastAttempt?->total,
+                    'percentage' => $lastAttempt?->percentage,
                 ],
             ]);
         } elseif (! session()->has($sessionKey)) {
@@ -77,9 +79,12 @@ class ListeningController extends Controller
 
             try {
                 if ($questionIds === []) {
-                    $questionIds = $this->sessionService->initializeSessionQuestions($listeningAssessment);
+                    $questionIds = $this->commands->dispatch(new InitializeSessionQuestions(
+                        $listeningAssessment->id,
+                        $userId,
+                    ));
                 } else {
-                    $questionIds = $this->sessionService->shuffleQuestionOrder($questionIds);
+                    shuffle($questionIds);
                 }
 
                 session([$sessionKey => $questionIds]);
@@ -114,51 +119,33 @@ class ListeningController extends Controller
             'answers.*' => ['required', 'string'],
         ]);
 
-        $questions = $listeningAssessment->sessionQuestions()->keyBy('id');
-        $score = 0;
-        $results = [];
+        $answers = [];
 
         foreach ($data['answers'] as $questionId => $answer) {
-            $question = $questions->get((int) $questionId);
-
-            if (! $question) {
-                continue;
-            }
-
-            $isCorrect = $this->isAnswerCorrect($question, $answer);
-
-            if ($isCorrect) {
-                $score++;
-            }
-
-            $results[] = [
-                'question_id' => $question->id,
-                'correct' => $isCorrect,
+            $answers[] = [
+                'question_id' => (int) $questionId,
+                'answer' => $answer,
             ];
         }
 
-        $total = $questions->count();
-        $percentage = $total > 0 ? round(($score / $total) * 100, 1) : 0;
-
-        ListeningAttempt::query()->create([
-            'listening_assessment_id' => $listeningAssessment->id,
-            'media_item_id' => $listeningAssessment->media_item_id,
-            'type' => $listeningAssessment->type,
-            'user_id' => $request->user()->id,
-            'score' => $score,
-            'total' => $total,
-            'percentage' => $percentage,
-            'answers' => $results,
-            'completed_at' => now(),
-        ]);
+        try {
+            $result = $this->commands->dispatch(new SubmitListeningAttempt(
+                assessmentId: $listeningAssessment->id,
+                userId: $request->user()->id,
+                answers: $answers,
+                strict: false,
+            ));
+        } catch (RuntimeException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
 
         session()->forget($this->sessionCacheKey($listeningAssessment));
 
         return redirect()->route('user.listening.show', $listeningAssessment)
             ->with('listening_result', [
-                'score' => $score,
-                'total' => $total,
-                'percentage' => $percentage,
+                'score' => $result['score'],
+                'total' => $result['total'],
+                'percentage' => $result['percentage'],
             ])
             ->with('success', 'Đã nộp bài.');
     }
@@ -170,23 +157,8 @@ class ListeningController extends Controller
         }
     }
 
-    private function isAnswerCorrect($question, string $answer): bool
-    {
-        $normalized = strtolower(trim($answer));
-        $correct = strtolower(trim((string) $question->correct_answer));
-
-        return $normalized === $correct;
-    }
-
     private function sessionCacheKey(ListeningAssessment $listeningAssessment): string
     {
         return "listening.question_ids.{$listeningAssessment->id}";
-    }
-
-    private function hasCompletedAttempt(ListeningAssessment $listeningAssessment, Request $request): bool
-    {
-        return $listeningAssessment->attempts()
-            ->where('user_id', $request->user()->id)
-            ->exists();
     }
 }
