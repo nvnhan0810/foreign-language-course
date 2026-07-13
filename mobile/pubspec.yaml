@@ -1,7 +1,7 @@
 name: flc_mobile
 description: FLC mobile — native app for vocabulary, media, and quiz.
 publish_to: 'none'
-version: 1.0.0+8
+version: 1.0.2+10
 
 environment:
   sdk: '>=3.2.0 <4.0.0'

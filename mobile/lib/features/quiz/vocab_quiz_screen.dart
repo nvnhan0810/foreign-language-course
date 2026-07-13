@@ -17,6 +17,7 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
   QuizQuestion? _question;
   bool _loading = false;
   String? _feedback;
+  String? _selectedChoice;
   bool? _wasCorrect;
   bool _autoStarted = false;
 
@@ -38,6 +39,7 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
     setState(() {
       _loading = true;
       _feedback = null;
+      _selectedChoice = null;
       _wasCorrect = null;
     });
     try {
@@ -52,9 +54,10 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
 
   Future<void> _answer(String choice) async {
     final q = _question;
-    if (q == null) return;
+    if (q == null || _wasCorrect != null) return;
     final correct = choice.trim().toLowerCase() == q.correctAnswer.trim().toLowerCase();
     setState(() {
+      _selectedChoice = choice;
       _wasCorrect = correct;
       _feedback = correct ? 'Đúng!' : 'Sai. Đáp án: ${q.correctAnswer}';
     });
@@ -64,6 +67,9 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
           correct: correct,
         );
   }
+
+  bool _sameOption(String a, String b) =>
+      a.trim().toLowerCase() == b.trim().toLowerCase();
 
   @override
   Widget build(BuildContext context) {
@@ -116,21 +122,27 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
             ),
             ..._question!.options.map(
               (opt) {
-                final isSelectedAndCorrect = _wasCorrect == true && opt.trim().toLowerCase() == _question!.correctAnswer.trim().toLowerCase();
-                final isSelectedAndWrong = _wasCorrect == false && opt.trim().toLowerCase() != _question!.correctAnswer.trim().toLowerCase();
-                final isCorrectAnswer = _wasCorrect != null && opt.trim().toLowerCase() == _question!.correctAnswer.trim().toLowerCase();
-                
+                final revealed = _wasCorrect != null;
+                final isCorrectOpt = _sameOption(opt, _question!.correctAnswer);
+                final isSelectedOpt =
+                    _selectedChoice != null && _sameOption(opt, _selectedChoice!);
+
                 Color? bgColor;
                 Color? textColor;
-                
-                if (isSelectedAndCorrect || isCorrectAnswer) {
-                  bgColor = Colors.green.shade100;
-                  textColor = Colors.green.shade800;
-                } else if (isSelectedAndWrong) {
-                  bgColor = Colors.red.shade100;
-                  textColor = Colors.red.shade800;
+                Color? borderColor;
+
+                if (revealed) {
+                  if (isCorrectOpt) {
+                    bgColor = Colors.green.shade100;
+                    textColor = Colors.green.shade900;
+                    borderColor = Colors.green.shade700;
+                  } else if (isSelectedOpt) {
+                    bgColor = Colors.red.shade100;
+                    textColor = Colors.red.shade900;
+                    borderColor = Colors.red.shade700;
+                  }
                 }
-                
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: OutlinedButton(
@@ -138,13 +150,26 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
                       padding: const EdgeInsets.all(16),
                       backgroundColor: bgColor,
                       foregroundColor: textColor,
-                      side: bgColor != null ? BorderSide(color: textColor!) : null,
+                      // Keep result colors readable: disabled buttons otherwise
+                      // fade the label into the tinted background.
+                      disabledBackgroundColor: bgColor,
+                      disabledForegroundColor: textColor,
+                      side: borderColor != null ? BorderSide(color: borderColor) : null,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    onPressed: _wasCorrect != null ? null : () => _answer(opt),
+                    onPressed: revealed ? null : () => _answer(opt),
                     child: Align(
-                      alignment: Alignment.centerLeft, 
-                      child: Text(opt, style: const TextStyle(fontSize: 16)),
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        opt,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: revealed && (isCorrectOpt || isSelectedOpt)
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: textColor,
+                        ),
+                      ),
                     ),
                   ),
                 );
