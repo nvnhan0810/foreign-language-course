@@ -40,6 +40,10 @@ class MediaKeyVocabularyImporterTest extends TestCase
                 'phonetic' => null,
                 'meanings' => [],
             ]);
+        $dictionary->shouldReceive('meaningsForVocabulary')
+            ->twice()
+            ->andReturnUsing(fn (array $meanings) => $meanings);
+        $dictionary->shouldReceive('upsertOnSave')->twice()->andReturn(null);
 
         $importer = new MediaKeyVocabularyImporter($dictionary);
 
@@ -117,6 +121,10 @@ class MediaKeyVocabularyImporterTest extends TestCase
                     ['part_of_speech' => 'noun', 'definition' => 'natural home of an animal'],
                 ],
             ]);
+        $dictionary->shouldReceive('meaningsForVocabulary')
+            ->once()
+            ->andReturnUsing(fn (array $meanings) => $meanings);
+        $dictionary->shouldReceive('upsertOnSave')->once()->andReturn(null);
 
         $importer = new MediaKeyVocabularyImporter($dictionary);
 

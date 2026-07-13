@@ -59,13 +59,15 @@ class MediaKeyVocabularyImporter
                 continue;
             }
 
+            $vocabMeanings = $this->dictionary->meaningsForVocabulary($meanings);
+
             $vocabulary = $user->vocabularies()->create([
                 'word' => $word,
                 'phonetic' => $lookup['phonetic'] ?? null,
-                'meanings' => $meanings,
+                'meanings' => $vocabMeanings,
             ]);
 
-            foreach (array_slice($meanings, 0, 5) as $meaning) {
+            foreach (array_slice($vocabMeanings, 0, 5) as $meaning) {
                 if (! empty($meaning['example'])) {
                     VocabularyExample::query()->create([
                         'vocabulary_id' => $vocabulary->id,
@@ -74,6 +76,16 @@ class MediaKeyVocabularyImporter
                     ]);
                 }
             }
+
+            $this->dictionary->upsertOnSave($word, $lookup ?? [
+                'word' => $word,
+                'phonetic' => null,
+                'audio_url' => null,
+                'meanings' => $meanings,
+                'synonyms' => [],
+                'antonyms' => [],
+                'source' => 'user_save',
+            ]);
 
             $imported++;
             $words[] = $word;

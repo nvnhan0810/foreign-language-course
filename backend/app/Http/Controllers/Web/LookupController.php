@@ -66,7 +66,8 @@ class LookupController extends Controller
         }
 
         $lookup = $this->dictionary->lookup($word);
-        $meanings = $data['meanings'] ?? $lookup['meanings'] ?? [];
+        $rawMeanings = $data['meanings'] ?? $lookup['meanings'] ?? [];
+        $meanings = $this->dictionary->meaningsForVocabulary(is_array($rawMeanings) ? $rawMeanings : []);
 
         $vocabulary = $request->user()->vocabularies()->create([
             'word' => $word,
@@ -83,6 +84,17 @@ class LookupController extends Controller
                 ]);
             }
         }
+
+        $payload = $lookup ?? [
+            'word' => $word,
+            'phonetic' => $data['phonetic'] ?? null,
+            'audio_url' => null,
+            'meanings' => $rawMeanings,
+            'synonyms' => [],
+            'antonyms' => [],
+            'source' => 'user_save',
+        ];
+        $this->dictionary->upsertOnSave($word, is_array($payload) ? $payload : null);
 
         return $this->redirectToLookupAfterSave($data, 'Đã lưu từ.', $lookup);
     }

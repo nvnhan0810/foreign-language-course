@@ -2,116 +2,93 @@
 
 namespace App\Services;
 
-use App\Models\DictionaryCache;
-use Illuminate\Support\Facades\Http;
+use App\Models\DictionaryEntry;
+use Flc\Dictionary\Application\Command\CurateDictionaryEntry;
+use Flc\Dictionary\Application\Command\UpsertDictionaryOnSave;
+use Flc\Dictionary\Application\Query\LookupWord;
+use Flc\Dictionary\Domain\DictionaryEntryAggregate;
+use Flc\Shared\Application\CommandBus;
+use Flc\Shared\Application\QueryBus;
 use Illuminate\Support\Str;
 
+/**
+ * Compatibility facade over Flc Dictionary CQRS handlers.
+ * Prefer injecting CommandBus / QueryBus in new code.
+ */
 class DictionaryService
 {
+    public function __construct(
+        private readonly QueryBus $queries,
+        private readonly CommandBus $commands,
+    ) {}
+
+    /**
+     * @return array<string, mixed>|null
+     */
     public function lookup(string $word): ?array
     {
-        $normalized = Str::lower(trim($word));
-
-        if ($normalized === '') {
-            return null;
-        }
-
-        $cached = DictionaryCache::query()->find($normalized);
-
-        if ($cached && $cached->cached_at->gt(now()->subDays(7))) {
-            return $cached->payload;
-        }
-
-        $response = Http::timeout(10)->get(
-            'https://api.dictionaryapi.dev/api/v2/entries/en/'.$normalized
-        );
-
-        if (! $response->successful()) {
-            return null;
-        }
-
-        $entries = $response->json();
-
-        if (! is_array($entries) || $entries === []) {
-            return null;
-        }
-
-        $payload = $this->normalizeEntries($normalized, $entries);
-
-        DictionaryCache::query()->updateOrCreate(
-            ['word' => $normalized],
-            ['payload' => $payload, 'cached_at' => now()]
-        );
-
-        return $payload;
+        return $this->queries->ask(new LookupWord($word));
     }
 
     /**
-     * @param  array<int, mixed>  $entries
+     * @param  array<string, mixed>|null  $payload
      */
-    private function normalizeEntries(string $word, array $entries): array
+    public function upsertOnSave(string $word, ?array $payload = null): ?DictionaryEntry
     {
-        $entry = $entries[0];
-        $meanings = [];
+        $aggregate = $this->commands->dispatch(new UpsertDictionaryOnSave($word, $payload));
 
-        foreach ($entry['meanings'] ?? [] as $meaning) {
-            $partOfSpeech = $meaning['partOfSpeech'] ?? null;
-            foreach ($meaning['definitions'] ?? [] as $definition) {
-                $meanings[] = [
-                    'part_of_speech' => $partOfSpeech,
-                    'definition' => $definition['definition'] ?? '',
-                    'example' => $definition['example'] ?? null,
-                ];
-            }
+        if (! $aggregate instanceof DictionaryEntryAggregate) {
+            return null;
         }
 
-        $phonetic = $entry['phonetic'] ?? null;
-        $audioUrl = null;
-        if (! empty($entry['phonetics'])) {
-            foreach ($entry['phonetics'] as $p) {
-                if (! empty($p['text']) && $phonetic === null) {
-                    $phonetic = $p['text'];
-                }
-            }
-            $audioUrl = $this->extractAudioUrl($entry['phonetics']);
-        }
-
-        return [
-            'word' => $word,
-            'phonetic' => $phonetic,
-            'audio_url' => $audioUrl,
-            'meanings' => array_slice($meanings, 0, 12),
-            'source' => 'dictionaryapi.dev',
-        ];
+        return DictionaryEntry::query()->where('word', $aggregate->aggregateId())->first();
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $phonetics
+     * @param  list<array<string, mixed>>  $meanings
+     * @return list<array<string, mixed>>
      */
-    private function extractAudioUrl(array $phonetics): ?string
+    public function meaningsForVocabulary(array $meanings): array
     {
-        $candidates = [];
+        $out = [];
 
-        foreach ($phonetics as $phonetic) {
-            $audio = $phonetic['audio'] ?? null;
-
-            if (! is_string($audio) || $audio === '') {
+        foreach ($meanings as $meaning) {
+            if (! is_array($meaning)) {
                 continue;
             }
 
-            $candidates[] = $audio;
-        }
-
-        if ($candidates === []) {
-            return null;
-        }
-
-        foreach ($candidates as $audio) {
-            if (str_contains($audio, '-us.') || str_contains($audio, '/us-')) {
-                return $audio;
+            $examples = [];
+            if (! empty($meaning['examples']) && is_array($meaning['examples'])) {
+                foreach ($meaning['examples'] as $example) {
+                    if (is_string($example) && trim($example) !== '') {
+                        $examples[] = trim($example);
+                    }
+                }
+            } elseif (! empty($meaning['example']) && is_string($meaning['example'])) {
+                $examples[] = $meaning['example'];
             }
+
+            $out[] = [
+                'part_of_speech' => $meaning['part_of_speech'] ?? null,
+                'definition' => $meaning['definition'] ?? '',
+                'example' => $examples[0] ?? null,
+            ];
         }
 
-        return $candidates[0];
+        return $out;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function replaceCuratedContent(DictionaryEntry $entry, array $data): DictionaryEntry
+    {
+        $word = Str::lower(trim((string) ($data['word'] ?? $entry->word)));
+        $this->commands->dispatch(new CurateDictionaryEntry($word, $data));
+
+        return DictionaryEntry::query()
+            ->where('word', $word)
+            ->with(['meanings.examples', 'meanings.synonyms', 'meanings.antonyms', 'synonyms', 'antonyms'])
+            ->firstOrFail();
     }
 }

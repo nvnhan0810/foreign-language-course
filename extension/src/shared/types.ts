@@ -2,6 +2,9 @@ export interface Meaning {
   part_of_speech?: string | null;
   definition: string;
   example?: string | null;
+  examples?: string[];
+  synonyms?: string[];
+  antonyms?: string[];
 }
 
 export interface DictionaryResult {
@@ -9,7 +12,10 @@ export interface DictionaryResult {
   phonetic?: string | null;
   audio_url?: string | null;
   meanings: Meaning[];
+  synonyms?: string[];
+  antonyms?: string[];
   source?: string;
+  curated?: boolean;
 }
 
 export interface Vocabulary {
