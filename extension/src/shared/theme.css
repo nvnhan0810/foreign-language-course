@@ -1,4 +1,7 @@
-:root {
+/* Light tokens: popup/options (:root), selection overlay host (:host / #flc-selection-root). */
+:root,
+:host,
+#flc-selection-root {
   --flc-primary: #4361ee;
   --flc-primary-dark: #3a0ca3;
   --flc-bg: #f4f6fb;
@@ -14,6 +17,7 @@
   --flc-success-bg: #d1fae5;
   --flc-success-text: #166534;
   --flc-danger-bg: #fee2e2;
+  --flc-danger-text: #991b1b;
   --flc-secondary-btn: #64748b;
   --flc-secondary-btn-hover: #475569;
   --flc-hint-bg: #f1f5f9;
@@ -36,6 +40,7 @@
 }
 
 html[data-theme='dark'],
+:host([data-theme='dark']),
 #flc-selection-root[data-theme='dark'] {
   color-scheme: dark;
   --flc-primary: #6b8aff;
@@ -53,6 +58,7 @@ html[data-theme='dark'],
   --flc-success-bg: #14532d;
   --flc-success-text: #86efac;
   --flc-danger-bg: #7f1d1d;
+  --flc-danger-text: #fecaca;
   --flc-secondary-btn: #475569;
   --flc-secondary-btn-hover: #64748b;
   --flc-hint-bg: #243044;
@@ -74,6 +80,12 @@ html[data-theme='dark'],
   --flc-color-scheme: dark;
 }
 
+/*
+ * Chrome on Windows leaves extension popups transparent when color-scheme is set
+ * unless html/body paint an opaque background themselves.
+ */
 html {
   color-scheme: var(--flc-color-scheme);
+  background-color: #f4f6fb;
+  background-color: var(--flc-bg);
 }

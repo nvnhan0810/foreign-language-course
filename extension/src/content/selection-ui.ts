@@ -9,14 +9,16 @@ import {
 } from '../shared/dictionary-ui';
 import { ExtensionContextError, isExtensionContextValid, runtimeGetURL, runtimeSendMessage } from '../shared/extension-context';
 import { getAuth, getSettings, setLookupWord } from '../shared/storage';
-import { applyTheme, type ThemeMode } from '../shared/theme';
+import { applyTheme, resolveTheme, type ThemeMode } from '../shared/theme';
 import type { DictionaryResult } from '../shared/types';
+import overlayCss from './content-overlay.css?inline';
 
 const ROOT_ID = 'flc-selection-root';
 
 let root: HTMLElement | null = null;
+let shadow: ShadowRoot | null = null;
 let fab: HTMLButtonElement | null = null;
-let panel: HTMLElement | null = null;
+let panel: HTMLDivElement | null = null;
 let currentSelection = '';
 let currentLookup: DictionaryResult | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -34,6 +36,7 @@ export function initSelectionUi(): void {
     const next = changes.settings.newValue as { theme?: ThemeMode } | undefined;
     if (!next?.theme) return;
     applyTheme(next.theme, root);
+    syncPanelSurface(next.theme);
   });
 
   document.addEventListener(
@@ -86,7 +89,7 @@ export function initSelectionUi(): void {
   document.addEventListener(
     'mousedown',
     (e) => {
-      if (e.target instanceof Node && root?.contains(e.target)) return;
+      if (isFlcUiEvent(e)) return;
 
       if (panelOpen || panel?.style.display === 'block') {
         hideAll();
@@ -103,7 +106,8 @@ export function initSelectionUi(): void {
 }
 
 function isFlcUiEvent(e: Event): boolean {
-  return e.target instanceof Node && Boolean(root?.contains(e.target));
+  if (!root) return false;
+  return e.composedPath().some((node) => node === root || node === shadow || node === fab || node === panel);
 }
 
 function scheduleSelectionCheck(): void {
@@ -133,11 +137,25 @@ function processSelection(): void {
   void setLookupWord(lookupTermFromSelection(text));
 }
 
+function syncPanelSurface(mode: ThemeMode): void {
+  if (!panel) return;
+  panel.style.backgroundColor = resolveTheme(mode) === 'dark' ? '#1a2332' : '#ffffff';
+}
+
 function ensureRoot(): HTMLElement {
   if (root) return root;
 
   root = document.createElement('div');
   root.id = ROOT_ID;
+  // Isolate from host page CSS (Chrome Windows often forces transparent backgrounds).
+  root.style.cssText =
+    'all:initial;position:fixed;inset:0;width:0;height:0;overflow:visible;z-index:2147483647;pointer-events:none;';
+
+  shadow = root.attachShadow({ mode: 'open' });
+
+  const style = document.createElement('style');
+  style.textContent = overlayCss;
+  shadow.appendChild(style);
 
   fab = document.createElement('button');
   fab.type = 'button';
@@ -164,11 +182,15 @@ function ensureRoot(): HTMLElement {
   panel = document.createElement('div');
   panel.className = 'flc-panel';
   panel.style.display = 'none';
+  panel.style.backgroundColor = '#ffffff';
   panel.addEventListener('mousedown', (e) => e.stopPropagation());
 
-  root.append(fab, panel);
+  shadow.append(fab, panel);
   document.documentElement.appendChild(root);
-  void getSettings().then((settings) => applyTheme(settings.theme, root!));
+  void getSettings().then((settings) => {
+    applyTheme(settings.theme, root!);
+    syncPanelSurface(settings.theme);
+  });
 
   return root;
 }

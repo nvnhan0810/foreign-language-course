@@ -4,6 +4,12 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  background-color: #f4f6fb;
+  background-color: var(--flc-bg);
+}
+
 body {
   width: 380px;
   min-height: 420px;
@@ -11,7 +17,6 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 13px;
   color: var(--flc-text);
-  background: var(--flc-bg);
 }
 
 header {

@@ -1,12 +1,17 @@
 @import url('../shared/theme.css');
 
+html,
+body {
+  background-color: #f4f6fb;
+  background-color: var(--flc-bg);
+}
+
 body {
   font-family: system-ui, sans-serif;
   max-width: 480px;
   margin: 40px auto;
   padding: 0 20px;
   color: var(--flc-text);
-  background: var(--flc-bg);
 }
 
 label {

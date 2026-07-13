@@ -1,6 +1,12 @@
-@import url('../shared/theme.css');
+@import '../shared/theme.css';
 
-#flc-selection-root {
+/*
+ * Styles live inside the selection ShadowRoot (:host = #flc-selection-root).
+ * Use var(..., fallback) so a missing token never clears background to transparent
+ * (IACVT) — a common Chrome-on-Windows failure when host CSS fights content styles.
+ */
+
+:host {
   position: fixed;
   inset: 0;
   width: 0;
@@ -10,27 +16,33 @@
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 13px;
   line-height: 1.45;
-  color: var(--flc-text);
+  color: var(--flc-text, #1a1a2e);
   pointer-events: none;
   margin: 0;
   padding: 0;
   border: 0;
 }
 
-#flc-selection-root * {
+:host *,
+:host *::before,
+:host *::after {
   box-sizing: border-box;
   pointer-events: auto;
 }
 
-#flc-selection-root .flc-fab {
+.flc-fab {
   position: fixed;
   width: 32px;
   height: 32px;
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--flc-primary), var(--flc-primary-dark));
-  box-shadow: 0 2px 12px var(--flc-primary-soft);
+  background: linear-gradient(
+    135deg,
+    var(--flc-primary, #4361ee),
+    var(--flc-primary-dark, #3a0ca3)
+  );
+  box-shadow: 0 2px 12px var(--flc-primary-soft, rgba(67, 97, 238, 0.55));
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -38,32 +50,39 @@
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-#flc-selection-root .flc-fab:hover {
+.flc-fab:hover {
   transform: scale(1.08);
-  box-shadow: 0 4px 16px var(--flc-primary-soft-strong);
+  box-shadow: 0 4px 16px var(--flc-primary-soft-strong, rgba(67, 97, 238, 0.65));
 }
 
-#flc-selection-root .flc-fab img {
+.flc-fab img {
   width: 18px;
   height: 18px;
   border-radius: 4px;
 }
 
-#flc-selection-root .flc-panel {
+.flc-panel {
   position: fixed;
   width: min(360px, calc(100vw - 24px));
   max-height: min(420px, calc(100vh - 24px));
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--flc-surface);
-  border: 1px solid var(--flc-border);
+  background-color: var(--flc-surface, #ffffff);
+  color: var(--flc-text, #1a1a2e);
+  border: 1px solid var(--flc-border, #e2e8f0);
   border-radius: 12px;
-  box-shadow: 0 8px 32px var(--flc-shadow);
+  box-shadow: 0 8px 32px var(--flc-shadow, rgba(15, 23, 42, 0.18));
   padding: 0;
 }
 
-#flc-selection-root .flc-panel-header {
+:host([data-theme='dark']) .flc-panel {
+  background-color: var(--flc-surface, #1a2332);
+  color: var(--flc-text, #e8eaed);
+  border-color: var(--flc-border, #2d3748);
+}
+
+.flc-panel-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -71,55 +90,60 @@
   padding: 12px 14px 10px;
 }
 
-#flc-selection-root .flc-panel-body {
+.flc-panel-body {
   padding: 0 14px 4px;
 }
 
-#flc-selection-root .flc-panel-footer {
+.flc-panel-footer {
   position: sticky;
   bottom: 0;
   z-index: 1;
   padding: 10px 14px 12px;
-  background: var(--flc-surface);
-  border-top: 1px solid var(--flc-border);
-  box-shadow: 0 -6px 16px var(--flc-shadow-soft);
+  background-color: var(--flc-surface, #ffffff);
+  border-top: 1px solid var(--flc-border, #e2e8f0);
+  box-shadow: 0 -6px 16px var(--flc-shadow-soft, rgba(15, 23, 42, 0.06));
 }
 
-#flc-selection-root .flc-panel-footer[hidden] {
+:host([data-theme='dark']) .flc-panel-footer {
+  background-color: var(--flc-surface, #1a2332);
+  border-top-color: var(--flc-border, #2d3748);
+}
+
+.flc-panel-footer[hidden] {
   display: none;
 }
 
-#flc-selection-root .flc-selected-text {
+.flc-selected-text {
   font-size: 12px;
-  color: var(--flc-muted);
+  color: var(--flc-muted, #64748b);
   word-break: break-word;
   flex: 1;
 }
 
-#flc-selection-root .flc-selected-text em {
-  color: var(--flc-primary);
+.flc-selected-text em {
+  color: var(--flc-primary, #4361ee);
   font-style: normal;
   font-weight: 600;
 }
 
-#flc-selection-root .flc-close {
+.flc-close {
   flex-shrink: 0;
   width: 24px;
   height: 24px;
   border: none;
-  background: var(--flc-close-bg);
+  background: var(--flc-close-bg, #f1f5f9);
   border-radius: 6px;
   cursor: pointer;
   font-size: 16px;
   line-height: 1;
-  color: var(--flc-muted);
+  color: var(--flc-muted, #64748b);
 }
 
-#flc-selection-root .flc-close:hover {
-  background: var(--flc-close-hover);
+.flc-close:hover {
+  background: var(--flc-close-hover, #e2e8f0);
 }
 
-#flc-selection-root .flc-word-head {
+.flc-word-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -127,7 +151,7 @@
   margin-bottom: 8px;
 }
 
-#flc-selection-root .flc-speak {
+.flc-speak {
   border: none;
   background: transparent;
   cursor: pointer;
@@ -137,52 +161,52 @@
   flex-shrink: 0;
 }
 
-#flc-selection-root .flc-word-head strong {
+.flc-word-head strong {
   font-size: 16px;
-  color: var(--flc-text);
+  color: var(--flc-text, #1a1a2e);
 }
 
-#flc-selection-root .flc-phonetic {
+.flc-phonetic {
   display: block;
   font-size: 12px;
-  color: var(--flc-muted);
+  color: var(--flc-muted, #64748b);
   margin-top: 2px;
 }
 
-#flc-selection-root .flc-meaning {
+.flc-meaning {
   margin-bottom: 10px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--flc-meaning-border);
+  border-bottom: 1px solid var(--flc-meaning-border, #f1f5f9);
 }
 
-#flc-selection-root .flc-meaning:last-child {
+.flc-meaning:last-child {
   border-bottom: none;
   margin-bottom: 0;
   padding-bottom: 0;
 }
 
-#flc-selection-root .flc-pos {
+.flc-pos {
   font-size: 11px;
-  color: var(--flc-muted);
+  color: var(--flc-muted, #64748b);
   font-style: italic;
 }
 
-#flc-selection-root .flc-def {
+.flc-def {
   margin-top: 2px;
 }
 
-#flc-selection-root .flc-example {
+.flc-example {
   margin-top: 4px;
   font-size: 12px;
-  color: var(--flc-text-secondary);
+  color: var(--flc-text-secondary, #334155);
 }
 
-#flc-selection-root .flc-actions {
+.flc-actions {
   display: flex;
   gap: 8px;
 }
 
-#flc-selection-root .flc-btn {
+.flc-btn {
   flex: 1;
   padding: 8px 12px;
   border: none;
@@ -192,45 +216,45 @@
   cursor: pointer;
 }
 
-#flc-selection-root .flc-btn-primary {
-  background: var(--flc-primary);
+.flc-btn-primary {
+  background: var(--flc-primary, #4361ee);
   color: #fff;
 }
 
-#flc-selection-root .flc-btn-primary:disabled {
+.flc-btn-primary:disabled {
   opacity: 0.6;
   cursor: wait;
 }
 
-#flc-selection-root .flc-btn-secondary {
-  background: var(--flc-hint-bg);
-  color: var(--flc-text-secondary);
+.flc-btn-secondary {
+  background: var(--flc-hint-bg, #f1f5f9);
+  color: var(--flc-text-secondary, #334155);
 }
 
-#flc-selection-root .flc-msg {
+.flc-msg {
   font-size: 13px;
-  color: var(--flc-muted);
+  color: var(--flc-muted, #64748b);
   padding: 8px 0;
 }
 
-#flc-selection-root .flc-error {
-  color: var(--flc-danger);
+.flc-error {
+  color: var(--flc-danger, #dc2626);
   font-size: 12px;
 }
 
-#flc-selection-root .flc-loading {
+.flc-loading {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--flc-muted);
+  color: var(--flc-muted, #64748b);
   padding: 12px 0;
 }
 
-#flc-selection-root .flc-spinner {
+.flc-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid var(--flc-spinner-track);
-  border-top-color: var(--flc-primary);
+  border: 2px solid var(--flc-spinner-track, #e2e8f0);
+  border-top-color: var(--flc-primary, #4361ee);
   border-radius: 50%;
   animation: flc-spin 0.7s linear infinite;
 }
