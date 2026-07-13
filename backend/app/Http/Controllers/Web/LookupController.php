@@ -39,13 +39,13 @@ class LookupController extends Controller
         $word = Text::lower(preg_replace('/\s+/', ' ', $text) ?? $text);
 
         if (! preg_match('/^[a-z][a-z\s\'-]*$/i', $word)) {
-            return back()->withInput()->with('error', 'Nhập từ/câu tiếng Anh hợp lệ.');
+            return back()->withInput()->with('error', 'Enter a valid English word or phrase.');
         }
 
         $result = $this->queries->ask(new LookupWord($word));
 
         if (! $result) {
-            return back()->withInput()->with('error', 'Không tìm thấy từ.');
+            return back()->withInput()->with('error', 'Word not found.');
         }
 
         return redirect()->route('user.home.lookup')
@@ -73,12 +73,12 @@ class LookupController extends Controller
         ));
 
         if ($result === null || ! ($result['created'] ?? false)) {
-            return $this->redirectToLookupAfterSave($data, 'Từ đã có trong danh sách.');
+            return $this->redirectToLookupAfterSave($data, 'This word is already in your list.');
         }
 
         $lookup = $this->queries->ask(new LookupWord($word));
 
-        return $this->redirectToLookupAfterSave($data, 'Đã lưu từ.', is_array($lookup) ? $lookup : null);
+        return $this->redirectToLookupAfterSave($data, 'Word saved.', is_array($lookup) ? $lookup : null);
     }
 
     /**
@@ -110,7 +110,7 @@ class LookupController extends Controller
         $result = $this->queries->ask(new LookupWord($word));
 
         if (! $result || empty($result['audio_url'])) {
-            abort(404, 'Không có audio phát âm cho từ này.');
+            abort(404, 'No pronunciation audio for this word.');
         }
 
         if ($request->expectsJson()) {

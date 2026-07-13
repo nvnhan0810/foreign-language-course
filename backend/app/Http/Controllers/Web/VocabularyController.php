@@ -51,7 +51,7 @@ class VocabularyController extends Controller
         }
 
         return redirect()->route('user.home.vocab')
-            ->with('success', 'Đã xóa từ.');
+            ->with('success', 'Word deleted.');
     }
 
     /**

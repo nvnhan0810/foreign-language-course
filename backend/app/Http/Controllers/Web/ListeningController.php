@@ -50,7 +50,7 @@ class ListeningController extends Controller
         $this->authorizeAssessment($request, $listeningAssessment);
 
         if ($listeningAssessment->status !== ListeningAssessment::STATUS_READY) {
-            return redirect()->back()->with('error', 'Bài kiểm tra chưa sẵn sàng.');
+            return redirect()->back()->with('error', 'Assessment is not ready yet.');
         }
 
         $listeningAssessment->load('mediaItem');
@@ -111,7 +111,7 @@ class ListeningController extends Controller
         $this->authorizeAssessment($request, $listeningAssessment);
 
         if ($listeningAssessment->status !== ListeningAssessment::STATUS_READY) {
-            return redirect()->back()->with('error', 'Bài kiểm tra chưa sẵn sàng.');
+            return redirect()->back()->with('error', 'Assessment is not ready yet.');
         }
 
         $data = $request->validate([
@@ -147,7 +147,7 @@ class ListeningController extends Controller
                 'total' => $result['total'],
                 'percentage' => $result['percentage'],
             ])
-            ->with('success', 'Đã nộp bài.');
+            ->with('success', 'Submitted.');
     }
 
     private function authorizeAssessment(Request $request, ListeningAssessment $listeningAssessment): void

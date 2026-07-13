@@ -111,9 +111,9 @@ class MediaItem extends Model
     public function difficultyLabel(): string
     {
         return match ($this->difficulty) {
-            self::DIFFICULTY_BEGINNER => 'Cơ bản',
-            self::DIFFICULTY_ADVANCED => 'Nâng cao',
-            default => 'Trung cấp',
+            self::DIFFICULTY_BEGINNER => 'Beginner',
+            self::DIFFICULTY_ADVANCED => 'Advanced',
+            default => 'Intermediate',
         };
     }
 

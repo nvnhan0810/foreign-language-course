@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no">
@@ -21,7 +21,7 @@
     @else
         <header class="user-header">
             @hasSection('back_url')
-                <a href="@yield('back_url')" class="user-header-back" aria-label="Quay lại">←</a>
+                <a href="@yield('back_url')" class="user-header-back" aria-label="Back">←</a>
             @else
                 <span class="user-header-spacer" aria-hidden="true"></span>
             @endif
@@ -55,18 +55,18 @@
     </main>
 
     @unless (View::hasSection('hide_nav'))
-        <nav class="user-nav" aria-label="Điều hướng chính">
+        <nav class="user-nav" aria-label="Main navigation">
             <a href="{{ route('user.home.lookup') }}" class="{{ request()->routeIs('user.home.lookup') ? 'active' : '' }}">
                 <span class="icon">📖</span>
-                Tra từ
+                Lookup
             </a>
             <a href="{{ route('user.home.vocab') }}" class="{{ request()->routeIs('user.home.vocab*') ? 'active' : '' }}">
                 <span class="icon">🔖</span>
-                Từ vựng
+                Vocabulary
             </a>
             <a href="{{ route('user.home.media') }}" class="{{ request()->routeIs('user.home.media*') ? 'active' : '' }}">
                 <span class="icon">🎧</span>
-                Nghe
+                Listen
             </a>
             <a href="{{ route('user.home.quiz') }}" class="{{ request()->routeIs('user.home.quiz') ? 'active' : '' }}">
                 <span class="icon">❓</span>
@@ -74,7 +74,7 @@
             </a>
             <a href="{{ route('user.home.profile') }}" class="{{ request()->routeIs('user.home.profile') ? 'active' : '' }}">
                 <span class="icon">👤</span>
-                Cá nhân
+                Profile
             </a>
         </nav>
     @endunless

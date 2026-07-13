@@ -24,6 +24,9 @@ class VocabularyApiTest extends TestCase
                     'definitions' => [['definition' => 'A large body of water', 'example' => 'The ocean is vast']],
                 ]],
             ]], 200),
+            'api.datamuse.com/words*' => Http::sequence()
+                ->push([['word' => 'sea'], ['word' => 'water']], 200)
+                ->push([['word' => 'land']], 200),
         ]);
 
         $user = User::factory()->create();
@@ -31,7 +34,15 @@ class VocabularyApiTest extends TestCase
 
         $create = $this->postJson('/api/vocabularies', ['word' => 'Ocean']);
         $create->assertCreated()
-            ->assertJsonPath('data.word', 'ocean');
+            ->assertJsonPath('data.word', 'ocean')
+            ->assertJsonPath('data.meanings.0.synonyms.0', 'sea')
+            ->assertJsonPath('data.meanings.0.antonyms.0', 'land');
+
+        $this->assertDatabaseHas('vocabularies', ['word' => 'ocean', 'user_id' => $user->id]);
+        $stored = \App\Models\Vocabulary::query()->where('word', 'ocean')->first();
+        $this->assertNotNull($stored);
+        $this->assertContains('sea', $stored->meanings[0]['synonyms'] ?? []);
+        $this->assertContains('land', $stored->meanings[0]['antonyms'] ?? []);
 
         $idempotent = $this->postJson('/api/vocabularies', ['word' => 'ocean']);
         $idempotent->assertOk()
@@ -46,5 +57,39 @@ class VocabularyApiTest extends TestCase
             ->assertOk();
 
         $this->assertDatabaseMissing('vocabularies', ['id' => $id]);
+    }
+
+    public function test_save_with_client_meanings_still_keeps_related_words_from_lookup(): void
+    {
+        Http::fake([
+            'api.dictionaryapi.dev/*' => Http::response([[
+                'word' => 'happy',
+                'phonetic' => '/ˈhæpi/',
+                'phonetics' => [],
+                'meanings' => [[
+                    'partOfSpeech' => 'adjective',
+                    'definitions' => [['definition' => 'Feeling pleasure']],
+                ]],
+            ]], 200),
+            'api.datamuse.com/words*' => Http::sequence()
+                ->push([['word' => 'joyful']], 200)
+                ->push([['word' => 'sad']], 200),
+        ]);
+
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $create = $this->postJson('/api/vocabularies', [
+            'word' => 'happy',
+            'meanings' => [[
+                'part_of_speech' => 'adjective',
+                'definition' => 'Feeling pleasure',
+                'example' => null,
+            ]],
+        ]);
+
+        $create->assertCreated();
+        $this->assertSame(['joyful'], $create->json('data.meanings.0.synonyms'));
+        $this->assertSame(['sad'], $create->json('data.meanings.0.antonyms'));
     }
 }

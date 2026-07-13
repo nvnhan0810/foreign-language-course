@@ -1,22 +1,22 @@
 @extends('user.layout')
 
-@section('title', 'Nghe — FLC')
-@section('heading', 'Nghe')
+@section('title', 'Listen — FLC')
+@section('heading', 'Listen')
 
 @section('content')
     @if ($items->isEmpty())
         <div class="empty-state">
-            Chưa có media. Thêm từ trang admin.
+            No media yet. Add some from the admin page.
         </div>
     @else
-        <div class="media-filters" role="group" aria-label="Lọc theo độ khó">
-            <button type="button" class="media-filter active" data-difficulty-filter="all">Tất cả</button>
-            <button type="button" class="media-filter" data-difficulty-filter="beginner">Cơ bản</button>
-            <button type="button" class="media-filter" data-difficulty-filter="intermediate">Trung cấp</button>
-            <button type="button" class="media-filter" data-difficulty-filter="advanced">Nâng cao</button>
+        <div class="media-filters" role="group" aria-label="Filter by difficulty">
+            <button type="button" class="media-filter active" data-difficulty-filter="all">All</button>
+            <button type="button" class="media-filter" data-difficulty-filter="beginner">Beginner</button>
+            <button type="button" class="media-filter" data-difficulty-filter="intermediate">Intermediate</button>
+            <button type="button" class="media-filter" data-difficulty-filter="advanced">Advanced</button>
         </div>
 
-        <p class="media-filter-empty muted" hidden>Không có media ở mức độ này.</p>
+        <p class="media-filter-empty muted" hidden>No media at this difficulty.</p>
 
         <div class="media-list" data-media-list>
             @foreach ($items as $media)

@@ -48,14 +48,26 @@ final class HttpFreeDictionaryGateway implements FreeDictionaryGateway
                     $examples[] = $definition['example'];
                 }
 
+                $definitionSynonyms = $this->stringList($definition['synonyms'] ?? []);
+                $definitionAntonyms = $this->stringList($definition['antonyms'] ?? []);
+                $synonyms = array_values(array_unique([...$meaningSynonyms, ...$definitionSynonyms]));
+                $antonyms = array_values(array_unique([...$meaningAntonyms, ...$definitionAntonyms]));
+
                 $meanings[] = [
                     'part_of_speech' => $partOfSpeech,
                     'definition' => $definition['definition'] ?? '',
                     'example' => $examples[0] ?? null,
                     'examples' => $examples,
-                    'synonyms' => $meaningSynonyms,
-                    'antonyms' => $meaningAntonyms,
+                    'synonyms' => $synonyms,
+                    'antonyms' => $antonyms,
                 ];
+
+                foreach ($synonyms as $term) {
+                    $entrySynonyms[$term] = true;
+                }
+                foreach ($antonyms as $term) {
+                    $entryAntonyms[$term] = true;
+                }
             }
 
             foreach ($meaningSynonyms as $term) {

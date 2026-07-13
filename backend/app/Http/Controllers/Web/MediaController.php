@@ -57,7 +57,7 @@ class MediaController extends Controller
 
         return redirect()
             ->route('user.home.media.show', $mediaItem)
-            ->with('success', 'Đã lưu transcript.');
+            ->with('success', 'Transcript saved.');
     }
 
     public function audio(Request $request, MediaItem $mediaItem): StreamedResponse|JsonResponse

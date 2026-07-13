@@ -43,8 +43,10 @@ class LookupWebTest extends TestCase
             ->assertOk()
             ->assertSee('hello', false)
             ->assertSee('A greeting', false)
+            ->assertSee('Meanings', false)
+            ->assertSee('Synonyms', false)
             ->assertSee('name="meanings[0][definition]"', false)
-            ->assertDontSee('name="meanings[0][examples]"', false)
-            ->assertDontSee('name="meanings[0][synonyms]"', false);
+            ->assertSee('name="meanings[0][synonyms][]"', false)
+            ->assertDontSee('name="meanings[0][examples]"', false);
     }
 }

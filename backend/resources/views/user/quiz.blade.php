@@ -4,19 +4,19 @@
 @section('heading', 'Quiz')
 
 @section('content')
-    <p class="muted" style="margin-top:0;font-weight:600">Quiz từ vựng (ôn từ đã lưu)</p>
+    <p class="muted" style="margin-top:0;font-weight:600">Vocabulary quiz (review saved words)</p>
 
     @if (!$question)
         <div style="text-align:center;padding:40px 0">
             <form action="{{ route('user.home.quiz.next') }}" method="POST" class="flc-form-submit">
                 @csrf
-                <button type="submit" class="btn">▶ Bắt đầu Quiz</button>
+                <button type="submit" class="btn">▶ Start Quiz</button>
             </form>
         </div>
     @else
         <div class="card" style="background:rgba(67,97,238,0.08);text-align:center">
             <p style="color:var(--primary);font-weight:700;margin:0 0 8px">
-                {{ ($question['question_type'] ?? '') === 'word_to_definition' ? 'Chọn nghĩa đúng' : 'Chọn từ đúng' }}
+                {{ ($question['question_type'] ?? '') === 'word_to_definition' ? 'Choose the correct meaning' : 'Choose the correct word' }}
             </p>
             <p class="quiz-prompt" style="margin:0">{{ $question['prompt'] ?? '' }}</p>
         </div>
@@ -48,7 +48,7 @@
 
             <form action="{{ route('user.home.quiz.next') }}" method="POST" class="flc-form-submit" style="margin-top:16px">
                 @csrf
-                <button type="submit" class="btn btn-block">Câu tiếp theo</button>
+                <button type="submit" class="btn btn-block">Next question</button>
             </form>
         @endif
     @endif

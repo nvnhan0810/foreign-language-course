@@ -34,6 +34,7 @@ class DictionaryServiceTest extends TestCase
                     ]],
                 ]],
             ]], 200),
+            'api.datamuse.com/*' => Http::response([], 200),
         ]);
 
         $result = app(QueryBus::class)->ask(new LookupWord('Hello'));
@@ -43,8 +44,65 @@ class DictionaryServiceTest extends TestCase
         $this->assertSame('A greeting', $result['meanings'][0]['definition']);
         $this->assertSame('Hello there!', $result['meanings'][0]['example']);
         $this->assertSame(['Hello there!'], $result['meanings'][0]['examples']);
+        $this->assertSame(['hi'], $result['synonyms']);
+        $this->assertSame(['goodbye'], $result['antonyms']);
         $this->assertDatabaseCount('dictionary_entries', 0);
-        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'dictionaryapi.dev'));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'datamuse.com'));
+    }
+
+    public function test_lookup_fills_empty_related_words_from_datamuse(): void
+    {
+        Http::fake([
+            'api.dictionaryapi.dev/*' => Http::response([[
+                'word' => 'happy',
+                'phonetic' => '/ˈhæpi/',
+                'phonetics' => [],
+                'meanings' => [[
+                    'partOfSpeech' => 'adjective',
+                    'synonyms' => [],
+                    'antonyms' => [],
+                    'definitions' => [[
+                        'definition' => 'Feeling or showing pleasure',
+                    ]],
+                ]],
+            ]], 200),
+            'api.datamuse.com/words*' => Http::sequence()
+                ->push([['word' => 'joyful'], ['word' => 'glad']], 200)
+                ->push([['word' => 'sad'], ['word' => 'unhappy']], 200),
+        ]);
+
+        $result = app(QueryBus::class)->ask(new LookupWord('happy'));
+
+        $this->assertNotNull($result);
+        $this->assertSame(['joyful', 'glad'], $result['synonyms']);
+        $this->assertSame(['sad', 'unhappy'], $result['antonyms']);
+        $this->assertSame(['joyful', 'glad'], $result['meanings'][0]['synonyms']);
+        $this->assertSame(['sad', 'unhappy'], $result['meanings'][0]['antonyms']);
+    }
+
+    public function test_lookup_attaches_existing_related_words_onto_first_meaning(): void
+    {
+        Http::fake([
+            'api.dictionaryapi.dev/*' => Http::response([[
+                'word' => 'hello',
+                'phonetic' => '/həˈloʊ/',
+                'phonetics' => [],
+                'meanings' => [[
+                    'partOfSpeech' => 'noun',
+                    'synonyms' => ['hi'],
+                    'antonyms' => ['goodbye'],
+                    'definitions' => [[
+                        'definition' => 'A greeting',
+                    ]],
+                ]],
+            ]], 200),
+        ]);
+
+        $result = app(QueryBus::class)->ask(new LookupWord('hello'));
+
+        $this->assertSame(['hi'], $result['meanings'][0]['synonyms']);
+        $this->assertSame(['goodbye'], $result['meanings'][0]['antonyms']);
     }
 
     public function test_upsert_on_save_persists_entry(): void

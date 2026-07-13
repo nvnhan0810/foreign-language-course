@@ -1,12 +1,12 @@
 @extends('user.layout')
 
-@section('title', 'Từ vựng — FLC')
-@section('heading', 'Từ vựng')
+@section('title', 'Vocabulary — FLC')
+@section('heading', 'Vocabulary')
 
 @section('content')
     @if ($items->isEmpty())
         <div class="empty-state">
-            Chưa có từ nào. Tra từ và bấm Lưu.
+            No words yet. Look up a word and tap Save.
         </div>
     @else
         <div class="form-group" style="margin-top:0">
@@ -14,7 +14,7 @@
                 type="search"
                 id="vocab-search"
                 class="form-control"
-                placeholder="Tìm từ đã lưu..."
+                placeholder="Search saved words..."
                 autocomplete="off"
                 enterkeyhint="search"
             >
@@ -36,7 +36,7 @@
                             @if ($firstDef)
                                 <p class="vocab-card-preview">{{ Str::limit($firstDef, 100) }}</p>
                             @endif
-                            <span class="vocab-card-hint">Xem chi tiết ›</span>
+                            <span class="vocab-card-hint">View details ›</span>
                         </a>
                         <div class="vocab-card-actions">
                             <button
@@ -44,17 +44,17 @@
                                 class="btn-icon flc-pronounce"
                                 data-pronounce-url="{{ route('user.home.dictionary.pronounce', $vocab->word) }}"
                                 data-word="{{ $vocab->word }}"
-                                title="Nghe phát âm"
-                                aria-label="Nghe phát âm"
+                                title="Play pronunciation"
+                                aria-label="Play pronunciation"
                             >🔊</button>
                             <div class="action-menu">
-                                <button type="button" class="btn-icon action-menu-trigger" aria-label="Tùy chọn" aria-haspopup="true">⋮</button>
+                                <button type="button" class="btn-icon action-menu-trigger" aria-label="Options" aria-haspopup="true">⋮</button>
                                 <div class="action-menu-panel" hidden>
                                     <form action="{{ route('user.home.vocab.destroy', $vocab->id) }}" method="POST" class="flc-form-submit"
-                                          onsubmit="return confirm('Xóa &quot;{{ $vocab->word }}&quot; khỏi danh sách?')">
+                                          onsubmit="return confirm('Remove &quot;{{ $vocab->word }}&quot; from your list?')">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="action-menu-danger">Xóa</button>
+                                        <button type="submit" class="action-menu-danger">Delete</button>
                                     </form>
                                 </div>
                             </div>
@@ -64,7 +64,7 @@
             @endforeach
         </div>
         <div class="empty-state vocab-search-empty" hidden>
-            Không tìm thấy từ khớp.
+            No matching words found.
         </div>
     @endif
 @endsection

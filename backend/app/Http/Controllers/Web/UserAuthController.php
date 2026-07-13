@@ -41,19 +41,19 @@ class UserAuthController extends Controller
                 ->user();
         } catch (\Throwable) {
             return redirect()->route('user.login')
-                ->with('error', 'Đăng nhập Google thất bại.');
+                ->with('error', 'Google sign-in failed.');
         }
 
         $email = strtolower(trim((string) $googleUser->getEmail()));
 
         if ($email === '') {
             return redirect()->route('user.login')
-                ->with('error', 'Tài khoản Google không có email.');
+                ->with('error', 'Google account has no email.');
         }
 
         if (! $this->queries->ask(new IsEmailAllowed($email))) {
             return redirect()->route('user.login')
-                ->with('error', 'Email chưa được phép sử dụng. Liên hệ quản trị để thêm vào allowlist.');
+                ->with('error', 'This email is not allowed. Contact an admin to add it to the allowlist.');
         }
 
         $user = User::query()->updateOrCreate(
@@ -83,6 +83,6 @@ class UserAuthController extends Controller
         request()->session()->regenerateToken();
 
         return redirect()->route('user.login')
-            ->with('success', 'Đã đăng xuất.');
+            ->with('success', 'Signed out.');
     }
 }

@@ -21,17 +21,17 @@
 @section('content')
     @if ($result)
         <div class="card result-card">
-            <p class="muted" style="margin:0 0 8px">Kết quả</p>
+            <p class="muted" style="margin:0 0 8px">Result</p>
             <p class="result-score">{{ $result['score'] }}/{{ $result['total'] }}</p>
             <p style="margin:8px 0 0;font-weight:600">{{ $result['percentage'] }}%</p>
         </div>
-        <a href="{{ $backUrl }}" class="btn btn-block" style="margin-top:16px">Quay lại media</a>
+        <a href="{{ $backUrl }}" class="btn btn-block" style="margin-top:16px">Back to media</a>
     @else
         <form action="{{ route('user.listening.submit', $assessment) }}" method="POST" class="flc-form-submit">
             @csrf
             @foreach ($questions as $index => $q)
                 <div class="card question-card">
-                    <p class="question-label">Câu {{ $index + 1 }}</p>
+                    <p class="question-label">Question {{ $index + 1 }}</p>
                     <p class="question-prompt">{{ $q->prompt }}</p>
 
                     @if (is_array($q->options) && count($q->options) > 0)
@@ -48,7 +48,7 @@
                             type="text"
                             name="answers[{{ $q->id }}]"
                             class="form-control"
-                            placeholder="Nhập câu trả lời..."
+                            placeholder="Enter your answer..."
                             required
                             autocomplete="off"
                         >
@@ -56,7 +56,7 @@
                 </div>
             @endforeach
 
-            <button type="submit" class="btn btn-block btn-submit-sticky">Nộp bài</button>
+            <button type="submit" class="btn btn-block btn-submit-sticky">Submit</button>
         </form>
     @endif
 @endsection

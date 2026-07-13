@@ -21,7 +21,7 @@
         </div>
     @elseif ($media->url)
         <p style="margin:16px 0">
-            <a href="{{ $media->url }}" target="_blank" rel="noopener" class="btn">Mở media</a>
+            <a href="{{ $media->url }}" target="_blank" rel="noopener" class="btn">Open media</a>
         </p>
     @endif
 
@@ -36,10 +36,10 @@
                 @if (filled($media->transcript))
                     <p class="transcript-text">{{ $media->transcript }}</p>
                 @else
-                    <p class="muted">Chưa có transcript.</p>
+                    <p class="muted">No transcript yet.</p>
                 @endif
                 <button type="button" class="btn btn-sm btn-secondary" data-transcript-edit>
-                    {{ filled($media->transcript) ? 'Sửa transcript' : 'Thêm transcript' }}
+                    {{ filled($media->transcript) ? 'Edit transcript' : 'Add transcript' }}
                 </button>
             </div>
 
@@ -56,27 +56,27 @@
                     name="transcript"
                     class="transcript-textarea"
                     rows="10"
-                    placeholder="Nhập transcript của video hoặc audio..."
+                    placeholder="Enter the video or audio transcript..."
                 >{{ old('transcript', $media->transcript) }}</textarea>
                 <div class="transcript-form-actions">
-                    <button type="submit" class="btn btn-sm">Lưu</button>
-                    <button type="button" class="btn btn-sm btn-secondary" data-transcript-cancel>Huỷ</button>
+                    <button type="submit" class="btn btn-sm">Save</button>
+                    <button type="button" class="btn btn-sm btn-secondary" data-transcript-cancel>Cancel</button>
                 </div>
             </form>
         </div>
     </details>
 
-    <h2 style="font-size:16px;margin:24px 0 12px">Bài kiểm tra nghe</h2>
+    <h2 style="font-size:16px;margin:24px 0 12px">Listening quiz</h2>
 
     @if ($media->question_bank_status !== 'ready' || ($media->question_bank_count ?? 0) === 0)
         <p class="muted">
-            Ngân hàng câu hỏi chưa sẵn sàng
+            Question bank is not ready yet
             ({{ $media->question_bank_status ?? 'pending' }}).
-            Đợi admin phân tích xong media.
+            Wait for an admin to finish analyzing the media.
         </p>
     @else
         <p class="muted" style="margin-bottom:12px">
-            {{ $media->question_bank_count }} câu hỏi trong ngân hàng — mỗi lần làm sẽ random câu mới.
+            {{ $media->question_bank_count }} questions in the bank — each attempt picks a new random set.
         </p>
 
         @foreach ($sessionOptions as $option)
@@ -85,9 +85,9 @@
                     <p class="title">{{ $option['title'] }}</p>
                     <p class="subtitle">
                         {{ strtoupper($option['type']) }}
-                        · {{ $option['question_count'] }} câu
+                        · {{ $option['question_count'] }} questions
                         @if (!empty($option['time_limit_minutes']))
-                            · {{ $option['time_limit_minutes'] }} phút
+                            · {{ $option['time_limit_minutes'] }} min
                         @endif
                     </p>
                 </div>
@@ -95,10 +95,10 @@
                     <form action="{{ route('user.listening.start', $media) }}" method="POST" class="flc-form-submit">
                         @csrf
                         <input type="hidden" name="type" value="{{ $option['type'] }}">
-                        <button type="submit" class="btn btn-sm">Bắt đầu</button>
+                        <button type="submit" class="btn btn-sm">Start</button>
                     </form>
                 @else
-                    <span class="muted">Chưa đủ câu</span>
+                    <span class="muted">Not enough questions</span>
                 @endif
             </div>
         @endforeach

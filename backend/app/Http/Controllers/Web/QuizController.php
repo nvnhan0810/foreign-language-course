@@ -37,7 +37,7 @@ class QuizController extends Controller
 
         if (! $question) {
             return redirect()->route('user.home.quiz')
-                ->with('error', 'Cần ít nhất 4 từ vựng đã lưu để tạo câu hỏi.');
+                ->with('error', 'You need at least 4 saved words to generate a question.');
         }
 
         return redirect()->route('user.home.quiz')
@@ -75,7 +75,7 @@ class QuizController extends Controller
 
         return redirect()->route('user.home.quiz')
             ->with('quiz_question', $question)
-            ->with('quiz_feedback', $correct ? 'Đúng!' : 'Sai. Đáp án: '.$data['correct_answer'])
+            ->with('quiz_feedback', $correct ? 'Correct!' : 'Incorrect. Answer: '.$data['correct_answer'])
             ->with('quiz_was_correct', $correct);
     }
 }
