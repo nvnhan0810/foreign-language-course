@@ -22,6 +22,7 @@ import type {
 } from '../shared/types';
 
 let currentLookup: DictionaryResult | null = null;
+let vocabCache: Vocabulary[] = [];
 
 const $ = (id: string) => document.getElementById(id)!;
 
@@ -50,6 +51,7 @@ async function init() {
   bindTabs();
   bindAuth();
   bindLookup();
+  bindVocabSearch();
   bindMedia();
   bindQuiz();
   $('open-options').addEventListener('click', (e) => {
@@ -236,17 +238,51 @@ async function saveWord() {
   }
 }
 
+function bindVocabSearch() {
+  $('vocab-search').addEventListener('input', () => {
+    renderVocabList(vocabCache);
+  });
+}
+
+function vocabMatches(v: Vocabulary, query: string): boolean {
+  if (!query) return true;
+  const def = v.meanings?.[0]?.definition ?? '';
+  const phonetic = v.phonetic ?? '';
+  return `${v.word} ${def} ${phonetic}`.toLowerCase().includes(query);
+}
+
 async function loadVocab() {
   const list = $('vocab-list');
   list.innerHTML = '';
   try {
     const { data } = await api.listVocabularies();
-    $('vocab-empty').classList.toggle('hidden', data.length > 0);
-    for (const v of data) {
-      list.appendChild(renderVocabItem(v));
-    }
+    vocabCache = data;
+    renderVocabList(data);
   } catch {
-    $('vocab-empty').textContent = 'Không tải được danh sách.';
+    vocabCache = [];
+    const empty = $('vocab-empty');
+    empty.classList.remove('hidden');
+    empty.textContent = 'Không tải được danh sách.';
+  }
+}
+
+function renderVocabList(data: Vocabulary[]) {
+  const list = $('vocab-list');
+  const empty = $('vocab-empty');
+  const query = ($('vocab-search') as HTMLInputElement).value.trim().toLowerCase();
+  list.innerHTML = '';
+
+  if (data.length === 0) {
+    empty.classList.remove('hidden');
+    empty.textContent = 'Chưa có từ nào.';
+    return;
+  }
+
+  const filtered = data.filter((v) => vocabMatches(v, query));
+  empty.classList.toggle('hidden', filtered.length > 0);
+  empty.textContent = query ? 'Không tìm thấy từ khớp.' : 'Chưa có từ nào.';
+  for (const v of filtered) {
+    list.appendChild(renderVocabItem(v));
   }
 }
 
@@ -268,7 +304,7 @@ function renderVocabItem(v: Vocabulary) {
   li.querySelector('.flc-speak')?.addEventListener('click', () => {
     void playVocabPronunciation(v.word);
   });
-  li.querySelector('button')?.addEventListener('click', async () => {
+  li.querySelector('button.secondary:not(.flc-speak)')?.addEventListener('click', async () => {
     await api.deleteVocabulary(v.id);
     await loadVocab();
   });

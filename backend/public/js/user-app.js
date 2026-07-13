@@ -84,6 +84,31 @@
 
   initMediaDifficultyFilter();
 
+  function initVocabSearch() {
+    const input = document.getElementById('vocab-search');
+    const items = document.querySelectorAll('[data-vocab-list] .vocab-card[data-vocab-search]');
+    const emptyState = document.querySelector('.vocab-search-empty');
+    if (!input || !items.length) return;
+
+    const apply = () => {
+      const q = input.value.trim().toLowerCase();
+      let visible = 0;
+      items.forEach((item) => {
+        const haystack = item.dataset.vocabSearch || '';
+        const show = q === '' || haystack.includes(q);
+        item.hidden = !show;
+        if (show) visible++;
+      });
+      if (emptyState) {
+        emptyState.hidden = visible > 0;
+      }
+    };
+
+    input.addEventListener('input', apply);
+  }
+
+  initVocabSearch();
+
   function speakWord(word) {
     if (!word || !('speechSynthesis' in window)) return;
     const utterance = new SpeechSynthesisUtterance(word);

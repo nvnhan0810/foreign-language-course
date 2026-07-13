@@ -16,11 +16,19 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
   List<Vocabulary>? _items;
   bool _loading = true;
   String? _error;
+  String _query = '';
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -36,6 +44,17 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
     } finally {
       setState(() => _loading = false);
     }
+  }
+
+  List<Vocabulary> get _filteredItems {
+    final items = _items ?? [];
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return items;
+    return items.where((v) {
+      final def = v.meanings.isNotEmpty ? v.meanings.first.definition : '';
+      final phonetic = v.phonetic ?? '';
+      return '${v.word} $def $phonetic'.toLowerCase().contains(q);
+    }).toList();
   }
 
   Future<void> _delete(Vocabulary v) async {
@@ -55,6 +74,37 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
     _load();
   }
 
+  Widget _searchField() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Tìm từ đã lưu...',
+          prefixIcon: const Icon(Icons.search),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+          suffixIcon: _query.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _query = '');
+                  },
+                ),
+        ),
+        textInputAction: TextInputAction.search,
+        onChanged: (value) => setState(() => _query = value),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -71,139 +121,155 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
         ),
       );
     }
-    final items = _items ?? [];
-    if (items.isEmpty) {
+    final allItems = _items ?? [];
+    if (allItems.isEmpty) {
       return const Center(child: Text('Chưa có từ nào. Tra từ và bấm Lưu.'));
     }
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.builder(
-        itemCount: items.length,
-        itemBuilder: (context, i) {
-          final v = items[i];
-          final def = v.meanings.isNotEmpty ? v.meanings.first.definition : '';
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Dismissible(
-              key: ValueKey(v.id),
-              direction: DismissDirection.endToStart,
-              confirmDismiss: (_) async {
-                await _delete(v);
-                return false;
-              },
-              background: Container(
-                decoration: BoxDecoration(
-                  color: Colors.red.shade400,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 20),
-                child: const Icon(Icons.delete, color: Colors.white),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                title: Row(
-                  children: [
-                    Expanded(
-                      child: Text(v.word, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    ),
-                    PronunciationButton(word: v.word, iconSize: 20),
-                  ],
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    def,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.grey.shade700),
-                  ),
-                ),
-                trailing: v.phonetic != null ? Text(v.phonetic!, style: const TextStyle(fontStyle: FontStyle.italic)) : null,
-                onTap: () => showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (ctx) => DraggableScrollableSheet(
-                    expand: false,
-                    initialChildSize: 0.6,
-                    builder: (_, scroll) => Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                      ),
-                      child: ListView(
-                        controller: scroll,
-                        padding: const EdgeInsets.all(24),
-                        children: [
-                          Center(
-                            child: Container(
-                              width: 40,
-                              height: 4,
-                              margin: const EdgeInsets.only(bottom: 24),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade300,
-                                borderRadius: BorderRadius.circular(2),
+
+    final items = _filteredItems;
+    return Column(
+      children: [
+        _searchField(),
+        Expanded(
+          child: items.isEmpty
+              ? const Center(child: Text('Không tìm thấy từ khớp.'))
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView.builder(
+                    itemCount: items.length,
+                    itemBuilder: (context, i) {
+                      final v = items[i];
+                      final def = v.meanings.isNotEmpty ? v.meanings.first.definition : '';
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Dismissible(
+                          key: ValueKey(v.id),
+                          direction: DismissDirection.endToStart,
+                          confirmDismiss: (_) async {
+                            await _delete(v);
+                            return false;
+                          },
+                          background: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade400,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            child: const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(v.word, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                ),
+                                PronunciationButton(word: v.word, iconSize: 20),
+                              ],
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                def,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: Colors.grey.shade700),
                               ),
                             ),
-                          ),
-                          Text(v.word, style: Theme.of(ctx).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
-                          PronunciationButton(word: v.word),
-                          if (v.phonetic != null) 
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4.0),
-                              child: Text(v.phonetic!, style: TextStyle(color: Colors.grey.shade600, fontSize: 16, fontStyle: FontStyle.italic)),
-                            ),
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          const SizedBox(height: 8),
-                          ...v.meanings.map(
-                            (m) => Padding(
-                              padding: const EdgeInsets.only(bottom: 16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (m.partOfSpeech != null)
-                                    Container(
-                                      margin: const EdgeInsets.only(bottom: 8),
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(ctx).colorScheme.primaryContainer.withValues(alpha: 0.5),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        m.partOfSpeech!,
-                                        style: TextStyle(
-                                          color: Theme.of(ctx).colorScheme.primary,
-                                          fontStyle: FontStyle.italic,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
+                            trailing: v.phonetic != null
+                                ? Text(v.phonetic!, style: const TextStyle(fontStyle: FontStyle.italic))
+                                : null,
+                            onTap: () => showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (ctx) => DraggableScrollableSheet(
+                                expand: false,
+                                initialChildSize: 0.6,
+                                builder: (_, scroll) => Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                                  ),
+                                  child: ListView(
+                                    controller: scroll,
+                                    padding: const EdgeInsets.all(24),
+                                    children: [
+                                      Center(
+                                        child: Container(
+                                          width: 40,
+                                          height: 4,
+                                          margin: const EdgeInsets.only(bottom: 24),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade300,
+                                            borderRadius: BorderRadius.circular(2),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  Text(m.definition, style: const TextStyle(fontSize: 16)),
-                                  if (m.example != null)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8.0),
-                                      child: Text(
-                                        '"${m.example}"',
-                                        style: TextStyle(color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                                      Text(v.word, style: Theme.of(ctx).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+                                      PronunciationButton(word: v.word),
+                                      if (v.phonetic != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 4.0),
+                                          child: Text(
+                                            v.phonetic!,
+                                            style: TextStyle(color: Colors.grey.shade600, fontSize: 16, fontStyle: FontStyle.italic),
+                                          ),
+                                        ),
+                                      const SizedBox(height: 16),
+                                      const Divider(),
+                                      const SizedBox(height: 8),
+                                      ...v.meanings.map(
+                                        (m) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 16.0),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              if (m.partOfSpeech != null)
+                                                Container(
+                                                  margin: const EdgeInsets.only(bottom: 8),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(ctx).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Text(
+                                                    m.partOfSpeech!,
+                                                    style: TextStyle(
+                                                      color: Theme.of(ctx).colorScheme.primary,
+                                                      fontStyle: FontStyle.italic,
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ),
+                                              Text(m.definition, style: const TextStyle(fontSize: 16)),
+                                              if (m.example != null)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 8.0),
+                                                  child: Text(
+                                                    '"${m.example}"',
+                                                    style: TextStyle(color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                ],
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              ),
-            ),
-          );
-        },
-      ),
+        ),
+      ],
     );
   }
 }
