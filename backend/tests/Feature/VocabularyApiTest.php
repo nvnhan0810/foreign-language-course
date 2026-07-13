@@ -92,4 +92,49 @@ class VocabularyApiTest extends TestCase
         $this->assertSame(['joyful'], $create->json('data.meanings.0.synonyms'));
         $this->assertSame(['sad'], $create->json('data.meanings.0.antonyms'));
     }
+
+    public function test_re_save_backfills_missing_related_words_on_existing_vocabulary(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $vocab = \App\Models\Vocabulary::query()->create([
+            'user_id' => $user->id,
+            'word' => 'happy',
+            'phonetic' => '/ˈhæpi/',
+            'meanings' => [[
+                'part_of_speech' => 'adjective',
+                'definition' => 'Feeling pleasure',
+                'example' => null,
+                'examples' => [],
+                'synonyms' => [],
+                'antonyms' => [],
+            ]],
+        ]);
+
+        Http::fake([
+            'api.dictionaryapi.dev/*' => Http::response([[
+                'word' => 'happy',
+                'phonetic' => '/ˈhæpi/',
+                'phonetics' => [],
+                'meanings' => [[
+                    'partOfSpeech' => 'adjective',
+                    'definitions' => [['definition' => 'Feeling pleasure']],
+                ]],
+            ]], 200),
+            'api.datamuse.com/words*' => Http::sequence()
+                ->push([['word' => 'joyful'], ['word' => 'glad']], 200)
+                ->push([['word' => 'sad']], 200),
+        ]);
+
+        $response = $this->postJson('/api/vocabularies', ['word' => 'happy']);
+        $response->assertOk()
+            ->assertJsonPath('data.id', $vocab->id)
+            ->assertJsonPath('data.meanings.0.synonyms.0', 'joyful')
+            ->assertJsonPath('data.meanings.0.antonyms.0', 'sad');
+
+        $vocab->refresh();
+        $this->assertContains('joyful', $vocab->meanings[0]['synonyms'] ?? []);
+        $this->assertContains('sad', $vocab->meanings[0]['antonyms'] ?? []);
+    }
 }

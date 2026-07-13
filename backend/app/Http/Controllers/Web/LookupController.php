@@ -72,13 +72,27 @@ class LookupController extends Controller
             meanings: $meanings,
         ));
 
-        if ($result === null || ! ($result['created'] ?? false)) {
-            return $this->redirectToLookupAfterSave($data, 'This word is already in your list.');
+        if ($result === null) {
+            return $this->redirectToLookupAfterSave($data, 'Could not save word.');
         }
 
-        $lookup = $this->queries->ask(new LookupWord($word));
+        if ($result['created'] ?? false) {
+            $lookup = $this->queries->ask(new LookupWord($word));
 
-        return $this->redirectToLookupAfterSave($data, 'Word saved.', is_array($lookup) ? $lookup : null);
+            return $this->redirectToLookupAfterSave($data, 'Word saved.', is_array($lookup) ? $lookup : null);
+        }
+
+        if ($result['backfilled'] ?? false) {
+            $lookup = $this->queries->ask(new LookupWord($word));
+
+            return $this->redirectToLookupAfterSave(
+                $data,
+                'Updated synonyms and antonyms for this saved word.',
+                is_array($lookup) ? $lookup : null,
+            );
+        }
+
+        return $this->redirectToLookupAfterSave($data, 'This word is already in your list.');
     }
 
     /**

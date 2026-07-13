@@ -32,7 +32,7 @@ final class SaveUserVocabularyHandler implements CommandHandler
 
         $existing = $this->vocabularies->findByUserAndWord($command->userId, $word);
         if ($existing !== null) {
-            return ['vocabulary' => $existing, 'created' => false];
+            return $this->backfillExistingVocabulary($existing, $command);
         }
 
         /** @var array<string, mixed>|null $lookup */
@@ -41,15 +41,7 @@ final class SaveUserVocabularyHandler implements CommandHandler
         $meanings = $this->meaningsForVocabulary(is_array($rawMeanings) ? $rawMeanings : []);
         $meanings = $this->ensureRelatedWords($meanings, is_array($lookup) ? $lookup : null);
 
-        $examples = [];
-        foreach (array_slice($meanings, 0, 5) as $meaning) {
-            if (! empty($meaning['example'])) {
-                $examples[] = [
-                    'example' => $meaning['example'],
-                    'definition_ref' => $meaning['definition'] ?? null,
-                ];
-            }
-        }
+        $examples = $this->examplesFromMeanings($meanings);
 
         $vocabulary = $this->vocabularies->save(new UserVocabulary(
             id: null,
@@ -60,6 +52,97 @@ final class SaveUserVocabularyHandler implements CommandHandler
             examples: $examples,
         ));
 
+        $this->upsertDictionary($word, $command, $lookup, $meanings);
+
+        return ['vocabulary' => $vocabulary, 'created' => true, 'backfilled' => false];
+    }
+
+    /**
+     * Older saved words may lack synonyms/antonyms — fill them on re-save instead of no-oping.
+     *
+     * @return array{vocabulary: UserVocabulary, created: false, backfilled: bool}
+     */
+    private function backfillExistingVocabulary(UserVocabulary $existing, SaveUserVocabulary $command): array
+    {
+        if (! $this->missingRelatedWords($existing->meanings)) {
+            return ['vocabulary' => $existing, 'created' => false, 'backfilled' => false];
+        }
+
+        /** @var array<string, mixed>|null $lookup */
+        $lookup = $this->queries->ask(new LookupWord($existing->word));
+
+        $baseMeanings = $existing->meanings !== []
+            ? $existing->meanings
+            : (is_array($lookup['meanings'] ?? null) ? $lookup['meanings'] : ($command->meanings ?? []));
+
+        $meanings = $this->ensureRelatedWords(
+            $this->meaningsForVocabulary(is_array($baseMeanings) ? $baseMeanings : []),
+            is_array($lookup) ? $lookup : null,
+        );
+
+        $beforeSyn = $this->collectRelated($existing->meanings, 'synonyms');
+        $beforeAnt = $this->collectRelated($existing->meanings, 'antonyms');
+        $afterSyn = $this->collectRelated($meanings, 'synonyms');
+        $afterAnt = $this->collectRelated($meanings, 'antonyms');
+        $gained = ($beforeSyn === [] && $afterSyn !== [])
+            || ($beforeAnt === [] && $afterAnt !== []);
+
+        if (! $gained) {
+            return ['vocabulary' => $existing, 'created' => false, 'backfilled' => false];
+        }
+
+        $existing->meanings = $meanings;
+        if ($existing->phonetic === null && is_array($lookup)) {
+            $existing->phonetic = $lookup['phonetic'] ?? null;
+        }
+        if ($existing->examples === []) {
+            $existing->examples = $this->examplesFromMeanings($meanings);
+        }
+
+        $vocabulary = $this->vocabularies->save($existing);
+        $this->upsertDictionary($existing->word, $command, $lookup, $meanings);
+
+        return ['vocabulary' => $vocabulary, 'created' => false, 'backfilled' => true];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $meanings
+     */
+    private function missingRelatedWords(array $meanings): bool
+    {
+        return $this->collectRelated($meanings, 'synonyms') === []
+            || $this->collectRelated($meanings, 'antonyms') === [];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $meanings
+     * @return list<array{example: string, definition_ref: mixed}>
+     */
+    private function examplesFromMeanings(array $meanings): array
+    {
+        $examples = [];
+        foreach (array_slice($meanings, 0, 5) as $meaning) {
+            if (! empty($meaning['example'])) {
+                $examples[] = [
+                    'example' => $meaning['example'],
+                    'definition_ref' => $meaning['definition'] ?? null,
+                ];
+            }
+        }
+
+        return $examples;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $lookup
+     * @param  list<array<string, mixed>>  $meanings
+     */
+    private function upsertDictionary(
+        string $word,
+        SaveUserVocabulary $command,
+        ?array $lookup,
+        array $meanings,
+    ): void {
         $payload = is_array($lookup) ? $lookup : [
             'word' => $word,
             'phonetic' => $command->phonetic,
@@ -78,8 +161,6 @@ final class SaveUserVocabularyHandler implements CommandHandler
             : $this->collectRelated($meanings, 'antonyms');
 
         $this->commands->dispatch(new UpsertDictionaryOnSave($word, $payload));
-
-        return ['vocabulary' => $vocabulary, 'created' => true];
     }
 
     /**
