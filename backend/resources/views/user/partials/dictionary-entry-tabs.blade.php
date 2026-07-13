@@ -15,11 +15,17 @@
         ->unique()
         ->values()
         ->all();
+    $tabId = 'dict-tabs-' . uniqid();
 @endphp
 
-<div class="dict-entry">
-    <section class="dict-section">
-        <h3 class="dict-section-title">Meanings</h3>
+<div class="dict-entry" data-dict-entry>
+    <div class="dict-tabs" role="tablist" aria-label="Dictionary sections">
+        <button type="button" class="dict-tab active" role="tab" aria-selected="true" data-dict-tab="meanings" aria-controls="{{ $tabId }}-meanings">Meanings</button>
+        <button type="button" class="dict-tab" role="tab" aria-selected="false" data-dict-tab="synonyms" aria-controls="{{ $tabId }}-synonyms">Synonyms</button>
+        <button type="button" class="dict-tab" role="tab" aria-selected="false" data-dict-tab="antonyms" aria-controls="{{ $tabId }}-antonyms">Antonyms</button>
+    </div>
+
+    <div id="{{ $tabId }}-meanings" class="dict-panel active" role="tabpanel" data-dict-panel="meanings">
         @if (count($meanings) > 0)
             @foreach ($meanings as $meaning)
                 <div class="meaning-block">
@@ -37,15 +43,14 @@
         @endif
 
         @if (!empty($extraExamples) && count($extraExamples) > 0)
-            <h4 class="dict-section-subtitle">More examples</h4>
+            <h3 style="font-size:15px;margin:20px 0 10px">More examples</h3>
             @foreach ($extraExamples as $example)
                 <p class="muted" style="font-style:italic;margin:0 0 8px">"{{ is_object($example) ? $example->example : $example }}"</p>
             @endforeach
         @endif
-    </section>
+    </div>
 
-    <section class="dict-section">
-        <h3 class="dict-section-title">Synonyms</h3>
+    <div id="{{ $tabId }}-synonyms" class="dict-panel" role="tabpanel" data-dict-panel="synonyms" hidden>
         @if (count($synonyms) > 0)
             <div class="related-words">
                 @foreach ($synonyms as $word)
@@ -55,10 +60,9 @@
         @else
             <p class="muted">No synonyms found.</p>
         @endif
-    </section>
+    </div>
 
-    <section class="dict-section">
-        <h3 class="dict-section-title">Antonyms</h3>
+    <div id="{{ $tabId }}-antonyms" class="dict-panel" role="tabpanel" data-dict-panel="antonyms" hidden>
         @if (count($antonyms) > 0)
             <div class="related-words">
                 @foreach ($antonyms as $word)
@@ -68,5 +72,5 @@
         @else
             <p class="muted">No antonyms found.</p>
         @endif
-    </section>
+    </div>
 </div>
