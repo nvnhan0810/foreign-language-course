@@ -4,7 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\DictionaryEntry;
 use App\Models\User;
-use App\Services\DictionaryService;
+use Flc\Dictionary\Application\Command\UpsertDictionaryOnSave;
+use Flc\Dictionary\Application\Query\LookupWord;
+use Flc\Shared\Application\CommandBus;
+use Flc\Shared\Application\QueryBus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
@@ -33,8 +36,7 @@ class DictionaryServiceTest extends TestCase
             ]], 200),
         ]);
 
-        $service = app(DictionaryService::class);
-        $result = $service->lookup('Hello');
+        $result = app(QueryBus::class)->ask(new LookupWord('Hello'));
 
         $this->assertNotNull($result);
         $this->assertSame('hello', $result['word']);
@@ -64,11 +66,9 @@ class DictionaryServiceTest extends TestCase
             ]], 200),
         ]);
 
-        $service = app(DictionaryService::class);
-        $payload = $service->lookup('bright');
-        $entry = $service->upsertOnSave('bright', $payload);
+        $payload = app(QueryBus::class)->ask(new LookupWord('bright'));
+        app(CommandBus::class)->dispatch(new UpsertDictionaryOnSave('bright', $payload));
 
-        $this->assertNotNull($entry);
         $this->assertDatabaseHas('dictionary_entries', [
             'word' => 'bright',
             'save_count' => 1,
@@ -100,7 +100,7 @@ class DictionaryServiceTest extends TestCase
 
         Http::fake();
 
-        $result = app(DictionaryService::class)->lookup('custom');
+        $result = app(QueryBus::class)->ask(new LookupWord('custom'));
 
         $this->assertSame('FLC definition', $result['meanings'][0]['definition']);
         $this->assertTrue($result['curated']);
@@ -123,7 +123,7 @@ class DictionaryServiceTest extends TestCase
             'position' => 0,
         ]);
 
-        app(DictionaryService::class)->upsertOnSave('run', [
+        app(CommandBus::class)->dispatch(new UpsertDictionaryOnSave('run', [
             'word' => 'run',
             'phonetic' => '/rʌn/',
             'audio_url' => null,
@@ -135,7 +135,7 @@ class DictionaryServiceTest extends TestCase
             'synonyms' => [],
             'antonyms' => [],
             'source' => 'dictionaryapi.dev',
-        ]);
+        ]));
 
         $entry->refresh();
         $this->assertSame(2, $entry->save_count);

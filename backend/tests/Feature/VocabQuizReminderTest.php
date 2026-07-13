@@ -6,10 +6,11 @@ use App\Models\DevicePushToken;
 use App\Models\QuizAttempt;
 use App\Models\User;
 use App\Models\Vocabulary;
-use App\Services\AppSettingService;
-use App\Services\FcmService;
-use App\Services\VocabQuizReminderService;
 use Carbon\Carbon;
+use Flc\AdminSettings\Application\Command\SetAppSetting;
+use Flc\Notification\Application\Command\SendVocabQuizReminders;
+use Flc\Notification\Application\PushNotifier;
+use Flc\Shared\Application\CommandBus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
@@ -31,12 +32,12 @@ class VocabQuizReminderTest extends TestCase
         $user = $this->userWithToken();
         $this->seedVocabularies($user, 4);
 
-        $fcm = Mockery::mock(FcmService::class);
-        $fcm->shouldReceive('isConfigured')->andReturn(true);
-        $fcm->shouldReceive('sendToToken')->once()->andReturn(true);
-        $this->app->instance(FcmService::class, $fcm);
+        $notifier = Mockery::mock(PushNotifier::class);
+        $notifier->shouldReceive('isConfigured')->andReturn(true);
+        $notifier->shouldReceive('sendToToken')->once()->andReturn(true);
+        $this->app->instance(PushNotifier::class, $notifier);
 
-        $stats = app(VocabQuizReminderService::class)->sendReminders(VocabQuizReminderService::SLOT_MIDDAY);
+        $stats = app(CommandBus::class)->dispatch(new SendVocabQuizReminders(SendVocabQuizReminders::SLOT_MIDDAY));
 
         $this->assertSame(1, $stats['sent']);
     }
@@ -55,12 +56,12 @@ class VocabQuizReminderTest extends TestCase
             'question_type' => 'word_to_definition',
         ]);
 
-        $fcm = Mockery::mock(FcmService::class);
-        $fcm->shouldReceive('isConfigured')->andReturn(true);
-        $fcm->shouldReceive('sendToToken')->never();
-        $this->app->instance(FcmService::class, $fcm);
+        $notifier = Mockery::mock(PushNotifier::class);
+        $notifier->shouldReceive('isConfigured')->andReturn(true);
+        $notifier->shouldReceive('sendToToken')->never();
+        $this->app->instance(PushNotifier::class, $notifier);
 
-        $stats = app(VocabQuizReminderService::class)->sendReminders(VocabQuizReminderService::SLOT_MIDDAY);
+        $stats = app(CommandBus::class)->dispatch(new SendVocabQuizReminders(SendVocabQuizReminders::SLOT_MIDDAY));
 
         $this->assertSame(0, $stats['sent']);
         $this->assertSame(1, $stats['skipped']);
@@ -80,12 +81,12 @@ class VocabQuizReminderTest extends TestCase
             'question_type' => 'definition_to_word',
         ]);
 
-        $fcm = Mockery::mock(FcmService::class);
-        $fcm->shouldReceive('isConfigured')->andReturn(true);
-        $fcm->shouldReceive('sendToToken')->once()->andReturn(true);
-        $this->app->instance(FcmService::class, $fcm);
+        $notifier = Mockery::mock(PushNotifier::class);
+        $notifier->shouldReceive('isConfigured')->andReturn(true);
+        $notifier->shouldReceive('sendToToken')->once()->andReturn(true);
+        $this->app->instance(PushNotifier::class, $notifier);
 
-        $stats = app(VocabQuizReminderService::class)->sendReminders(VocabQuizReminderService::SLOT_EVENING);
+        $stats = app(CommandBus::class)->dispatch(new SendVocabQuizReminders(SendVocabQuizReminders::SLOT_EVENING));
 
         $this->assertSame(1, $stats['sent']);
     }
@@ -106,12 +107,12 @@ class VocabQuizReminderTest extends TestCase
             ]);
         }
 
-        $fcm = Mockery::mock(FcmService::class);
-        $fcm->shouldReceive('isConfigured')->andReturn(true);
-        $fcm->shouldReceive('sendToToken')->never();
-        $this->app->instance(FcmService::class, $fcm);
+        $notifier = Mockery::mock(PushNotifier::class);
+        $notifier->shouldReceive('isConfigured')->andReturn(true);
+        $notifier->shouldReceive('sendToToken')->never();
+        $this->app->instance(PushNotifier::class, $notifier);
 
-        $stats = app(VocabQuizReminderService::class)->sendReminders(VocabQuizReminderService::SLOT_EVENING);
+        $stats = app(CommandBus::class)->dispatch(new SendVocabQuizReminders(SendVocabQuizReminders::SLOT_EVENING));
 
         $this->assertSame(0, $stats['sent']);
         $this->assertSame(1, $stats['skipped']);
@@ -238,14 +239,14 @@ class VocabQuizReminderTest extends TestCase
             'platform' => 'android',
         ]);
 
-        app(AppSettingService::class)->set('vocab_quiz_push_enabled', true);
+        app(CommandBus::class)->dispatch(new SetAppSetting('vocab_quiz_push_enabled', true));
 
-        $fcm = Mockery::mock(FcmService::class);
-        $fcm->shouldReceive('isConfigured')->andReturn(true);
-        $fcm->shouldReceive('sendToToken')->twice()->andReturn(true);
-        $this->app->instance(FcmService::class, $fcm);
+        $notifier = Mockery::mock(PushNotifier::class);
+        $notifier->shouldReceive('isConfigured')->andReturn(true);
+        $notifier->shouldReceive('sendToToken')->twice()->andReturn(true);
+        $this->app->instance(PushNotifier::class, $notifier);
 
-        $stats = app(VocabQuizReminderService::class)->sendReminders(VocabQuizReminderService::SLOT_MIDDAY);
+        $stats = app(CommandBus::class)->dispatch(new SendVocabQuizReminders(SendVocabQuizReminders::SLOT_MIDDAY));
 
         $this->assertSame(1, $stats['sent']);
     }
@@ -260,7 +261,7 @@ class VocabQuizReminderTest extends TestCase
             'platform' => 'android',
         ]);
 
-        app(AppSettingService::class)->set('vocab_quiz_push_enabled', true);
+        app(CommandBus::class)->dispatch(new SetAppSetting('vocab_quiz_push_enabled', true));
 
         return $user;
     }

@@ -3,20 +3,28 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\AppSettingService;
-use App\Services\VocabQuizReminderService;
+use Flc\AdminSettings\Application\Query\GetAppSetting;
+use Flc\Notification\Application\Command\UpdateUserNotificationPreference;
+use Flc\Notification\Application\Query\GetUserNotificationPreference;
+use Flc\Shared\Application\CommandBus;
+use Flc\Shared\Application\QueryBus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class NotificationSettingsController extends Controller
 {
-    public function show(Request $request, AppSettingService $settings): JsonResponse
+    public function __construct(
+        private readonly QueryBus $queries,
+        private readonly CommandBus $commands,
+    ) {}
+
+    public function show(Request $request): JsonResponse
     {
-        $preference = VocabQuizReminderService::ensurePreference($request->user());
+        $preference = $this->queries->ask(new GetUserNotificationPreference($request->user()->id));
 
         return response()->json([
-            'vocab_quiz_push_enabled' => $preference->vocab_quiz_push_enabled,
-            'global_vocab_quiz_push_enabled' => $settings->getBool('vocab_quiz_push_enabled', true),
+            'vocab_quiz_push_enabled' => $preference->vocabQuizPushEnabled,
+            'global_vocab_quiz_push_enabled' => $this->queries->ask(new GetAppSetting('vocab_quiz_push_enabled', true, asBool: true)),
             'reminder_schedule' => [
                 'timezone' => 'Asia/Ho_Chi_Minh',
                 'midday' => '11:00',
@@ -31,12 +39,13 @@ class NotificationSettingsController extends Controller
             'vocab_quiz_push_enabled' => ['required', 'boolean'],
         ]);
 
-        $preference = VocabQuizReminderService::ensurePreference($request->user());
-        $preference->vocab_quiz_push_enabled = $data['vocab_quiz_push_enabled'];
-        $preference->save();
+        $preference = $this->commands->dispatch(new UpdateUserNotificationPreference(
+            userId: $request->user()->id,
+            vocabQuizPushEnabled: (bool) $data['vocab_quiz_push_enabled'],
+        ));
 
         return response()->json([
-            'vocab_quiz_push_enabled' => $preference->vocab_quiz_push_enabled,
+            'vocab_quiz_push_enabled' => $preference->vocabQuizPushEnabled,
         ]);
     }
 }

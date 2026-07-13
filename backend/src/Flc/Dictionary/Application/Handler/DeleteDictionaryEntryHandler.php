@@ -3,33 +3,30 @@
 namespace Flc\Dictionary\Application\Handler;
 
 use Flc\Dictionary\Application\Command\DeleteDictionaryEntry;
-use Flc\Dictionary\Domain\DictionaryEntryAggregate;
-use Flc\Shared\Application\AggregateRepository;
+use Flc\Dictionary\Application\Repository\DictionaryEntryRepository;
 use Flc\Shared\Application\Command;
 use Flc\Shared\Application\CommandHandler;
-use Illuminate\Support\Str;
+use Flc\Shared\Support\Text;
 
 final class DeleteDictionaryEntryHandler implements CommandHandler
 {
     public function __construct(
-        private readonly AggregateRepository $aggregates,
+        private readonly DictionaryEntryRepository $entries,
     ) {}
 
     public function handle(Command $command): mixed
     {
         assert($command instanceof DeleteDictionaryEntry);
 
-        $normalized = Str::lower(trim($command->word));
-        /** @var DictionaryEntryAggregate|null $aggregate */
-        $aggregate = $this->aggregates->load(DictionaryEntryAggregate::class, $normalized);
+        $normalized = Text::lower(trim($command->word));
+        $entry = $this->entries->findByWord($normalized);
 
-        if ($aggregate === null || $aggregate->isDeleted()) {
+        if ($entry === null) {
             return null;
         }
 
-        $aggregate->delete();
-        $this->aggregates->save($aggregate);
+        $this->entries->deleteByWord($normalized);
 
-        return $aggregate;
+        return $entry;
     }
 }

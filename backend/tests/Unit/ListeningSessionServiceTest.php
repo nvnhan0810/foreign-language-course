@@ -5,7 +5,12 @@ namespace Tests\Unit;
 use App\Models\ListeningQuestion;
 use App\Models\MediaItem;
 use App\Models\User;
-use App\Services\ListeningSessionService;
+use Flc\Listening\Application\Command\InitializeSessionQuestions;
+use Flc\Listening\Application\Command\ResumeOrStartListeningSession;
+use Flc\Listening\Application\Command\StartListeningSession;
+use Flc\Listening\Application\Query\GetListeningSessionOptions;
+use Flc\Shared\Application\CommandBus;
+use Flc\Shared\Application\QueryBus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -37,7 +42,7 @@ class ListeningSessionServiceTest extends TestCase
             ]);
         }
 
-        $options = app(ListeningSessionService::class)->sessionOptions($mediaItem->fresh());
+        $options = app(QueryBus::class)->ask(new GetListeningSessionOptions($mediaItem->id));
 
         $quiz = collect($options)->firstWhere('type', 'quiz');
         $exam = collect($options)->firstWhere('type', 'exam');
@@ -70,11 +75,11 @@ class ListeningSessionServiceTest extends TestCase
             ]);
         }
 
-        $session = app(ListeningSessionService::class)->startSession(
-            $mediaItem->fresh(),
-            $user,
-            'quiz'
-        );
+        $session = app(CommandBus::class)->dispatch(new StartListeningSession(
+            $mediaItem->id,
+            $user->id,
+            'quiz',
+        ));
 
         $this->assertCount(5, $session['questions']);
         $this->assertSame('quiz', $session['type']);
@@ -84,15 +89,6 @@ class ListeningSessionServiceTest extends TestCase
             'type' => 'quiz',
             'question_count' => 5,
         ]);
-    }
-
-    public function test_shuffle_question_order_keeps_same_questions(): void
-    {
-        $ids = [1, 2, 3, 4, 5];
-        $shuffled = app(ListeningSessionService::class)->shuffleQuestionOrder($ids);
-
-        $this->assertCount(5, $shuffled);
-        $this->assertEqualsCanonicalizing($ids, $shuffled);
     }
 
     public function test_resume_or_start_session_reuses_unfinished_assessment(): void
@@ -119,9 +115,9 @@ class ListeningSessionServiceTest extends TestCase
             ]);
         }
 
-        $service = app(ListeningSessionService::class);
-        $first = $service->startSession($mediaItem->fresh(), $user, 'quiz');
-        $second = $service->resumeOrStartSession($mediaItem->fresh(), $user, 'quiz');
+        $commands = app(CommandBus::class);
+        $first = $commands->dispatch(new StartListeningSession($mediaItem->id, $user->id, 'quiz'));
+        $second = $commands->dispatch(new ResumeOrStartListeningSession($mediaItem->id, $user->id, 'quiz'));
 
         $this->assertSame($first['assessment_id'], $second['assessment_id']);
         $this->assertTrue($second['resumed'] ?? false);
@@ -151,16 +147,13 @@ class ListeningSessionServiceTest extends TestCase
             ]);
         }
 
-        $session = app(ListeningSessionService::class)->startSession(
-            $mediaItem->fresh(),
-            $user,
-            'quiz'
-        );
+        $commands = app(CommandBus::class);
+        $session = $commands->dispatch(new StartListeningSession($mediaItem->id, $user->id, 'quiz'));
 
         $assessment = \App\Models\ListeningAssessment::query()->findOrFail($session['assessment_id']);
         $assessment->update(['question_ids' => null, 'question_count' => 0]);
 
-        $questionIds = app(ListeningSessionService::class)->initializeSessionQuestions($assessment->fresh());
+        $questionIds = $commands->dispatch(new InitializeSessionQuestions($assessment->id, $user->id));
         $bankIds = $mediaItem->listeningQuestions()->pluck('id')->all();
 
         $this->assertCount(5, $questionIds);

@@ -4,7 +4,8 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\MediaItem;
-use App\Services\ListeningSessionService;
+use Flc\Listening\Application\Query\GetListeningSessionOptions;
+use Flc\Shared\Application\QueryBus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class MediaController extends Controller
 {
     public function __construct(
-        private readonly ListeningSessionService $sessionService,
+        private readonly QueryBus $queries,
     ) {}
 
     public function index(Request $request): View
@@ -36,7 +37,7 @@ class MediaController extends Controller
 
         return view('user.media-show', [
             'media' => $mediaItem,
-            'sessionOptions' => $this->sessionService->sessionOptions($mediaItem),
+            'sessionOptions' => $this->queries->ask(new GetListeningSessionOptions($mediaItem->id)),
         ]);
     }
 

@@ -3,19 +3,23 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\QuizAttempt;
-use App\Models\Vocabulary;
-use App\Services\QuizSelectionService;
+use Flc\Quiz\Application\Command\RecordQuizAttempt;
+use Flc\Quiz\Application\Query\GetNextQuizQuestion;
+use Flc\Shared\Application\CommandBus;
+use Flc\Shared\Application\QueryBus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class QuizController extends Controller
 {
-    public function __construct(private readonly QuizSelectionService $quiz) {}
+    public function __construct(
+        private readonly QueryBus $queries,
+        private readonly CommandBus $commands,
+    ) {}
 
     public function next(Request $request): JsonResponse
     {
-        $question = $this->quiz->nextQuestion($request->user());
+        $question = $this->queries->ask(new GetNextQuizQuestion($request->user()->id));
 
         if (! $question) {
             return response()->json([
@@ -34,33 +38,13 @@ class QuizController extends Controller
             'correct' => ['required', 'boolean'],
         ]);
 
-        $vocabulary = Vocabulary::query()->findOrFail($data['vocabulary_id']);
+        $result = $this->commands->dispatch(new RecordQuizAttempt(
+            userId: $request->user()->id,
+            vocabularyId: (int) $data['vocabulary_id'],
+            questionType: $data['question_type'],
+            correct: (bool) $data['correct'],
+        ));
 
-        if ($vocabulary->user_id !== $request->user()->id) {
-            abort(403);
-        }
-
-        QuizAttempt::query()->create([
-            'vocabulary_id' => $vocabulary->id,
-            'user_id' => $request->user()->id,
-            'correct' => $data['correct'],
-            'question_type' => $data['question_type'],
-        ]);
-
-        $vocabulary->times_quizzed++;
-        $vocabulary->last_quizzed_at = now();
-
-        if ($data['correct']) {
-            $vocabulary->last_correct_at = now();
-        }
-
-        $vocabulary->save();
-
-        return response()->json([
-            'data' => [
-                'vocabulary_id' => $vocabulary->id,
-                'times_quizzed' => $vocabulary->times_quizzed,
-            ],
-        ]);
+        return response()->json(['data' => $result]);
     }
 }

@@ -3,16 +3,20 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
-use App\Models\QuizAttempt;
-use App\Models\Vocabulary;
-use App\Services\QuizSelectionService;
+use Flc\Quiz\Application\Command\RecordQuizAttempt;
+use Flc\Quiz\Application\Query\GetNextQuizQuestion;
+use Flc\Shared\Application\CommandBus;
+use Flc\Shared\Application\QueryBus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class QuizController extends Controller
 {
-    public function __construct(private readonly QuizSelectionService $quiz) {}
+    public function __construct(
+        private readonly QueryBus $queries,
+        private readonly CommandBus $commands,
+    ) {}
 
     public function index(Request $request): View|RedirectResponse
     {
@@ -29,7 +33,7 @@ class QuizController extends Controller
 
     public function next(Request $request): RedirectResponse
     {
-        $question = $this->quiz->nextQuestion($request->user());
+        $question = $this->queries->ask(new GetNextQuizQuestion($request->user()->id));
 
         if (! $question) {
             return redirect()->route('user.home.quiz')
@@ -52,32 +56,17 @@ class QuizController extends Controller
             'choice' => ['required', 'string'],
         ]);
 
-        $vocabulary = Vocabulary::query()->findOrFail($data['vocabulary_id']);
-
-        if ($vocabulary->user_id !== $request->user()->id) {
-            abort(403);
-        }
-
         $correct = strtolower(trim($data['choice'])) === strtolower(trim($data['correct_answer']));
 
-        QuizAttempt::query()->create([
-            'vocabulary_id' => $vocabulary->id,
-            'user_id' => $request->user()->id,
-            'correct' => $correct,
-            'question_type' => $data['question_type'],
-        ]);
-
-        $vocabulary->times_quizzed++;
-        $vocabulary->last_quizzed_at = now();
-
-        if ($correct) {
-            $vocabulary->last_correct_at = now();
-        }
-
-        $vocabulary->save();
+        $this->commands->dispatch(new RecordQuizAttempt(
+            userId: $request->user()->id,
+            vocabularyId: (int) $data['vocabulary_id'],
+            questionType: $data['question_type'],
+            correct: $correct,
+        ));
 
         $question = [
-            'vocabulary_id' => $vocabulary->id,
+            'vocabulary_id' => (int) $data['vocabulary_id'],
             'question_type' => $data['question_type'],
             'prompt' => $data['prompt'],
             'options' => session('quiz_question')['options'] ?? [],

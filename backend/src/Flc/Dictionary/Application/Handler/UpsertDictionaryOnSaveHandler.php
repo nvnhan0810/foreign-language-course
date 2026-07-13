@@ -2,19 +2,18 @@
 
 namespace Flc\Dictionary\Application\Handler;
 
-use App\Models\DictionaryEntry;
 use Flc\Dictionary\Application\Command\UpsertDictionaryOnSave;
 use Flc\Dictionary\Application\FreeDictionaryGateway;
-use Flc\Dictionary\Domain\DictionaryEntryAggregate;
-use Flc\Shared\Application\AggregateRepository;
+use Flc\Dictionary\Application\Repository\DictionaryEntryRepository;
+use Flc\Dictionary\Domain\DictionaryEntry;
 use Flc\Shared\Application\Command;
 use Flc\Shared\Application\CommandHandler;
-use Illuminate\Support\Str;
+use Flc\Shared\Support\Text;
 
 final class UpsertDictionaryOnSaveHandler implements CommandHandler
 {
     public function __construct(
-        private readonly AggregateRepository $aggregates,
+        private readonly DictionaryEntryRepository $entries,
         private readonly FreeDictionaryGateway $gateway,
     ) {}
 
@@ -22,78 +21,28 @@ final class UpsertDictionaryOnSaveHandler implements CommandHandler
     {
         assert($command instanceof UpsertDictionaryOnSave);
 
-        $normalized = Str::lower(trim($command->word));
+        $normalized = Text::lower(trim($command->word));
         if ($normalized === '') {
             return null;
         }
 
-        /** @var DictionaryEntryAggregate|null $aggregate */
-        $aggregate = $this->aggregates->load(DictionaryEntryAggregate::class, $normalized);
-
-        if ($aggregate === null || $aggregate->isDeleted()) {
-            $aggregate = $this->bootstrapFromProjection($normalized);
-        }
-
+        $entry = $this->entries->findByWord($normalized);
         $payload = $command->payload;
 
-        if ($aggregate === null) {
+        if ($entry === null) {
             $payload ??= $this->gateway->fetch($normalized);
             if ($payload === null) {
                 return null;
             }
-            $aggregate = DictionaryEntryAggregate::createFromPayload($normalized, $payload);
-            $this->aggregates->save($aggregate);
+            $entry = DictionaryEntry::createFromPayload($normalized, $payload);
+            $this->entries->save($entry);
 
-            return $aggregate;
+            return $entry;
         }
 
-        $aggregate->recordSave($payload);
-        $this->aggregates->save($aggregate);
+        $entry->recordSave($payload);
+        $this->entries->save($entry);
 
-        return $aggregate;
-    }
-
-    private function bootstrapFromProjection(string $normalized): ?DictionaryEntryAggregate
-    {
-        $entry = DictionaryEntry::query()
-            ->where('word', $normalized)
-            ->with([
-                'meanings.examples',
-                'meanings.synonyms',
-                'meanings.antonyms',
-                'synonyms',
-                'antonyms',
-            ])
-            ->first();
-
-        if (! $entry) {
-            return null;
-        }
-
-        $meanings = [];
-        foreach ($entry->meanings as $meaning) {
-            $meanings[] = [
-                'part_of_speech' => $meaning->part_of_speech,
-                'definition' => $meaning->definition,
-                'examples' => $meaning->examples->pluck('example')->all(),
-                'synonyms' => $meaning->synonyms->pluck('term')->all(),
-                'antonyms' => $meaning->antonyms->pluck('term')->all(),
-            ];
-        }
-
-        $aggregate = DictionaryEntryAggregate::initializeFromReadModel($normalized, [
-            'phonetic' => $entry->phonetic,
-            'audio_url' => $entry->audio_url,
-            'source' => $entry->source,
-            'is_curated' => $entry->is_curated,
-            'save_count' => $entry->save_count,
-            'meanings' => $meanings,
-            'synonyms' => $entry->synonyms->whereNull('dictionary_meaning_id')->pluck('term')->all(),
-            'antonyms' => $entry->antonyms->whereNull('dictionary_meaning_id')->pluck('term')->all(),
-        ]);
-
-        $this->aggregates->save($aggregate);
-
-        return $this->aggregates->load(DictionaryEntryAggregate::class, $normalized);
+        return $entry;
     }
 }

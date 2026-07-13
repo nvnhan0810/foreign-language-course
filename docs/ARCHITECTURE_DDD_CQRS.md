@@ -1,18 +1,17 @@
-# FLC Backend — TDD / DDD / CQRS / Event Sourcing
+# FLC Backend — DDD / CQRS
 
-Tài liệu tổng hợp chuyển đổi kiến trúc backend (đang migrate big-bang).
+Tài liệu kiến trúc backend sau khi migrate khỏi Event Sourcing sang **CQRS + Repository**.
 
 ## Quyết định
 
 | Hạng mục | Giá trị |
 |----------|---------|
-| Rollout | Big-bang skeleton + migrate theo bounded context |
-| Style | CQRS + Domain Events + Event Sourcing |
-| Write model | Postgres `event_store` (append-only) |
-| Read model | Projection tables (Eloquent) |
+| Style | CQRS + Repository (không Event Sourcing) |
+| Write / Read | Domain entities + Eloquent repositories (projection tables) |
 | Buses | Custom `Flc\Shared\Application\CommandBus` / `QueryBus` |
 | Namespace | `Flc\` → [`backend/src/Flc/`](../backend/src/Flc/) |
-| TDD | Outside-in: Feature → Unit aggregate/handler → implement |
+| Wiring | [`app/Providers/FlcServiceProvider.php`](../backend/app/Providers/FlcServiceProvider.php) |
+| TDD | Outside-in: Feature → Unit handler/repo → implement |
 
 ## Before → After
 
@@ -30,105 +29,95 @@ app/
 
 ```
 src/Flc/
-  Shared/            # AggregateRoot, EventStore, buses, SyncEventPublisher
-  Dictionary/        # Domain + Application + Infrastructure
-  Vocabulary/        # (pending)
-  Media/ Listening/ Quiz/ Identity/ Notification/ AdminSettings/
+  Shared/            # CommandBus / QueryBus
+  Dictionary/ Vocabulary/ Media/ Listening/
+  Quiz/ Identity/ Notification/ AdminSettings/
 app/Http/...         # Thin adapters → CommandBus / QueryBus
-app/Services/...     # Compatibility facades (đang gỡ dần)
+app/Jobs/...         # Thin adapters → CommandBus (queue retries/timeout)
 ```
 
 ```mermaid
 flowchart LR
   Controller --> QueryBus
   Controller --> CommandBus
+  Job --> CommandBus
   CommandBus --> Handler
-  Handler --> Aggregate
-  Aggregate --> EventStore
-  EventStore --> Projector
-  Projector --> ReadModel
-  QueryBus --> ReadModel
-  Handler --> Gateway
+  QueryBus --> Handler
+  Handler --> Repository
+  Handler --> Port
+  Repository --> Eloquent
+  Port --> Adapter
 ```
 
 ## Đã migrate
 
-### Shared kernel
+| Context | Commands / Queries | Ports / Repos |
+|---------|-------------------|---------------|
+| Dictionary | LookupWord, Upsert/Curate/Delete | `DictionaryEntryRepository`, `FreeDictionaryGateway` |
+| Vocabulary | Save/Update/Delete, List/Get | `UserVocabularyRepository` |
+| Identity | Allowlist CRUD + IsEmailAllowed | `AllowedEmailRepository` |
+| AdminSettings | Get/Set settings | `AppSettingsRepository` |
+| Quiz | GetNextQuizQuestion, RecordQuizAttempt | `QuizAttemptRepository` |
+| Notification | SendVocabQuizReminders, prefs | `PushNotifier` (FCM), reminder repos |
+| **Media** | `ProcessMediaContent` | `MediaItemRepository`, `MediaContentResolver`, `ContentAnalyzer`, `ListeningAssessmentGenerator`, `MediaKeyVocabularyImporter` |
+| **Listening** | Start/Resume session, SubmitAttempt, InitializeQuestions; Get options/questions/attempts | `ListeningAssessmentRepository` |
 
-| Thành phần | Path |
-|------------|------|
-| `AggregateRoot`, `DomainEvent` | `src/Flc/Shared/Domain/` |
-| `EventStore`, `AggregateRepository`, buses | `src/Flc/Shared/Application/` |
-| `EloquentEventStore`, `SyncEventPublisher` | `src/Flc/Shared/Infrastructure/` |
-| Migration | `database/migrations/2026_07_13_100000_create_event_store_table.php` |
-| Provider | [`app/Providers/FlcServiceProvider.php`](../backend/app/Providers/FlcServiceProvider.php) |
-
-### Dictionary (My Dictionary) — hoàn chỉnh ES + CQRS
+### Media / Listening cut-over
 
 | Cũ | Mới |
 |----|-----|
-| `DictionaryService::lookup` | Query `Flc\Dictionary\Application\Query\LookupWord` |
-| `DictionaryService::upsertOnSave` | Command `UpsertDictionaryOnSave` |
-| `DictionaryService::replaceCuratedContent` | Command `CurateDictionaryEntry` |
-| Admin delete | Command `DeleteDictionaryEntry` |
-| Free Dictionary HTTP | Port `FreeDictionaryGateway` / `HttpFreeDictionaryGateway` |
-| DB tables | Projection qua `DictionaryEntryProjector` |
+| `ProcessMediaContentJob` orchestration | Job → `CommandBus::dispatch(ProcessMediaContent)` |
+| `MediaContentResolverService` / `ContentAnalysisService` | `DefaultMediaContentResolver` / `DefaultContentAnalyzer` |
+| `ListeningAssessmentGeneratorService` | `DefaultListeningAssessmentGenerator` |
+| `ListeningSessionService` | Listening commands/queries + Eloquent repo |
+| Inline scoring in API controller | `SubmitListeningAttempt` handler |
 
-**Events**
+## Layering rules
 
-| Event type | Ý nghĩa |
-|------------|---------|
-| `dictionary.entry_created` | Tạo entry |
-| `dictionary.content_replaced` | Thay toàn bộ meanings/syn/ant (admin curate hoặc init) |
-| `dictionary.content_merged` | Merge nghĩa khi Lưu từ (chưa curated) |
-| `dictionary.save_counted` | Tăng save_count (curated) |
-| `dictionary.entry_deleted` | Xóa |
+```
+Delivery (Controller / Job / Console)  →  CommandBus / QueryBus  →  Handler (= Use Case)
+Handler / Domain  →  Repository & Port interfaces only
+Infrastructure    →  Eloquent, HTTP, FCM, Laravel helpers (Str, Arr, config, DB, Log, …)
+```
 
-**Policy giữ nguyên:** Lookup miss **không** ghi DB; chỉ **Lưu từ** / admin mới ghi event + projection.
-
-`App\Services\DictionaryService` còn là **facade** gọi buses (để Api/Web/Admin không đổi hết một lúc).
+- **Không** dùng `App\Services` facade giữa Controller và Bus.
+- **Handler = Use Case** — không thêm lớp `*UseCase` / `*QueryService` song song.
+- Domain + Application (Handler, Application services) **không** phụ thuộc Laravel helpers (`Str::`, `Arr::`, `config()`, `now()`, `Log::`, …).
+  - Chuỗi: dùng `Flc\Shared\Support\Text`
+  - Config / Clock / Logger: inject port `Flc\Shared\Application\{Config,Clock,Logger}` (adapter Laravel ở Infrastructure)
+- Infrastructure concrete **được** dùng `Illuminate\Support\Str`, `Arr`, Facades, Eloquent.
+- Phân trang: Application trả `Flc\Shared\Application\PaginatedResult`; Controller (delivery) mới wrap `LengthAwarePaginator` nếu Blade cần `->links()`.
+- Media helpers (YouTube, Storage, Schedule, Cursor): `src/Flc/Media/Infrastructure/...` — Controller inject trực tiếp concrete infra (không còn `app/Services`).
 
 ## Cut-over
 
 ```bash
-./vendor/bin/sail artisan migrate
-./vendor/bin/sail artisan flc:seed-dictionary-events
 ./vendor/bin/sail artisan test
+# hoặc
+php artisan test
 ```
-
-`flc:seed-dictionary-events` tạo stream từ projection hiện có (rows My Dictionary trước ES).
 
 ## TDD conventions
 
 - Feature: `tests/Feature/` — HTTP/API behavior
-- Unit ES: `tests/Unit/Flc/` — append / replay / project
-- Dictionary: `tests/Feature/DictionaryServiceTest.php`
+- Unit: handler / generator / resolver qua buses hoặc Flc adapters
+- Thêm feature: viết test → Command/Query + Handler → Repository/Port → thin controller/Job
 
-Thêm feature: viết test → Command/Query + Handler → Aggregate events → Projector → thin controller.
+## Còn lại
 
-## Còn lại (roadmap trong cùng big-bang)
-
-| Context | Việc chính |
-|---------|------------|
-| Vocabulary | Aggregate `UserVocabulary` + Save/Delete commands; bỏ logic trong controllers |
-| Identity | Commands quanh Google login + allowlist query |
-| Quiz / Notification | Commands reminder + quiz attempt events |
-| Media / Listening | ProcessMedia / SubmitAttempt commands; Jobs → CommandBus |
-| AdminSettings | Curate settings commands |
-| Cleanup | Xóa facade `app/Services/*` khi mọi caller dùng buses |
+Không còn việc bắt buộc cho cut-over CQRS. Infra Media (YouTube / Storage / Schedule / Cursor) đã nằm dưới `src/Flc/Media/Infrastructure/`; Application port Identity không còn kiểu Laravel.
 
 ## Không đổi
 
 - Public API JSON contract (extension/mobile)
 - Sanctum / Socialite token flow
-- Blade admin UX (chỉ đổi chỗ gọi service → command)
+- Queue job class name (`ProcessMediaContentJob`) — callers vẫn `::dispatch($id)`
 
 ## Cách thêm Command mới (checklist)
 
 1. Feature/Unit test (red)
-2. `Domain/Event/*` + apply trên Aggregate
-3. `Application/Command|Query` + `Handler`
-4. Đăng ký event type map + handler map trong `FlcServiceProvider`
-5. Projector cập nhật read model
-6. Controller `dispatch` / `ask`
-7. Xóa logic cũ trong Service nếu còn
+2. `Application/Command|Query` + `Handler`
+3. Port/Repository + Eloquent adapter nếu cần
+4. Đăng ký map trong `FlcServiceProvider`
+5. Controller/Job `dispatch` / `ask`
+6. Xóa logic cũ trong Service nếu còn

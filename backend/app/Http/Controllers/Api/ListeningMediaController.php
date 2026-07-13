@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessMediaContentJob;
 use App\Models\MediaItem;
-use App\Services\MediaStorageService;
-use App\Services\YouTubeUrlParser;
+use Flc\Listening\Application\Query\GetListeningSessionOptions;
+use Flc\Media\Infrastructure\External\YouTubeUrlParser;
+use Flc\Media\Infrastructure\Storage\MediaStorageService;
+use Flc\Shared\Application\QueryBus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -18,6 +20,7 @@ class ListeningMediaController extends Controller
     public function __construct(
         private readonly MediaStorageService $storage,
         private readonly YouTubeUrlParser $youtubeParser,
+        private readonly QueryBus $queries,
     ) {}
 
     /**
@@ -143,7 +146,7 @@ class ListeningMediaController extends Controller
         $this->authorizeMedia($request, $mediaItem);
 
         return response()->json([
-            'data' => app(\App\Services\ListeningSessionService::class)->sessionOptions($mediaItem),
+            'data' => $this->queries->ask(new GetListeningSessionOptions($mediaItem->id)),
         ]);
     }
 

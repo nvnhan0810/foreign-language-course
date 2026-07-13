@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Jobs\ProcessMediaContentJob;
 use App\Models\ListenLog;
 use App\Models\MediaItem;
-use App\Services\MediaScheduleService;
-use App\Services\YouTubeUrlParser;
+use Flc\Media\Infrastructure\External\YouTubeUrlParser;
+use Flc\Media\Infrastructure\Scheduling\MediaScheduleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

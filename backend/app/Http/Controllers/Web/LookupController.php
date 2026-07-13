@@ -3,18 +3,22 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
-use App\Models\Vocabulary;
-use App\Models\VocabularyExample;
-use App\Services\DictionaryService;
+use Flc\Dictionary\Application\Query\LookupWord;
+use Flc\Shared\Application\CommandBus;
+use Flc\Shared\Application\QueryBus;
+use Flc\Shared\Support\Text;
+use Flc\Vocabulary\Application\Command\SaveUserVocabulary;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class LookupController extends Controller
 {
-    public function __construct(private readonly DictionaryService $dictionary) {}
+    public function __construct(
+        private readonly QueryBus $queries,
+        private readonly CommandBus $commands,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -32,13 +36,13 @@ class LookupController extends Controller
         ]);
 
         $text = trim($data['word']);
-        $word = Str::lower(preg_replace('/\s+/', ' ', $text) ?? $text);
+        $word = Text::lower(preg_replace('/\s+/', ' ', $text) ?? $text);
 
         if (! preg_match('/^[a-z][a-z\s\'-]*$/i', $word)) {
             return back()->withInput()->with('error', 'Nhập từ/câu tiếng Anh hợp lệ.');
         }
 
-        $result = $this->dictionary->lookup($word);
+        $result = $this->queries->ask(new LookupWord($word));
 
         if (! $result) {
             return back()->withInput()->with('error', 'Không tìm thấy từ.');
@@ -58,45 +62,23 @@ class LookupController extends Controller
             'meanings' => ['nullable', 'array'],
         ]);
 
-        $word = Str::lower(trim($data['word']));
-        $existing = $request->user()->vocabularies()->where('word', $word)->first();
+        $word = Text::lower(trim($data['word']));
+        $meanings = is_array($data['meanings'] ?? null) ? $data['meanings'] : null;
 
-        if ($existing) {
+        $result = $this->commands->dispatch(new SaveUserVocabulary(
+            userId: $request->user()->id,
+            word: $word,
+            phonetic: $data['phonetic'] ?? null,
+            meanings: $meanings,
+        ));
+
+        if ($result === null || ! ($result['created'] ?? false)) {
             return $this->redirectToLookupAfterSave($data, 'Từ đã có trong danh sách.');
         }
 
-        $lookup = $this->dictionary->lookup($word);
-        $rawMeanings = $data['meanings'] ?? $lookup['meanings'] ?? [];
-        $meanings = $this->dictionary->meaningsForVocabulary(is_array($rawMeanings) ? $rawMeanings : []);
+        $lookup = $this->queries->ask(new LookupWord($word));
 
-        $vocabulary = $request->user()->vocabularies()->create([
-            'word' => $word,
-            'phonetic' => $data['phonetic'] ?? $lookup['phonetic'] ?? null,
-            'meanings' => $meanings,
-        ]);
-
-        foreach (array_slice($meanings, 0, 5) as $meaning) {
-            if (! empty($meaning['example'])) {
-                VocabularyExample::query()->create([
-                    'vocabulary_id' => $vocabulary->id,
-                    'example' => $meaning['example'],
-                    'definition_ref' => $meaning['definition'] ?? null,
-                ]);
-            }
-        }
-
-        $payload = $lookup ?? [
-            'word' => $word,
-            'phonetic' => $data['phonetic'] ?? null,
-            'audio_url' => null,
-            'meanings' => $rawMeanings,
-            'synonyms' => [],
-            'antonyms' => [],
-            'source' => 'user_save',
-        ];
-        $this->dictionary->upsertOnSave($word, is_array($payload) ? $payload : null);
-
-        return $this->redirectToLookupAfterSave($data, 'Đã lưu từ.', $lookup);
+        return $this->redirectToLookupAfterSave($data, 'Đã lưu từ.', is_array($lookup) ? $lookup : null);
     }
 
     /**
@@ -105,7 +87,7 @@ class LookupController extends Controller
      */
     private function redirectToLookupAfterSave(array $data, string $message, ?array $lookup = null): RedirectResponse
     {
-        $lookup ??= $this->dictionary->lookup(Str::lower(trim($data['word'])));
+        $lookup ??= $this->queries->ask(new LookupWord(Text::lower(trim($data['word']))));
 
         if ($lookup === null) {
             $lookup = [
@@ -125,7 +107,7 @@ class LookupController extends Controller
 
     public function pronounce(Request $request, string $word): JsonResponse|RedirectResponse
     {
-        $result = $this->dictionary->lookup($word);
+        $result = $this->queries->ask(new LookupWord($word));
 
         if (! $result || empty($result['audio_url'])) {
             abort(404, 'Không có audio phát âm cho từ này.');

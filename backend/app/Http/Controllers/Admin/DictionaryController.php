@@ -4,18 +4,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\DictionaryEntry;
-use App\Services\DictionaryService;
+use Flc\Dictionary\Application\Command\CurateDictionaryEntry;
 use Flc\Dictionary\Application\Command\DeleteDictionaryEntry;
 use Flc\Shared\Application\CommandBus;
+use Flc\Shared\Support\Text;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class DictionaryController extends Controller
 {
     public function __construct(
-        private readonly DictionaryService $dictionary,
         private readonly CommandBus $commands,
     ) {}
 
@@ -59,22 +58,15 @@ class DictionaryController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validatedDictionary($request);
-        $word = Str::lower(trim($data['word']));
+        $word = Text::lower(trim($data['word']));
 
         if (DictionaryEntry::query()->where('word', $word)->exists()) {
             return back()->withInput()->withErrors(['word' => 'Từ này đã có trong My Dictionary.']);
         }
 
-        $entry = DictionaryEntry::query()->create([
-            'word' => $word,
-            'phonetic' => $data['phonetic'] ?? null,
-            'audio_url' => $data['audio_url'] ?? null,
-            'source' => 'admin',
-            'is_curated' => true,
-            'save_count' => 0,
-        ]);
+        $this->commands->dispatch(new CurateDictionaryEntry($word, $data));
 
-        $this->dictionary->replaceCuratedContent($entry, $data);
+        $entry = DictionaryEntry::query()->where('word', $word)->firstOrFail();
 
         return redirect()->route('admin.dictionary.edit', $entry)
             ->with('success', 'Đã tạo từ trong My Dictionary.');
@@ -121,7 +113,7 @@ class DictionaryController extends Controller
     public function update(Request $request, DictionaryEntry $dictionary): RedirectResponse
     {
         $data = $this->validatedDictionary($request);
-        $word = Str::lower(trim($data['word']));
+        $word = Text::lower(trim($data['word']));
 
         $duplicate = DictionaryEntry::query()
             ->where('word', $word)
@@ -132,7 +124,7 @@ class DictionaryController extends Controller
             return back()->withInput()->withErrors(['word' => 'Từ này đã có trong My Dictionary.']);
         }
 
-        $this->dictionary->replaceCuratedContent($dictionary, $data);
+        $this->commands->dispatch(new CurateDictionaryEntry($word, $data));
 
         return redirect()->route('admin.dictionary.edit', $dictionary)
             ->with('success', 'Đã cập nhật My Dictionary.');

@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Services\YouTubeTranscriptService;
+use Flc\Media\Infrastructure\External\YouTubeTranscriptService;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 

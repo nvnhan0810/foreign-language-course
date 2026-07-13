@@ -4,43 +4,65 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Vocabulary;
+use Flc\Shared\Application\CommandBus;
+use Flc\Shared\Application\QueryBus;
+use Flc\Vocabulary\Application\Command\DeleteUserVocabulary;
+use Flc\Vocabulary\Application\Query\GetUserVocabulary;
+use Flc\Vocabulary\Application\Query\ListUserVocabularies;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class VocabularyController extends Controller
 {
+    public function __construct(
+        private readonly CommandBus $commands,
+        private readonly QueryBus $queries,
+    ) {}
+
     public function index(Request $request): View
     {
-        $items = $request->user()
-            ->vocabularies()
-            ->with('examples')
-            ->orderByDesc('created_at')
-            ->get();
+        $items = collect($this->queries->ask(new ListUserVocabularies($request->user()->id)))
+            ->map(fn (array $item) => $this->toViewModel($item));
 
         return view('user.vocab', ['items' => $items]);
     }
 
     public function show(Request $request, Vocabulary $vocabulary): View
     {
-        if ($vocabulary->user_id !== $request->user()->id) {
+        $vocab = $this->queries->ask(new GetUserVocabulary($request->user()->id, $vocabulary->id));
+        if ($vocab === null) {
             abort(403);
         }
 
-        $vocabulary->load('examples');
-
-        return view('user.vocab-show', ['vocab' => $vocabulary]);
+        return view('user.vocab-show', ['vocab' => $this->toViewModel($vocab)]);
     }
 
     public function destroy(Request $request, Vocabulary $vocabulary): RedirectResponse
     {
-        if ($vocabulary->user_id !== $request->user()->id) {
+        $deleted = $this->commands->dispatch(new DeleteUserVocabulary(
+            $request->user()->id,
+            $vocabulary->id,
+        ));
+
+        if (! $deleted) {
             abort(403);
         }
 
-        $vocabulary->delete();
-
         return redirect()->route('user.home.vocab')
             ->with('success', 'Đã xóa từ.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function toViewModel(array $item): object
+    {
+        $examples = collect($item['examples'] ?? [])->map(fn (array $example) => (object) $example);
+
+        return (object) array_merge($item, [
+            'examples' => $examples instanceof Collection ? $examples : collect($examples),
+        ]);
     }
 }
