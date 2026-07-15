@@ -87,4 +87,37 @@ class ListeningApiTest extends TestCase
         $response->assertStatus(422);
     }
 
+    public function test_can_preview_youtube_url(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            'www.youtube.com/oembed*' => \Illuminate\Support\Facades\Http::response([
+                'title' => 'Sample Lesson - YouTube',
+                'author_name' => 'FLC Channel',
+            ]),
+        ]);
+
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/listening/media/youtube-preview', [
+            'url' => 'https://youtu.be/dQw4w9WgXcQ',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.video_id', 'dQw4w9WgXcQ')
+            ->assertJsonPath('data.title', 'Sample Lesson')
+            ->assertJsonPath('data.author_name', 'FLC Channel')
+            ->assertJsonPath('data.url', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    }
+
+    public function test_preview_rejects_invalid_youtube_url(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/listening/media/youtube-preview', [
+            'url' => 'https://example.com/not-youtube',
+        ])->assertStatus(422);
+    }
+
 }

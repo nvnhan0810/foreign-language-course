@@ -50,6 +50,8 @@ Route::name('user.')->middleware(\App\Http\Middleware\DetectFlcMobileApp::class)
             Route::delete('vocab/{vocabulary}', [WebVocabularyController::class, 'destroy'])->name('vocab.destroy');
 
             Route::get('media', [MediaController::class, 'index'])->name('media');
+            Route::post('media/youtube/preview', [MediaController::class, 'previewYouTube'])->name('media.youtube.preview');
+            Route::post('media/youtube', [MediaController::class, 'storeYouTube'])->name('media.youtube.store');
             Route::get('media/{mediaItem}/audio', [MediaController::class, 'audio'])->name('media.audio');
             Route::get('media/{mediaItem}', [MediaController::class, 'show'])->name('media.show');
             Route::put('media/{mediaItem}/transcript', [MediaController::class, 'updateTranscript'])->name('media.transcript');

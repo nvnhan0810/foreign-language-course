@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\ProcessMediaContentJob;
 use App\Models\MediaItem;
 use Flc\Listening\Application\Query\GetListeningSessionOptions;
+use Flc\Media\Infrastructure\External\YouTubePreviewService;
 use Flc\Media\Infrastructure\External\YouTubeUrlParser;
 use Flc\Media\Infrastructure\Storage\MediaStorageService;
 use Flc\Shared\Application\QueryBus;
@@ -20,8 +21,26 @@ class ListeningMediaController extends Controller
     public function __construct(
         private readonly MediaStorageService $storage,
         private readonly YouTubeUrlParser $youtubeParser,
+        private readonly YouTubePreviewService $youtubePreview,
         private readonly QueryBus $queries,
     ) {}
+
+    /**
+     * Resolve title / thumbnail from a YouTube URL (watch, youtu.be, shorts).
+     */
+    public function previewYouTube(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'url' => ['required', 'string', 'max:2048'],
+        ]);
+
+        $preview = $this->youtubePreview->preview($data['url']);
+        if ($preview === null) {
+            return response()->json(['message' => 'Invalid YouTube URL.'], 422);
+        }
+
+        return response()->json(['data' => $preview]);
+    }
 
     /**
      * Save YouTube URL or upload MP3 and start content analysis.
@@ -71,7 +90,7 @@ class ListeningMediaController extends Controller
                 return response()->json(['message' => 'Invalid YouTube URL.'], 422);
             }
 
-            $payload['url'] = $data['url'];
+            $payload['url'] = "https://www.youtube.com/watch?v={$videoId}";
             $payload['source_id'] = $videoId;
         } else {
             /** @var \Illuminate\Http\UploadedFile $file */

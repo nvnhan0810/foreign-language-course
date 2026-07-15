@@ -68,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Listening: save YouTube/MP3 (analysis + assessments run in background on store)
     Route::prefix('listening')->group(function () {
+        Route::post('/media/youtube-preview', [ListeningMediaController::class, 'previewYouTube']);
         Route::post('/media', [ListeningMediaController::class, 'store']);
         Route::get('/media/{mediaItem}', [ListeningMediaController::class, 'show']);
         Route::put('/media/{mediaItem}/transcript', [ListeningMediaController::class, 'updateTranscript']);

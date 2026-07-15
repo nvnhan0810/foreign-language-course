@@ -84,6 +84,111 @@
 
   initMediaDifficultyFilter();
 
+  function initYouTubeAdd() {
+    const root = document.querySelector('[data-youtube-add]');
+    if (!root) return;
+
+    const previewUrl = root.dataset.previewUrl;
+    const urlInput = root.querySelector('[data-youtube-url]');
+    const fetchBtn = root.querySelector('[data-youtube-fetch]');
+    const statusEl = root.querySelector('[data-youtube-status]');
+    const previewEl = root.querySelector('[data-youtube-preview]');
+    const thumbEl = root.querySelector('[data-youtube-thumb]');
+    const titleInput = root.querySelector('[data-youtube-title]');
+    const hiddenUrl = root.querySelector('[data-youtube-url-hidden]');
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    if (!previewUrl || !urlInput || !fetchBtn || !previewEl || !titleInput || !hiddenUrl) {
+      return;
+    }
+
+    const setStatus = (message, isError = false) => {
+      if (!statusEl) return;
+      if (!message) {
+        statusEl.hidden = true;
+        statusEl.textContent = '';
+        statusEl.classList.remove('is-error');
+        return;
+      }
+      statusEl.hidden = false;
+      statusEl.textContent = message;
+      statusEl.classList.toggle('is-error', isError);
+    };
+
+    const showPreview = (data) => {
+      hiddenUrl.value = data.url || '';
+      titleInput.value = data.title || '';
+      if (thumbEl) {
+        if (data.thumbnail_url) {
+          thumbEl.src = data.thumbnail_url;
+          thumbEl.alt = data.title || 'YouTube thumbnail';
+          thumbEl.hidden = false;
+        } else {
+          thumbEl.hidden = true;
+          thumbEl.removeAttribute('src');
+        }
+      }
+      previewEl.hidden = false;
+      titleInput.focus();
+      titleInput.select();
+    };
+
+    const fetchPreview = async () => {
+      const url = urlInput.value.trim();
+      if (!url) {
+        setStatus('Paste a YouTube URL first.', true);
+        urlInput.focus();
+        return;
+      }
+
+      fetchBtn.disabled = true;
+      setStatus('Fetching video info…');
+
+      try {
+        const res = await fetch(previewUrl, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ url }),
+        });
+
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const message =
+            payload.message ||
+            (payload.errors && payload.errors.url && payload.errors.url[0]) ||
+            'Could not fetch this YouTube URL.';
+          setStatus(message, true);
+          previewEl.hidden = true;
+          return;
+        }
+
+        showPreview(payload.data || {});
+        const author = payload.data?.author_name;
+        setStatus(author ? `Found · ${author}` : 'Found. Edit the title if you want, then save.');
+      } catch {
+        setStatus('Network error while fetching YouTube info.', true);
+      } finally {
+        fetchBtn.disabled = false;
+      }
+    };
+
+    fetchBtn.addEventListener('click', () => void fetchPreview());
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        void fetchPreview();
+      }
+    });
+  }
+
+  initYouTubeAdd();
+
   function initClearableInputs() {
     document.querySelectorAll('.input-with-clear').forEach((wrap) => {
       const input = wrap.querySelector('input');

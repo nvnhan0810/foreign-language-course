@@ -1047,6 +1047,82 @@ a {
   padding: 32px 16px;
 }
 
+/* ── Add from YouTube ── */
+.youtube-add {
+  margin-bottom: 20px;
+}
+
+.youtube-add-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.youtube-add-row .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.youtube-add-row .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.youtube-add-status {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.youtube-add-status.is-error {
+  color: var(--danger-text);
+}
+
+.youtube-preview-body {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.youtube-preview-thumb {
+  width: 120px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.youtube-preview-fields {
+  flex: 1;
+  min-width: 0;
+}
+
+.youtube-preview-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 420px) {
+  .youtube-add-row {
+    flex-direction: column;
+  }
+
+  .youtube-preview-body {
+    flex-direction: column;
+  }
+
+  .youtube-preview-thumb {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .youtube-preview-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
 .agent-token-once pre.agent-token-value {
   margin: 10px 0;
   padding: 12px;

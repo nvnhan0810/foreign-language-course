@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessMediaContentJob;
 use App\Models\MediaItem;
 use Flc\Listening\Application\Query\GetListeningSessionOptions;
+use Flc\Media\Infrastructure\External\YouTubePreviewService;
 use Flc\Shared\Application\QueryBus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -17,6 +19,7 @@ class MediaController extends Controller
 {
     public function __construct(
         private readonly QueryBus $queries,
+        private readonly YouTubePreviewService $youtubePreview,
     ) {}
 
     public function index(Request $request): View
@@ -27,6 +30,58 @@ class MediaController extends Controller
             ->get();
 
         return view('user.media', ['items' => $items]);
+    }
+
+    public function previewYouTube(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'url' => ['required', 'string', 'max:2048'],
+        ]);
+
+        $preview = $this->youtubePreview->preview($data['url']);
+        if ($preview === null) {
+            return response()->json(['message' => 'Invalid YouTube URL.'], 422);
+        }
+
+        return response()->json(['data' => $preview]);
+    }
+
+    public function storeYouTube(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'url' => ['required', 'string', 'max:2048'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'frequency' => ['sometimes', 'in:daily,weekly,monthly'],
+            'difficulty' => ['sometimes', 'in:beginner,intermediate,advanced'],
+        ]);
+
+        $preview = $this->youtubePreview->preview($data['url']);
+        if ($preview === null) {
+            return back()->withInput()->with('error', 'Invalid YouTube URL.');
+        }
+
+        $title = trim((string) ($data['title'] ?? ''));
+        if ($title === '') {
+            $title = $preview['title'];
+        }
+
+        $item = $request->user()->mediaItems()->create([
+            'title' => $title,
+            'type' => MediaItem::TYPE_YOUTUBE,
+            'url' => $preview['url'],
+            'source_id' => $preview['video_id'],
+            'language' => 'en',
+            'frequency' => $data['frequency'] ?? 'weekly',
+            'difficulty' => MediaItem::normalizeDifficulty($data['difficulty'] ?? null),
+            'is_active' => true,
+            'analysis_status' => MediaItem::ANALYSIS_PENDING,
+        ]);
+
+        ProcessMediaContentJob::dispatch($item->id);
+
+        return redirect()
+            ->route('user.home.media.show', $item)
+            ->with('success', 'YouTube media saved. Analysis and question bank are being generated.');
     }
 
     public function show(Request $request, MediaItem $mediaItem): View
