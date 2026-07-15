@@ -173,6 +173,30 @@ class MediaItem {
       );
 }
 
+class YouTubePreview {
+  YouTubePreview({
+    required this.title,
+    required this.url,
+    required this.videoId,
+    required this.thumbnailUrl,
+    this.authorName,
+  });
+
+  final String title;
+  final String url;
+  final String videoId;
+  final String thumbnailUrl;
+  final String? authorName;
+
+  factory YouTubePreview.fromJson(Map<String, dynamic> json) => YouTubePreview(
+        title: json['title'] as String? ?? 'YouTube video',
+        url: json['url'] as String? ?? '',
+        videoId: json['video_id'] as String? ?? '',
+        thumbnailUrl: json['thumbnail_url'] as String? ?? '',
+        authorName: json['author_name'] as String?,
+      );
+}
+
 class ListeningSessionOption {
   ListeningSessionOption({
     required this.type,

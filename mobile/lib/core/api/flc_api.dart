@@ -54,6 +54,38 @@ class FlcApi {
         .toList();
   }
 
+  Future<YouTubePreview> previewYouTube(String url) async {
+    final json = await _client.post<Map<String, dynamic>>(
+      '/listening/media/youtube-preview',
+      data: {'url': url},
+      parser: (d) => d as Map<String, dynamic>,
+    );
+    return YouTubePreview.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  Future<MediaItem> createListeningMedia({
+    required String title,
+    required String url,
+    String type = 'youtube',
+    String frequency = 'weekly',
+    String difficulty = 'intermediate',
+    bool autoProcess = true,
+  }) async {
+    final json = await _client.post<Map<String, dynamic>>(
+      '/listening/media',
+      data: {
+        'title': title,
+        'url': url,
+        'type': type,
+        'frequency': frequency,
+        'difficulty': difficulty,
+        'auto_process': autoProcess,
+      },
+      parser: (d) => d as Map<String, dynamic>,
+    );
+    return MediaItem.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
   Future<MediaItem> getMedia(int mediaId) async {
     final json = await _client.get<Map<String, dynamic>>(
       '/listening/media/$mediaId',
