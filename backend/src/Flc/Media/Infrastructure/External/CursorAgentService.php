@@ -2,8 +2,11 @@
 
 namespace Flc\Media\Infrastructure\External;
 
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class CursorAgentService
 {
@@ -35,9 +38,8 @@ class CursorAgentService
 
         $baseUrl = rtrim((string) config('listening.cursor_api_base'), '/');
 
-        $createResponse = Http::withBasicAuth($apiKey, '')
-            ->timeout(30)
-            ->post("{$baseUrl}/v1/agents", [
+        try {
+            $createResponse = $this->client($apiKey)->post("{$baseUrl}/v1/agents", [
                 'prompt' => [
                     'text' => $prompt,
                 ],
@@ -45,6 +47,19 @@ class CursorAgentService
                     'id' => config('listening.cursor_model'),
                 ],
             ]);
+        } catch (ConnectionException $e) {
+            Log::warning('Cursor agent create timed out / unreachable; falling back', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        } catch (Throwable $e) {
+            Log::warning('Cursor agent create failed; falling back', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
 
         if (! $createResponse->successful()) {
             Log::warning('Cursor agent create failed', [
@@ -75,9 +90,25 @@ class CursorAgentService
         $interval = max(1, (int) config('listening.cursor_poll_interval_seconds'));
 
         while (time() < $deadline) {
-            $response = Http::withBasicAuth($apiKey, '')
-                ->timeout(30)
-                ->get("{$baseUrl}/v1/agents/{$agentId}/runs/{$runId}");
+            try {
+                $response = $this->client($apiKey)->get("{$baseUrl}/v1/agents/{$agentId}/runs/{$runId}");
+            } catch (ConnectionException $e) {
+                Log::warning('Cursor run poll timed out / unreachable; falling back', [
+                    'agent_id' => $agentId,
+                    'run_id' => $runId,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return null;
+            } catch (Throwable $e) {
+                Log::warning('Cursor run poll failed; falling back', [
+                    'agent_id' => $agentId,
+                    'run_id' => $runId,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return null;
+            }
 
             if (! $response->successful()) {
                 Log::warning('Cursor run poll failed', [
@@ -119,9 +150,40 @@ class CursorAgentService
 
     private function archiveAgent(string $baseUrl, string $apiKey, string $agentId): void
     {
-        Http::withBasicAuth($apiKey, '')
-            ->timeout(10)
-            ->post("{$baseUrl}/v1/agents/{$agentId}/archive");
+        try {
+            $this->client($apiKey, archive: true)
+                ->post("{$baseUrl}/v1/agents/{$agentId}/archive");
+        } catch (Throwable $e) {
+            Log::debug('Cursor agent archive skipped', [
+                'agent_id' => $agentId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function client(string $apiKey, bool $archive = false): PendingRequest
+    {
+        $timeout = $archive
+            ? 10
+            : max(5, (int) config('listening.cursor_http_timeout_seconds', 60));
+        $connectTimeout = max(3, (int) config('listening.cursor_connect_timeout_seconds', 10));
+        $retries = max(0, (int) config('listening.cursor_http_retries', 1));
+
+        $request = Http::withBasicAuth($apiKey, '')
+            ->acceptJson()
+            ->timeout($timeout)
+            ->connectTimeout($connectTimeout);
+
+        if ($retries > 0) {
+            $request = $request->retry(
+                $retries,
+                1000,
+                fn (Throwable $exception) => $exception instanceof ConnectionException,
+                throw: false,
+            );
+        }
+
+        return $request;
     }
 
     /**

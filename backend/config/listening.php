@@ -12,6 +12,15 @@ return [
 
     'cursor_poll_interval_seconds' => (int) env('CURSOR_POLL_INTERVAL_SECONDS', 3),
 
+    /** Per-request HTTP timeout when talking to Cursor (create/poll). */
+    'cursor_http_timeout_seconds' => (int) env('CURSOR_HTTP_TIMEOUT_SECONDS', 60),
+
+    /** TCP connect timeout — fail fast when production cannot reach api.cursor.com. */
+    'cursor_connect_timeout_seconds' => (int) env('CURSOR_CONNECT_TIMEOUT_SECONDS', 10),
+
+    /** Extra attempts on connection timeouts only. */
+    'cursor_http_retries' => (int) env('CURSOR_HTTP_RETRIES', 1),
+
     /*
     |--------------------------------------------------------------------------
     | Assessment defaults (question counts & time limits)
