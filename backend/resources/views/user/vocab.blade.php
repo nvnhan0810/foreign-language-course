@@ -10,14 +10,21 @@
         </div>
     @else
         <div class="form-group" style="margin-top:0">
-            <input
-                type="search"
-                id="vocab-search"
-                class="form-control"
-                placeholder="Search saved words..."
-                autocomplete="off"
-                enterkeyhint="search"
-            >
+            <div class="input-with-clear">
+                <input
+                    type="search"
+                    id="vocab-search"
+                    class="form-control"
+                    placeholder="Search saved words..."
+                    autocomplete="off"
+                    enterkeyhint="search"
+                >
+                <button type="button" class="input-clear" hidden aria-label="Clear">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+            </div>
         </div>
         <div data-vocab-list>
             @foreach ($items as $vocab)

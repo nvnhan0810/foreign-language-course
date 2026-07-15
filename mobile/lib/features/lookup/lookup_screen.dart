@@ -19,6 +19,18 @@ class _LookupScreenState extends ConsumerState<LookupScreen> {
   bool _loading = false;
   String? _error;
   bool _saved = false;
+  bool _hasText = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() {
+      final next = _controller.text.isNotEmpty;
+      if (next != _hasText) {
+        setState(() => _hasText = next);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -88,6 +100,19 @@ class _LookupScreenState extends ConsumerState<LookupScreen> {
           decoration: InputDecoration(
             hintText: 'Enter a word or paste here...',
             prefixIcon: const Icon(Icons.search),
+            suffixIcon: _hasText
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    tooltip: 'Clear',
+                    onPressed: () {
+                      _controller.clear();
+                      setState(() {
+                        _hasText = false;
+                        _error = null;
+                      });
+                    },
+                  )
+                : null,
             filled: true,
             fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             border: OutlineInputBorder(

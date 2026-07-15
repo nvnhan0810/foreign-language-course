@@ -84,6 +84,30 @@
 
   initMediaDifficultyFilter();
 
+  function initClearableInputs() {
+    document.querySelectorAll('.input-with-clear').forEach((wrap) => {
+      const input = wrap.querySelector('input');
+      const btn = wrap.querySelector('.input-clear');
+      if (!input || !btn) return;
+
+      const sync = () => {
+        btn.hidden = input.value.trim().length === 0;
+      };
+
+      input.addEventListener('input', sync);
+      sync();
+
+      btn.addEventListener('click', () => {
+        input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+        sync();
+      });
+    });
+  }
+
+  initClearableInputs();
+
   function initVocabSearch() {
     const input = document.getElementById('vocab-search');
     const items = document.querySelectorAll('[data-vocab-list] .vocab-card[data-vocab-search]');
