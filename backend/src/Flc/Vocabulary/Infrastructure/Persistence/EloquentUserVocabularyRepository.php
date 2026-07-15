@@ -2,19 +2,28 @@
 
 namespace Flc\Vocabulary\Infrastructure\Persistence;
 
+use App\Models\DictionaryEntry as DictionaryEntryModel;
 use App\Models\Vocabulary;
-use App\Models\VocabularyExample;
+use Flc\Dictionary\Domain\DictionaryEntry;
 use Flc\Vocabulary\Application\Repository\UserVocabularyRepository;
 use Flc\Vocabulary\Domain\UserVocabulary;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentUserVocabularyRepository implements UserVocabularyRepository
 {
+    private const ENTRY_RELATIONS = [
+        'dictionaryEntry.meanings.examples',
+        'dictionaryEntry.meanings.synonyms',
+        'dictionaryEntry.meanings.antonyms',
+        'dictionaryEntry.synonyms',
+        'dictionaryEntry.antonyms',
+    ];
+
     public function listForUser(int $userId): array
     {
         return Vocabulary::query()
             ->where('user_id', $userId)
-            ->with('examples')
+            ->with(self::ENTRY_RELATIONS)
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (Vocabulary $model) => $this->toDomain($model))
@@ -26,7 +35,7 @@ final class EloquentUserVocabularyRepository implements UserVocabularyRepository
         $model = Vocabulary::query()
             ->where('user_id', $userId)
             ->where('id', $vocabularyId)
-            ->with('examples')
+            ->with(self::ENTRY_RELATIONS)
             ->first();
 
         return $model ? $this->toDomain($model) : null;
@@ -36,8 +45,8 @@ final class EloquentUserVocabularyRepository implements UserVocabularyRepository
     {
         $model = Vocabulary::query()
             ->where('user_id', $userId)
-            ->where('word', $word)
-            ->with('examples')
+            ->whereHas('dictionaryEntry', fn ($q) => $q->where('word', $word))
+            ->with(self::ENTRY_RELATIONS)
             ->first();
 
         return $model ? $this->toDomain($model) : null;
@@ -49,9 +58,7 @@ final class EloquentUserVocabularyRepository implements UserVocabularyRepository
             if ($vocabulary->id === null) {
                 $model = Vocabulary::query()->create([
                     'user_id' => $vocabulary->userId,
-                    'word' => $vocabulary->word,
-                    'phonetic' => $vocabulary->phonetic,
-                    'meanings' => $vocabulary->meanings,
+                    'dictionary_entry_id' => $vocabulary->dictionaryEntryId,
                 ]);
             } else {
                 $model = Vocabulary::query()
@@ -59,21 +66,11 @@ final class EloquentUserVocabularyRepository implements UserVocabularyRepository
                     ->where('id', $vocabulary->id)
                     ->firstOrFail();
                 $model->update([
-                    'phonetic' => $vocabulary->phonetic,
-                    'meanings' => $vocabulary->meanings,
-                ]);
-                $model->examples()->delete();
-            }
-
-            foreach ($vocabulary->examples as $example) {
-                VocabularyExample::query()->create([
-                    'vocabulary_id' => $model->id,
-                    'example' => $example['example'],
-                    'definition_ref' => $example['definition_ref'] ?? null,
+                    'dictionary_entry_id' => $vocabulary->dictionaryEntryId,
                 ]);
             }
 
-            return $this->toDomain($model->fresh('examples'));
+            return $this->toDomain($model->fresh(self::ENTRY_RELATIONS));
         });
     }
 
@@ -89,25 +86,71 @@ final class EloquentUserVocabularyRepository implements UserVocabularyRepository
 
     private function toDomain(Vocabulary $model): UserVocabulary
     {
+        /** @var DictionaryEntryModel|null $entry */
+        $entry = $model->dictionaryEntry;
+        $payload = $entry ? $this->entryToClientPayload($entry) : [
+            'word' => '',
+            'phonetic' => null,
+            'meanings' => [],
+            'examples' => [],
+        ];
+
         return new UserVocabulary(
             id: $model->id,
             userId: $model->user_id,
-            word: $model->word,
-            phonetic: $model->phonetic,
-            meanings: is_array($model->meanings) ? $model->meanings : [],
-            examples: $model->examples->map(fn (VocabularyExample $ex) => [
-                'id' => $ex->id,
-                'vocabulary_id' => $ex->vocabulary_id,
-                'example' => $ex->example,
-                'definition_ref' => $ex->definition_ref,
-                'created_at' => optional($ex->created_at)?->toISOString(),
-                'updated_at' => optional($ex->updated_at)?->toISOString(),
-            ])->all(),
+            dictionaryEntryId: (int) $model->dictionary_entry_id,
+            word: (string) ($payload['word'] ?? ''),
+            phonetic: $payload['phonetic'] ?? null,
+            meanings: is_array($payload['meanings'] ?? null) ? $payload['meanings'] : [],
+            examples: is_array($payload['examples'] ?? null) ? $payload['examples'] : [],
             timesQuizzed: (int) $model->times_quizzed,
             lastQuizzedAt: optional($model->last_quizzed_at)?->toISOString(),
             lastCorrectAt: optional($model->last_correct_at)?->toISOString(),
             createdAt: optional($model->created_at)?->toISOString(),
             updatedAt: optional($model->updated_at)?->toISOString(),
         );
+    }
+
+    /**
+     * @return array{word: string, phonetic: ?string, meanings: list<array<string, mixed>>, examples: list<array<string, mixed>>}
+     */
+    private function entryToClientPayload(DictionaryEntryModel $model): array
+    {
+        $domain = new DictionaryEntry(
+            word: $model->word,
+            phonetic: $model->phonetic,
+            audioUrl: $model->audio_url,
+            source: $model->source,
+            isCurated: (bool) $model->is_curated,
+            saveCount: (int) $model->save_count,
+            meanings: $model->meanings->map(fn ($meaning) => [
+                'part_of_speech' => $meaning->part_of_speech,
+                'definition' => $meaning->definition,
+                'examples' => $meaning->examples->pluck('example')->all(),
+                'synonyms' => $meaning->synonyms->pluck('term')->all(),
+                'antonyms' => $meaning->antonyms->pluck('term')->all(),
+            ])->values()->all(),
+            synonyms: $model->synonyms->whereNull('dictionary_meaning_id')->pluck('term')->values()->all(),
+            antonyms: $model->antonyms->whereNull('dictionary_meaning_id')->pluck('term')->values()->all(),
+        );
+
+        $client = $domain->toClientPayload();
+        $examples = [];
+        foreach ($client['meanings'] as $meaning) {
+            $example = $meaning['example'] ?? null;
+            if (is_string($example) && $example !== '') {
+                $examples[] = [
+                    'example' => $example,
+                    'definition_ref' => $meaning['definition'] ?? null,
+                ];
+            }
+        }
+
+        return [
+            'word' => $client['word'],
+            'phonetic' => $client['phonetic'],
+            'meanings' => $client['meanings'],
+            'examples' => $examples,
+        ];
     }
 }

@@ -30,6 +30,7 @@
 <div class="card" style="margin-top:20px">
     <h3 style="margin-top:0">Truy cập nhanh</h3>
     <p>
+        <a href="{{ route('admin.dictionary.create') }}" class="btn">Thêm từ / cụm từ</a>
         <a href="{{ route('admin.allowed-emails.create') }}" class="btn">Thêm email allowlist</a>
         <a href="{{ route('admin.media-items.create') }}" class="btn">Thêm video / MP3</a>
         <a href="{{ route('admin.listening-assessments.index') }}" class="btn btn-secondary">Quiz / Test / Exam</a>

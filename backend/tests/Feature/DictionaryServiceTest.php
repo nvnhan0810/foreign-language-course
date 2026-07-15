@@ -224,6 +224,10 @@ class DictionaryServiceTest extends TestCase
 
         $response->assertCreated();
         $this->assertDatabaseHas('dictionary_entries', ['word' => 'apple', 'save_count' => 1]);
-        $this->assertDatabaseHas('vocabularies', ['user_id' => $user->id, 'word' => 'apple']);
+        $entry = DictionaryEntry::query()->where('word', 'apple')->firstOrFail();
+        $this->assertDatabaseHas('vocabularies', [
+            'user_id' => $user->id,
+            'dictionary_entry_id' => $entry->id,
+        ]);
     }
 }

@@ -61,7 +61,7 @@ class DictionaryController extends Controller
         $word = Text::lower(trim($data['word']));
 
         if (DictionaryEntry::query()->where('word', $word)->exists()) {
-            return back()->withInput()->withErrors(['word' => 'Từ này đã có trong My Dictionary.']);
+            return back()->withInput()->withErrors(['word' => 'Từ này đã có trong từ điển.']);
         }
 
         $this->commands->dispatch(new CurateDictionaryEntry($word, $data));
@@ -69,7 +69,7 @@ class DictionaryController extends Controller
         $entry = DictionaryEntry::query()->where('word', $word)->firstOrFail();
 
         return redirect()->route('admin.dictionary.edit', $entry)
-            ->with('success', 'Đã tạo từ trong My Dictionary.');
+            ->with('success', 'Đã tạo từ trong từ điển.');
     }
 
     public function edit(DictionaryEntry $dictionary): View
@@ -121,21 +121,25 @@ class DictionaryController extends Controller
             ->exists();
 
         if ($duplicate) {
-            return back()->withInput()->withErrors(['word' => 'Từ này đã có trong My Dictionary.']);
+            return back()->withInput()->withErrors(['word' => 'Từ này đã có trong từ điển.']);
         }
 
         $this->commands->dispatch(new CurateDictionaryEntry($word, $data));
 
         return redirect()->route('admin.dictionary.edit', $dictionary)
-            ->with('success', 'Đã cập nhật My Dictionary.');
+            ->with('success', 'Đã cập nhật từ điển.');
     }
 
     public function destroy(DictionaryEntry $dictionary): RedirectResponse
     {
+        if ($dictionary->vocabularies()->exists()) {
+            return back()->with('error', 'Không thể xóa: còn user đang lưu từ này để học.');
+        }
+
         $this->commands->dispatch(new DeleteDictionaryEntry($dictionary->word));
 
         return redirect()->route('admin.dictionary.index')
-            ->with('success', 'Đã xóa từ khỏi My Dictionary.');
+            ->with('success', 'Đã xóa từ khỏi từ điển.');
     }
 
     /**
@@ -144,7 +148,7 @@ class DictionaryController extends Controller
     private function validatedDictionary(Request $request): array
     {
         $data = $request->validate([
-            'word' => ['required', 'string', 'max:120'],
+            'word' => ['required', 'string', 'max:255'],
             'phonetic' => ['nullable', 'string', 'max:120'],
             'audio_url' => ['nullable', 'string', 'max:2000'],
             'entry_synonyms' => ['nullable', 'string'],

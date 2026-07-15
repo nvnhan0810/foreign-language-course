@@ -38,4 +38,9 @@ class DictionaryEntry extends Model
     {
         return $this->hasMany(DictionaryAntonym::class)->orderBy('position');
     }
+
+    public function vocabularies(): HasMany
+    {
+        return $this->hasMany(Vocabulary::class);
+    }
 }

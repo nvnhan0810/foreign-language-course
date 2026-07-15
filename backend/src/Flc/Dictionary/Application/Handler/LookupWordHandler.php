@@ -48,6 +48,11 @@ final class LookupWordHandler implements QueryHandler
      */
     private function enrichRelatedWords(array $payload, string $word): array
     {
+        // Curated FLC entries are authoritative — do not call external enrichment.
+        if (! empty($payload['curated'])) {
+            return $payload;
+        }
+
         $synonyms = $this->collectTerms($payload, 'synonyms');
         $antonyms = $this->collectTerms($payload, 'antonyms');
 

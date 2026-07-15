@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Models\DictionaryEntry;
+use App\Models\DictionaryMeaning;
 use App\Models\MediaItem;
 use App\Models\User;
 use App\Models\Vocabulary;
@@ -36,23 +38,39 @@ class MediaKeyVocabularyImporterTest extends TestCase
 
         $this->assertSame(2, $result['imported']);
         $this->assertSame(0, $result['skipped']);
-        $this->assertDatabaseHas('vocabularies', [
-            'user_id' => $user->id,
-            'word' => 'sustainability',
-        ]);
-        $this->assertDatabaseHas('vocabularies', [
-            'user_id' => $user->id,
-            'word' => 'emission',
-        ]);
+        $this->assertTrue(
+            Vocabulary::query()
+                ->where('user_id', $user->id)
+                ->whereHas('dictionaryEntry', fn ($q) => $q->where('word', 'sustainability'))
+                ->exists()
+        );
+        $this->assertTrue(
+            Vocabulary::query()
+                ->where('user_id', $user->id)
+                ->whereHas('dictionaryEntry', fn ($q) => $q->where('word', 'emission'))
+                ->exists()
+        );
+        $this->assertDatabaseHas('dictionary_entries', ['word' => 'sustainability']);
+        $this->assertDatabaseHas('dictionary_entries', ['word' => 'emission']);
     }
 
     public function test_skips_words_already_in_user_vocabulary(): void
     {
         $user = User::factory()->create();
+        $entry = DictionaryEntry::query()->create([
+            'word' => 'climate',
+            'source' => 'user_save',
+            'is_curated' => false,
+            'save_count' => 1,
+        ]);
+        DictionaryMeaning::query()->create([
+            'dictionary_entry_id' => $entry->id,
+            'definition' => 'weather patterns',
+            'position' => 0,
+        ]);
         Vocabulary::query()->create([
             'user_id' => $user->id,
-            'word' => 'climate',
-            'meanings' => [['definition' => 'weather patterns']],
+            'dictionary_entry_id' => $entry->id,
         ]);
 
         $importer = new MediaKeyVocabularyImporter(app(CommandBus::class));
@@ -81,9 +99,11 @@ class MediaKeyVocabularyImporterTest extends TestCase
         ]);
 
         $this->assertSame(1, $result['imported']);
-        $this->assertDatabaseHas('vocabularies', [
-            'user_id' => $user->id,
-            'word' => 'habitat',
-        ]);
+        $this->assertTrue(
+            Vocabulary::query()
+                ->where('user_id', $user->id)
+                ->whereHas('dictionaryEntry', fn ($q) => $q->where('word', 'habitat'))
+                ->exists()
+        );
     }
 }

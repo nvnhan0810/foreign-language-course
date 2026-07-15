@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\DevicePushToken;
+use App\Models\DictionaryEntry;
+use App\Models\DictionaryMeaning;
 use App\Models\QuizAttempt;
 use App\Models\User;
 use App\Models\Vocabulary;
@@ -274,10 +276,20 @@ class VocabQuizReminderTest extends TestCase
         $items = collect();
 
         for ($i = 0; $i < $count; $i++) {
+            $entry = DictionaryEntry::query()->create([
+                'word' => "word{$i}",
+                'source' => 'user_save',
+                'is_curated' => false,
+                'save_count' => 1,
+            ]);
+            DictionaryMeaning::query()->create([
+                'dictionary_entry_id' => $entry->id,
+                'definition' => "definition {$i}",
+                'position' => 0,
+            ]);
             $items->push(Vocabulary::query()->create([
                 'user_id' => $user->id,
-                'word' => "word{$i}",
-                'meanings' => [['definition' => "definition {$i}"]],
+                'dictionary_entry_id' => $entry->id,
             ]));
         }
 

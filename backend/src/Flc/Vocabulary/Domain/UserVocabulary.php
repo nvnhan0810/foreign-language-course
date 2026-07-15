@@ -11,6 +11,7 @@ final class UserVocabulary
     public function __construct(
         public ?int $id,
         public int $userId,
+        public int $dictionaryEntryId,
         public string $word,
         public ?string $phonetic,
         public array $meanings,
@@ -28,6 +29,7 @@ final class UserVocabulary
         return [
             'id' => $this->id,
             'user_id' => $this->userId,
+            'dictionary_entry_id' => $this->dictionaryEntryId,
             'word' => $this->word,
             'phonetic' => $this->phonetic,
             'meanings' => $this->meanings,

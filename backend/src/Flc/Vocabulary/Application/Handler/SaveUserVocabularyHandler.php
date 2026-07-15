@@ -2,16 +2,20 @@
 
 namespace Flc\Vocabulary\Application\Handler;
 
+use App\Models\DictionaryEntry as DictionaryEntryModel;
 use Flc\Dictionary\Application\Command\UpsertDictionaryOnSave;
 use Flc\Dictionary\Application\Query\LookupWord;
+use Flc\Dictionary\Application\Repository\DictionaryEntryRepository;
+use Flc\Dictionary\Domain\DictionaryEntry;
 use Flc\Shared\Application\Command;
 use Flc\Shared\Application\CommandBus;
 use Flc\Shared\Application\CommandHandler;
 use Flc\Shared\Application\QueryBus;
+use Flc\Shared\Support\Text;
 use Flc\Vocabulary\Application\Command\SaveUserVocabulary;
 use Flc\Vocabulary\Application\Repository\UserVocabularyRepository;
 use Flc\Vocabulary\Domain\UserVocabulary;
-use Flc\Shared\Support\Text;
+use RuntimeException;
 
 final class SaveUserVocabularyHandler implements CommandHandler
 {
@@ -19,6 +23,7 @@ final class SaveUserVocabularyHandler implements CommandHandler
         private readonly UserVocabularyRepository $vocabularies,
         private readonly QueryBus $queries,
         private readonly CommandBus $commands,
+        private readonly DictionaryEntryRepository $entries,
     ) {}
 
     public function handle(Command $command): mixed
@@ -32,7 +37,7 @@ final class SaveUserVocabularyHandler implements CommandHandler
 
         $existing = $this->vocabularies->findByUserAndWord($command->userId, $word);
         if ($existing !== null) {
-            return $this->backfillExistingVocabulary($existing, $command);
+            return $this->backfillExistingBookmark($existing, $command);
         }
 
         /** @var array<string, mixed>|null $lookup */
@@ -41,28 +46,28 @@ final class SaveUserVocabularyHandler implements CommandHandler
         $meanings = $this->meaningsForVocabulary(is_array($rawMeanings) ? $rawMeanings : []);
         $meanings = $this->ensureRelatedWords($meanings, is_array($lookup) ? $lookup : null);
 
-        $examples = $this->examplesFromMeanings($meanings);
+        $this->upsertDictionary($word, $command, $lookup, $meanings);
+        $entryId = $this->dictionaryEntryId($word);
+        if ($entryId === null) {
+            throw new RuntimeException('Failed to upsert dictionary entry for vocabulary bookmark.');
+        }
 
         $vocabulary = $this->vocabularies->save(new UserVocabulary(
             id: null,
             userId: $command->userId,
+            dictionaryEntryId: $entryId,
             word: $word,
             phonetic: $command->phonetic ?? $lookup['phonetic'] ?? null,
             meanings: $meanings,
-            examples: $examples,
         ));
-
-        $this->upsertDictionary($word, $command, $lookup, $meanings);
 
         return ['vocabulary' => $vocabulary, 'created' => true, 'backfilled' => false];
     }
 
     /**
-     * Older saved words may lack synonyms/antonyms — fill them on re-save instead of no-oping.
-     *
      * @return array{vocabulary: UserVocabulary, created: false, backfilled: bool}
      */
-    private function backfillExistingVocabulary(UserVocabulary $existing, SaveUserVocabulary $command): array
+    private function backfillExistingBookmark(UserVocabulary $existing, SaveUserVocabulary $command): array
     {
         if (! $this->missingRelatedWords($existing->meanings)) {
             return ['vocabulary' => $existing, 'created' => false, 'backfilled' => false];
@@ -91,16 +96,25 @@ final class SaveUserVocabularyHandler implements CommandHandler
             return ['vocabulary' => $existing, 'created' => false, 'backfilled' => false];
         }
 
-        $existing->meanings = $meanings;
-        if ($existing->phonetic === null && is_array($lookup)) {
-            $existing->phonetic = $lookup['phonetic'] ?? null;
-        }
-        if ($existing->examples === []) {
-            $existing->examples = $this->examplesFromMeanings($meanings);
+        $entryModel = DictionaryEntryModel::query()->where('word', $existing->word)->first();
+        if ($entryModel !== null && ! $entryModel->is_curated) {
+            $entry = new DictionaryEntry(
+                word: $existing->word,
+                phonetic: $existing->phonetic ?? ($lookup['phonetic'] ?? null) ?? $entryModel->phonetic,
+                audioUrl: $entryModel->audio_url,
+                source: $entryModel->source ?: 'user_save',
+                isCurated: false,
+                saveCount: max(1, (int) $entryModel->save_count),
+                meanings: DictionaryEntry::normalizeMeanings($meanings),
+                synonyms: $this->collectRelated($meanings, 'synonyms'),
+                antonyms: $this->collectRelated($meanings, 'antonyms'),
+            );
+            $this->entries->save($entry);
+        } else {
+            $this->upsertDictionary($existing->word, $command, $lookup, $meanings);
         }
 
-        $vocabulary = $this->vocabularies->save($existing);
-        $this->upsertDictionary($existing->word, $command, $lookup, $meanings);
+        $vocabulary = $this->vocabularies->findForUser($existing->userId, (int) $existing->id) ?? $existing;
 
         return ['vocabulary' => $vocabulary, 'created' => false, 'backfilled' => true];
     }
@@ -112,25 +126,6 @@ final class SaveUserVocabularyHandler implements CommandHandler
     {
         return $this->collectRelated($meanings, 'synonyms') === []
             || $this->collectRelated($meanings, 'antonyms') === [];
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $meanings
-     * @return list<array{example: string, definition_ref: mixed}>
-     */
-    private function examplesFromMeanings(array $meanings): array
-    {
-        $examples = [];
-        foreach (array_slice($meanings, 0, 5) as $meaning) {
-            if (! empty($meaning['example'])) {
-                $examples[] = [
-                    'example' => $meaning['example'],
-                    'definition_ref' => $meaning['definition'] ?? null,
-                ];
-            }
-        }
-
-        return $examples;
     }
 
     /**
@@ -159,8 +154,18 @@ final class SaveUserVocabularyHandler implements CommandHandler
         $payload['antonyms'] = $this->stringList($payload['antonyms'] ?? []) !== []
             ? $this->stringList($payload['antonyms'] ?? [])
             : $this->collectRelated($meanings, 'antonyms');
+        if ($command->phonetic) {
+            $payload['phonetic'] = $command->phonetic;
+        }
 
         $this->commands->dispatch(new UpsertDictionaryOnSave($word, $payload));
+    }
+
+    private function dictionaryEntryId(string $word): ?int
+    {
+        $id = DictionaryEntryModel::query()->where('word', $word)->value('id');
+
+        return $id !== null ? (int) $id : null;
     }
 
     /**
@@ -198,8 +203,6 @@ final class SaveUserVocabularyHandler implements CommandHandler
     }
 
     /**
-     * Merge synonyms/antonyms from the latest lookup so saved vocab always keeps related words.
-     *
      * @param  list<array<string, mixed>>  $meanings
      * @param  array<string, mixed>|null  $lookup
      * @return list<array<string, mixed>>
@@ -236,7 +239,6 @@ final class SaveUserVocabularyHandler implements CommandHandler
             }
         }
 
-        // If still empty on first meaning, force entry-level lists there.
         if ($this->stringList($meanings[0]['synonyms'] ?? null) === [] && $entrySynonyms !== []) {
             $meanings[0]['synonyms'] = $entrySynonyms;
         }

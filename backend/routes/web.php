@@ -8,7 +8,6 @@ use App\Http\Controllers\Admin\ListeningAssessmentController;
 use App\Http\Controllers\Admin\MediaItemController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\VocabularyController;
 use App\Http\Controllers\Api\DevicePushTokenController;
 use App\Http\Controllers\Web\ListeningController;
 use App\Http\Controllers\Web\LookupController;
@@ -81,7 +80,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
 
         Route::resource('users', UserController::class)->only(['index', 'show', 'destroy']);
-        Route::resource('vocabularies', VocabularyController::class)->only(['index', 'edit', 'update', 'destroy']);
+        Route::redirect('vocabularies', '/admin/dictionary');
+        Route::any('vocabularies/{any}', fn () => redirect('/admin/dictionary'))
+            ->where('any', '.*');
         Route::resource('dictionary', DictionaryController::class)->except(['show']);
 
         Route::post('media-items/{mediaItem}/process', [MediaItemController::class, 'process'])->name('media-items.process');

@@ -22,7 +22,7 @@ class UserController extends Controller
     public function show(User $user): View
     {
         $user->load([
-            'vocabularies' => fn ($q) => $q->latest()->limit(50),
+            'vocabularies' => fn ($q) => $q->with('dictionaryEntry')->latest()->limit(50),
             'mediaItems' => fn ($q) => $q->latest()->limit(50),
         ]);
 

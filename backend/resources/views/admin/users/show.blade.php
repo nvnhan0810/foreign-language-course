@@ -21,9 +21,13 @@
     <tbody>
         @foreach ($user->vocabularies as $v)
             <tr>
-                <td>{{ $v->word }}</td>
+                <td>{{ $v->dictionaryEntry?->word ?? '—' }}</td>
                 <td>{{ $v->times_quizzed }}</td>
-                <td><a href="{{ route('admin.vocabularies.edit', $v) }}">Sửa</a></td>
+                <td>
+                    @if ($v->dictionaryEntry)
+                        <a href="{{ route('admin.dictionary.edit', $v->dictionaryEntry) }}">Từ điển</a>
+                    @endif
+                </td>
             </tr>
         @endforeach
     </tbody>

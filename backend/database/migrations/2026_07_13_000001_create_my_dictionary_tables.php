@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('dictionary_entries', function (Blueprint $table) {
             $table->id();
-            $table->string('word', 120)->unique();
+            $table->string('word', 255)->unique();
             $table->string('phonetic', 120)->nullable();
             $table->text('audio_url')->nullable();
             $table->string('source', 40)->default('user_save');

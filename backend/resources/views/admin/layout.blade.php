@@ -15,8 +15,7 @@
             <a href="{{ route('admin.allowed-emails.index') }}" class="{{ request()->routeIs('admin.allowed-emails.*') ? 'active' : '' }}">Allowlist email</a>
             <a href="{{ route('admin.settings.edit') }}" class="{{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">Cài đặt</a>
             <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">Người dùng</a>
-            <a href="{{ route('admin.vocabularies.index') }}" class="{{ request()->routeIs('admin.vocabularies.*') ? 'active' : '' }}">Từ vựng</a>
-            <a href="{{ route('admin.dictionary.index') }}" class="{{ request()->routeIs('admin.dictionary.*') ? 'active' : '' }}">My Dictionary</a>
+            <a href="{{ route('admin.dictionary.index') }}" class="{{ request()->routeIs('admin.dictionary.*') ? 'active' : '' }}">Từ điển</a>
             <a href="{{ route('admin.media-items.index') }}" class="{{ request()->routeIs('admin.media-items.*') ? 'active' : '' }}">Video / MP3</a>
             <a href="{{ route('admin.listening-assessments.index') }}" class="{{ request()->routeIs('admin.listening-assessments.*') ? 'active' : '' }}">Quiz / Test / Exam</a>
         </nav>

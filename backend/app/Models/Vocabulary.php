@@ -10,9 +10,7 @@ class Vocabulary extends Model
 {
     protected $fillable = [
         'user_id',
-        'word',
-        'phonetic',
-        'meanings',
+        'dictionary_entry_id',
         'times_quizzed',
         'last_quizzed_at',
         'last_correct_at',
@@ -21,7 +19,6 @@ class Vocabulary extends Model
     protected function casts(): array
     {
         return [
-            'meanings' => 'array',
             'last_quizzed_at' => 'datetime',
             'last_correct_at' => 'datetime',
         ];
@@ -32,9 +29,9 @@ class Vocabulary extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function examples(): HasMany
+    public function dictionaryEntry(): BelongsTo
     {
-        return $this->hasMany(VocabularyExample::class);
+        return $this->belongsTo(DictionaryEntry::class);
     }
 
     public function quizAttempts(): HasMany

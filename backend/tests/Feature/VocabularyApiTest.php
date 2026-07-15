@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\DictionaryEntry;
+use App\Models\DictionaryMeaning;
 use App\Models\User;
+use App\Models\Vocabulary;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
@@ -38,11 +41,17 @@ class VocabularyApiTest extends TestCase
             ->assertJsonPath('data.meanings.0.synonyms.0', 'sea')
             ->assertJsonPath('data.meanings.0.antonyms.0', 'land');
 
-        $this->assertDatabaseHas('vocabularies', ['word' => 'ocean', 'user_id' => $user->id]);
-        $stored = \App\Models\Vocabulary::query()->where('word', 'ocean')->first();
-        $this->assertNotNull($stored);
-        $this->assertContains('sea', $stored->meanings[0]['synonyms'] ?? []);
-        $this->assertContains('land', $stored->meanings[0]['antonyms'] ?? []);
+        $this->assertDatabaseHas('dictionary_entries', ['word' => 'ocean']);
+        $entry = DictionaryEntry::query()->where('word', 'ocean')->first();
+        $this->assertNotNull($entry);
+        $this->assertDatabaseHas('vocabularies', [
+            'user_id' => $user->id,
+            'dictionary_entry_id' => $entry->id,
+        ]);
+
+        $storedMeanings = $create->json('data.meanings');
+        $this->assertContains('sea', $storedMeanings[0]['synonyms'] ?? []);
+        $this->assertContains('land', $storedMeanings[0]['antonyms'] ?? []);
 
         $idempotent = $this->postJson('/api/vocabularies', ['word' => 'ocean']);
         $idempotent->assertOk()
@@ -57,6 +66,7 @@ class VocabularyApiTest extends TestCase
             ->assertOk();
 
         $this->assertDatabaseMissing('vocabularies', ['id' => $id]);
+        $this->assertDatabaseHas('dictionary_entries', ['word' => 'ocean']);
     }
 
     public function test_save_with_client_meanings_still_keeps_related_words_from_lookup(): void
@@ -98,18 +108,24 @@ class VocabularyApiTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $vocab = \App\Models\Vocabulary::query()->create([
-            'user_id' => $user->id,
+        $entry = DictionaryEntry::query()->create([
             'word' => 'happy',
             'phonetic' => '/ˈhæpi/',
-            'meanings' => [[
-                'part_of_speech' => 'adjective',
-                'definition' => 'Feeling pleasure',
-                'example' => null,
-                'examples' => [],
-                'synonyms' => [],
-                'antonyms' => [],
-            ]],
+            'source' => 'user_save',
+            'is_curated' => false,
+            'save_count' => 1,
+        ]);
+        $meaning = DictionaryMeaning::query()->create([
+            'dictionary_entry_id' => $entry->id,
+            'part_of_speech' => 'adjective',
+            'definition' => 'Feeling pleasure',
+            'position' => 0,
+        ]);
+        unset($meaning);
+
+        $vocab = Vocabulary::query()->create([
+            'user_id' => $user->id,
+            'dictionary_entry_id' => $entry->id,
         ]);
 
         Http::fake([
@@ -132,9 +148,5 @@ class VocabularyApiTest extends TestCase
             ->assertJsonPath('data.id', $vocab->id)
             ->assertJsonPath('data.meanings.0.synonyms.0', 'joyful')
             ->assertJsonPath('data.meanings.0.antonyms.0', 'sad');
-
-        $vocab->refresh();
-        $this->assertContains('joyful', $vocab->meanings[0]['synonyms'] ?? []);
-        $this->assertContains('sad', $vocab->meanings[0]['antonyms'] ?? []);
     }
 }

@@ -1,12 +1,12 @@
 @extends('admin.layout')
 
-@section('title', 'My Dictionary')
-@section('heading', 'My Dictionary')
+@section('title', 'Từ điển')
+@section('heading', 'Từ điển')
 
 @section('content')
 <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
     <form class="search-bar" method="GET" style="margin:0;flex:1">
-        <input type="search" name="q" value="{{ $search }}" placeholder="Tìm từ...">
+        <input type="search" name="q" value="{{ $search }}" placeholder="Tìm từ / cụm từ...">
         <select name="curated">
             <option value="" @selected($curated === '')>Tất cả</option>
             <option value="1" @selected($curated === '1')>Đã curate</option>
@@ -20,7 +20,7 @@
 <table>
     <thead>
         <tr>
-            <th>Từ</th>
+            <th>Từ / cụm từ</th>
             <th>Nghĩa</th>
             <th>Lưu từ</th>
             <th>Curated</th>
@@ -44,7 +44,7 @@
                 <td class="muted">{{ $entry->source }}</td>
                 <td>
                     <a href="{{ route('admin.dictionary.edit', $entry) }}" class="btn btn-sm">Sửa</a>
-                    <form action="{{ route('admin.dictionary.destroy', $entry) }}" method="POST" class="inline-form" onsubmit="return confirm('Xóa từ khỏi My Dictionary?')">
+                    <form action="{{ route('admin.dictionary.destroy', $entry) }}" method="POST" class="inline-form" onsubmit="return confirm('Xóa khỏi từ điển?')">
                         @csrf @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
                     </form>

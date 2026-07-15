@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\DictionaryEntry;
+use App\Models\DictionaryMeaning;
 use App\Models\ListeningAssessment;
 use App\Models\ListeningAttempt;
 use App\Models\MediaItem;
@@ -24,10 +26,20 @@ class ProfileApiTest extends TestCase
         ]);
         Sanctum::actingAs($user);
 
+        $entry = DictionaryEntry::query()->create([
+            'word' => 'hello',
+            'source' => 'user_save',
+            'is_curated' => false,
+            'save_count' => 1,
+        ]);
+        DictionaryMeaning::query()->create([
+            'dictionary_entry_id' => $entry->id,
+            'definition' => 'xin chào',
+            'position' => 0,
+        ]);
         $vocabulary = Vocabulary::query()->create([
             'user_id' => $user->id,
-            'word' => 'hello',
-            'meanings' => [['definition' => 'xin chào']],
+            'dictionary_entry_id' => $entry->id,
         ]);
 
         QuizAttempt::query()->create([
