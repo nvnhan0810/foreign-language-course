@@ -2,7 +2,7 @@ import { api, ApiError } from '../shared/api';
 import {
   escapeHtml,
   bindPronunciationButtons,
-  bindDictionaryTabs,
+  bindRelatedWordClicks,
   renderDictionaryHtml,
   playPronunciation,
 } from '../shared/dictionary-ui';
@@ -199,7 +199,12 @@ function renderLookup(data: DictionaryResult) {
   $('lookup-actions').classList.remove('hidden');
   el.innerHTML = renderDictionaryHtml(data, 6);
   bindPronunciationButtons(el);
-  bindDictionaryTabs(el);
+  bindRelatedWordClicks(el, (word) => {
+    const input = $('lookup-input') as HTMLInputElement;
+    input.value = word;
+    void doLookup();
+  });
+  $('btn-save-word').textContent = 'Save word';
 }
 
 async function saveWord() {

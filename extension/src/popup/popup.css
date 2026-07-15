@@ -496,36 +496,17 @@ footer button.link {
   margin-top: 4px;
 }
 
-.flc-dict-tabs {
-  display: flex;
-  gap: 4px;
-  margin: 10px 0 8px;
-  border-bottom: 1px solid var(--flc-border, #e2e8f0);
+.flc-related-group {
+  margin-top: 8px;
 }
 
-.flc-dict-tab {
-  flex: 1;
-  border: none;
-  background: transparent !important;
-  color: var(--flc-muted, #64748b) !important;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 8px 4px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  margin-bottom: -1px;
-  box-shadow: none;
-}
-
-.flc-dict-tab.active {
-  color: var(--flc-primary, #4361ee) !important;
-  border-bottom-color: var(--flc-primary, #4361ee);
-  background: transparent !important;
-}
-
-.flc-dict-panel[hidden] {
-  display: none !important;
+.flc-related-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--flc-muted, #64748b);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .flc-related-words {
@@ -542,6 +523,13 @@ footer button.link {
   color: var(--flc-primary, #4361ee);
   font-size: 12px;
   font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.flc-related-word:hover {
+  filter: brightness(0.96);
+  text-decoration: underline;
 }
 
 .flc-empty {

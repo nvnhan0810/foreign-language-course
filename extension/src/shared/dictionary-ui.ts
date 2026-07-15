@@ -43,51 +43,66 @@ export function bindPronunciationButtons(root: ParentNode): void {
   });
 }
 
-function collectRelated(data: DictionaryResult, key: 'synonyms' | 'antonyms'): string[] {
+function uniqueWords(words: string[]): string[] {
   const set = new Set<string>();
-  for (const w of data[key] ?? []) {
-    if (w.trim()) set.add(w.trim());
+  for (const w of words) {
+    const t = w.trim();
+    if (t) set.add(t);
   }
-  for (const m of data.meanings) {
-    for (const w of m[key] ?? []) {
-      if (w.trim()) set.add(w.trim());
-    }
-  }
-  return Array.from(set).sort((a, b) => a.localeCompare(b));
+  return Array.from(set);
 }
 
-function meaningsHtml(meanings: Meaning[], maxMeanings: number): string {
+function relatedHtml(words: string[], label: string): string {
+  if (words.length === 0) return '';
+  return `
+    <div class="flc-related-group">
+      <div class="flc-related-label">${escapeHtml(label)}</div>
+      <div class="flc-related-words">${words
+        .map(
+          (w) =>
+            `<button type="button" class="flc-related-word" data-flc-related-word="${escapeHtml(w)}">${escapeHtml(w)}</button>`
+        )
+        .join('')}</div>
+    </div>`;
+}
+
+function meaningsHtml(
+  meanings: Meaning[],
+  entrySynonyms: string[],
+  entryAntonyms: string[],
+  maxMeanings: number
+): string {
   if (meanings.length === 0) {
-    return `<p class="flc-empty muted">No detailed definitions yet.</p>`;
+    const related =
+      relatedHtml(entrySynonyms, 'Synonyms') + relatedHtml(entryAntonyms, 'Antonyms');
+    return `<p class="flc-empty muted">No detailed definitions yet.</p>${related}`;
   }
 
   return meanings
     .slice(0, maxMeanings)
-    .map(
-      (m) => `
+    .map((m, index) => {
+      const synonyms = uniqueWords([
+        ...(m.synonyms ?? []),
+        ...(index === 0 ? entrySynonyms : []),
+      ]);
+      const antonyms = uniqueWords([
+        ...(m.antonyms ?? []),
+        ...(index === 0 ? entryAntonyms : []),
+      ]);
+
+      return `
       <div class="flc-meaning">
         ${m.part_of_speech ? `<div class="flc-pos">${escapeHtml(m.part_of_speech)}</div>` : ''}
         <div class="flc-def">${escapeHtml(m.definition)}</div>
         ${m.example ? `<div class="flc-example">"${escapeHtml(m.example)}"</div>` : ''}
-      </div>`
-    )
+        ${relatedHtml(synonyms, 'Synonyms')}
+        ${relatedHtml(antonyms, 'Antonyms')}
+      </div>`;
+    })
     .join('');
 }
 
-function relatedHtml(words: string[], empty: string): string {
-  if (words.length === 0) {
-    return `<p class="flc-empty muted">${escapeHtml(empty)}</p>`;
-  }
-  return `<div class="flc-related-words">${words
-    .map((w) => `<span class="flc-related-word">${escapeHtml(w)}</span>`)
-    .join('')}</div>`;
-}
-
 export function renderDictionaryHtml(data: DictionaryResult, maxMeanings = 5): string {
-  const synonyms = collectRelated(data, 'synonyms');
-  const antonyms = collectRelated(data, 'antonyms');
-  const uid = `flc-dict-${Math.random().toString(36).slice(2, 9)}`;
-
   return `
     <div class="flc-dict-entry" data-flc-dict>
       <div class="flc-word-head">
@@ -95,42 +110,29 @@ export function renderDictionaryHtml(data: DictionaryResult, maxMeanings = 5): s
         ${data.phonetic ? `<span class="flc-phonetic">${escapeHtml(data.phonetic)}</span>` : ''}
         ${pronunciationButtonHtml(data.word, data.audio_url)}
       </div>
-      <div class="flc-dict-tabs" role="tablist" aria-label="Dictionary sections">
-        <button type="button" class="flc-dict-tab active" role="tab" data-flc-tab="meanings" aria-selected="true">Meanings</button>
-        <button type="button" class="flc-dict-tab" role="tab" data-flc-tab="synonyms" aria-selected="false">Synonyms</button>
-        <button type="button" class="flc-dict-tab" role="tab" data-flc-tab="antonyms" aria-selected="false">Antonyms</button>
-      </div>
-      <div class="flc-dict-panel active" data-flc-panel="meanings" id="${uid}-meanings">
-        ${meaningsHtml(data.meanings, maxMeanings)}
-      </div>
-      <div class="flc-dict-panel" data-flc-panel="synonyms" id="${uid}-synonyms" hidden>
-        ${relatedHtml(synonyms, 'No synonyms found.')}
-      </div>
-      <div class="flc-dict-panel" data-flc-panel="antonyms" id="${uid}-antonyms" hidden>
-        ${relatedHtml(antonyms, 'No antonyms found.')}
+      <div class="flc-meanings">
+        ${meaningsHtml(data.meanings, data.synonyms ?? [], data.antonyms ?? [], maxMeanings)}
       </div>
     </div>
   `;
 }
 
-export function bindDictionaryTabs(root: ParentNode): void {
+export function bindRelatedWordClicks(
+  root: ParentNode,
+  onWord: (word: string) => void
+): void {
   root.querySelectorAll<HTMLElement>('[data-flc-dict]').forEach((entry) => {
-    if (entry.dataset.tabsBound === '1') return;
-    entry.dataset.tabsBound = '1';
-    entry.querySelectorAll<HTMLButtonElement>('[data-flc-tab]').forEach((tab) => {
-      tab.addEventListener('click', () => {
-        const name = tab.dataset.flcTab;
-        entry.querySelectorAll<HTMLButtonElement>('[data-flc-tab]').forEach((btn) => {
-          const active = btn === tab;
-          btn.classList.toggle('active', active);
-          btn.setAttribute('aria-selected', active ? 'true' : 'false');
-        });
-        entry.querySelectorAll<HTMLElement>('[data-flc-panel]').forEach((panel) => {
-          const active = panel.dataset.flcPanel === name;
-          panel.classList.toggle('active', active);
-          panel.hidden = !active;
-        });
-      });
+    if (entry.dataset.relatedBound === '1') return;
+    entry.dataset.relatedBound = '1';
+    entry.addEventListener('click', (e) => {
+      const target = (e.target as HTMLElement | null)?.closest<HTMLElement>(
+        '[data-flc-related-word]'
+      );
+      if (!target || !entry.contains(target)) return;
+      const word = target.dataset.flcRelatedWord?.trim();
+      if (!word) return;
+      e.preventDefault();
+      onWord(word);
     });
   });
 }

@@ -2,7 +2,7 @@ import { api, ApiError } from '../shared/api';
 import {
   escapeHtml,
   bindPronunciationButtons,
-  bindDictionaryTabs,
+  bindRelatedWordClicks,
   isTranslatableSelection,
   lookupTermFromSelection,
   normalizeSelection,
@@ -299,12 +299,20 @@ async function openPanel(): Promise<void> {
 
   const lookupWord = lookupTermFromSelection(currentSelection);
   const multiWord = currentSelection.includes(' ');
+  const headerHtml = multiWord
+    ? `Selected: <em>${escapeHtml(truncate(currentSelection, 80))}</em><br>Looking up: <em>${escapeHtml(lookupWord)}</em>`
+    : `Word: <em>${escapeHtml(lookupWord)}</em>`;
+
+  await loadWordIntoPanel(lookupWord, headerHtml);
+  panel.style.visibility = 'visible';
+}
+
+async function loadWordIntoPanel(lookupWord: string, headerHtml: string): Promise<void> {
+  if (!panel) return;
 
   panel.innerHTML = `
     <div class="flc-panel-header">
-      <div class="flc-selected-text">
-        ${multiWord ? `Selected: <em>${escapeHtml(truncate(currentSelection, 80))}</em><br>Looking up: <em>${escapeHtml(lookupWord)}</em>` : `Word: <em>${escapeHtml(lookupWord)}</em>`}
-      </div>
+      <div class="flc-selected-text">${headerHtml}</div>
       <button type="button" class="flc-close" aria-label="Close">×</button>
     </div>
     <div class="flc-panel-body">
@@ -314,9 +322,7 @@ async function openPanel(): Promise<void> {
   `;
 
   panel.querySelector('.flc-close')?.addEventListener('click', hideAll);
-
   positionPanelNearSelection();
-  panel.style.visibility = 'visible';
 
   const auth = await getAuth();
   const body = panel.querySelector('.flc-panel-body')!;
@@ -339,7 +345,9 @@ async function openPanel(): Promise<void> {
     currentLookup = await api.lookup(lookupWord);
     body.innerHTML = renderDictionaryHtml(currentLookup);
     bindPronunciationButtons(body);
-    bindDictionaryTabs(body);
+    bindRelatedWordClicks(body, (word) => {
+      void loadWordIntoPanel(word, `Word: <em>${escapeHtml(word)}</em>`);
+    });
     const actions = showPanelFooter(`
       <button type="button" class="flc-btn flc-btn-primary flc-save">Save word</button>
       <button type="button" class="flc-btn flc-btn-secondary flc-close-btn">Close</button>
