@@ -188,4 +188,29 @@ class FlcApi {
   }
 
   Future<void> logout() => _client.post('/logout');
+
+  Future<List<AgentApiToken>> listAgentTokens() async {
+    final json = await _client.get<Map<String, dynamic>>(
+      '/me/agent-tokens',
+      parser: (d) => d as Map<String, dynamic>,
+    );
+    return (json['data'] as List<dynamic>? ?? [])
+        .map((e) => AgentApiToken.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<CreatedAgentApiToken> createAgentToken() async {
+    final json = await _client.post<Map<String, dynamic>>(
+      '/me/agent-tokens',
+      data: const {},
+      parser: (d) => d as Map<String, dynamic>,
+    );
+    return CreatedAgentApiToken(
+      token: AgentApiToken.fromJson(json['data'] as Map<String, dynamic>),
+      plainText: json['token'] as String? ?? '',
+    );
+  }
+
+  Future<void> revokeAgentToken(int id) =>
+      _client.delete('/me/agent-tokens/$id');
 }

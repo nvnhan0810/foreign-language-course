@@ -387,6 +387,43 @@ class UserProfile {
       );
 }
 
+class AgentApiToken {
+  AgentApiToken({
+    required this.id,
+    required this.name,
+    required this.abilities,
+    this.lastUsedAt,
+    this.createdAt,
+  });
+
+  final int id;
+  final String name;
+  final List<String> abilities;
+  final DateTime? lastUsedAt;
+  final DateTime? createdAt;
+
+  factory AgentApiToken.fromJson(Map<String, dynamic> json) => AgentApiToken(
+        id: json['id'] as int,
+        name: json['name'] as String? ?? 'flc-agent',
+        abilities: (json['abilities'] as List<dynamic>? ?? [])
+            .whereType<String>()
+            .toList(),
+        lastUsedAt: json['last_used_at'] != null
+            ? DateTime.tryParse(json['last_used_at'] as String)
+            : null,
+        createdAt: json['created_at'] != null
+            ? DateTime.tryParse(json['created_at'] as String)
+            : null,
+      );
+}
+
+class CreatedAgentApiToken {
+  CreatedAgentApiToken({required this.token, required this.plainText});
+
+  final AgentApiToken token;
+  final String plainText;
+}
+
 class AttemptResult {
   AttemptResult({
     required this.score,

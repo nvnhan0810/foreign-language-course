@@ -1,7 +1,9 @@
+import 'package:flc_mobile/core/api/api_client.dart';
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/models/flc_models.dart';
 import 'package:flc_mobile/widgets/theme_settings_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -178,6 +180,8 @@ class _ProfileContent extends StatelessWidget {
                 const ThemeSettingsCard(),
                 const SizedBox(height: 24),
                 const _NotificationSettingsCard(),
+                const SizedBox(height: 24),
+                const _AgentKeysCard(),
                 const SizedBox(height: 32),
                 const Text(
                   'Attempt history',
@@ -385,5 +389,160 @@ class _NotificationSettingsCard extends ConsumerWidget {
         );
       },
     );
+  }
+}
+
+class _AgentKeysCard extends ConsumerStatefulWidget {
+  const _AgentKeysCard();
+
+  @override
+  ConsumerState<_AgentKeysCard> createState() => _AgentKeysCardState();
+}
+
+class _AgentKeysCardState extends ConsumerState<_AgentKeysCard> {
+  List<AgentApiToken>? _tokens;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final tokens = await ref.read(flcApiProvider).listAgentTokens();
+      if (!mounted) return;
+      setState(() => _tokens = tokens);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _create() async {
+    try {
+      final created = await ref.read(flcApiProvider).createAgentToken();
+      if (!mounted) return;
+      await _load();
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Copy this token now'),
+          content: SelectableText(created.plainText),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: created.plainText));
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Copy & close'),
+            ),
+          ],
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _revoke(AgentApiToken token) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Revoke key?'),
+        content: const Text('Cursor agents using this key will stop working.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Revoke')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref.read(flcApiProvider).revokeAgentToken(token.id);
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: Theme.of(context)
+          .colorScheme
+          .surfaceContainerHighest
+          .withValues(alpha: 0.5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Agent API keys',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+                FilledButton.tonal(
+                  onPressed: _loading ? null : _create,
+                  child: const Text('Create'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'For Cursor skill: set FLC_API_URL + FLC_API_TOKEN in ~/.config/nvnhan-blog/agent.env',
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (_loading) const LinearProgressIndicator(),
+            if (_error != null)
+              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            if (!_loading && _error == null && (_tokens?.isEmpty ?? true))
+              Text(
+                'No agent API keys yet.',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ...?_tokens?.map(
+              (t) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(t.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(
+                  'Created ${_formatOptionalDate(t.createdAt)} · Last used ${_formatOptionalDate(t.lastUsedAt, empty: 'never')}\n${t.abilities.join(', ')}',
+                ),
+                isThreeLine: true,
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Revoke',
+                  onPressed: () => _revoke(t),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatOptionalDate(DateTime? dt, {String empty = '—'}) {
+    if (dt == null) return empty;
+    return _formatDate(dt);
   }
 }

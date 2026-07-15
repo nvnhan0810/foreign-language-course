@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Agent;
 
 use App\Http\Controllers\Controller;
 use App\Models\Vocabulary;
@@ -35,6 +35,12 @@ class VocabularyController extends Controller
             'word' => ['required', 'string', 'max:120'],
             'phonetic' => ['nullable', 'string', 'max:120'],
             'meanings' => ['nullable', 'array'],
+            'meanings.*.part_of_speech' => ['nullable', 'string', 'max:40'],
+            'meanings.*.definition' => ['required_with:meanings', 'string'],
+            'meanings.*.example' => ['nullable', 'string'],
+            'meanings.*.examples' => ['nullable', 'array'],
+            'meanings.*.synonyms' => ['nullable', 'array'],
+            'meanings.*.antonyms' => ['nullable', 'array'],
         ]);
 
         $result = $this->commands->dispatch(new SaveUserVocabulary(
@@ -44,11 +50,19 @@ class VocabularyController extends Controller
             meanings: $data['meanings'] ?? null,
         ));
 
+        if ($result === null) {
+            return response()->json(['message' => 'Could not save word.'], 422);
+        }
+
         /** @var UserVocabulary $vocabulary */
         $vocabulary = $result['vocabulary'];
-        $status = $result['created'] ? 201 : 200;
+        $status = ($result['created'] ?? false) ? 201 : 200;
 
-        return response()->json(['data' => $vocabulary->toApiArray()], $status);
+        return response()->json([
+            'data' => $vocabulary->toApiArray(),
+            'created' => (bool) ($result['created'] ?? false),
+            'backfilled' => (bool) ($result['backfilled'] ?? false),
+        ], $status);
     }
 
     public function show(Request $request, Vocabulary $vocabulary): JsonResponse
@@ -66,6 +80,12 @@ class VocabularyController extends Controller
         $data = $request->validate([
             'phonetic' => ['sometimes', 'nullable', 'string', 'max:120'],
             'meanings' => ['sometimes', 'array'],
+            'meanings.*.part_of_speech' => ['nullable', 'string', 'max:40'],
+            'meanings.*.definition' => ['required_with:meanings', 'string'],
+            'meanings.*.example' => ['nullable', 'string'],
+            'meanings.*.examples' => ['nullable', 'array'],
+            'meanings.*.synonyms' => ['nullable', 'array'],
+            'meanings.*.antonyms' => ['nullable', 'array'],
         ]);
 
         try {
@@ -95,6 +115,6 @@ class VocabularyController extends Controller
             abort(403);
         }
 
-        return response()->json(['message' => 'Đã xóa từ.']);
+        return response()->json(['message' => 'Word removed from your vocabulary.']);
     }
 }

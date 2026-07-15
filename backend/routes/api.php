@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\Agent\DictionaryController as AgentDictionaryController;
+use App\Http\Controllers\Api\Agent\VocabularyController as AgentVocabularyController;
+use App\Http\Controllers\Api\AgentTokenController;
 use App\Http\Controllers\Api\AppConfigController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DictionaryController;
@@ -13,6 +16,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\VocabularyController;
+use App\Support\AgentToken;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/config', AppConfigController::class);
@@ -33,6 +37,30 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dictionary/{word}', [DictionaryController::class, 'show']);
 
     Route::apiResource('vocabularies', VocabularyController::class);
+
+    Route::middleware('agent.tokens')->prefix('me/agent-tokens')->group(function () {
+        Route::get('/', [AgentTokenController::class, 'index']);
+        Route::post('/', [AgentTokenController::class, 'store']);
+        Route::delete('/{id}', [AgentTokenController::class, 'destroy'])->whereNumber('id');
+    });
+
+    Route::prefix('agent')->group(function () {
+        Route::get('/dictionary/{word}', [AgentDictionaryController::class, 'show'])
+            ->middleware('agent.ability:'.AgentToken::ABILITY_LOOKUP);
+        Route::put('/dictionary/{word}', [AgentDictionaryController::class, 'curate'])
+            ->middleware('agent.ability:'.AgentToken::ABILITY_CURATE);
+
+        Route::get('/vocabularies', [AgentVocabularyController::class, 'index'])
+            ->middleware('agent.ability:'.AgentToken::ABILITY_VOCAB);
+        Route::post('/vocabularies', [AgentVocabularyController::class, 'store'])
+            ->middleware('agent.ability:'.AgentToken::ABILITY_VOCAB);
+        Route::get('/vocabularies/{vocabulary}', [AgentVocabularyController::class, 'show'])
+            ->middleware('agent.ability:'.AgentToken::ABILITY_VOCAB);
+        Route::put('/vocabularies/{vocabulary}', [AgentVocabularyController::class, 'update'])
+            ->middleware('agent.ability:'.AgentToken::ABILITY_VOCAB);
+        Route::delete('/vocabularies/{vocabulary}', [AgentVocabularyController::class, 'destroy'])
+            ->middleware('agent.ability:'.AgentToken::ABILITY_VOCAB);
+    });
 
     Route::get('/media-items/due', [MediaItemController::class, 'due']);
     Route::post('/media-items/{mediaItem}/listened', [MediaItemController::class, 'listened']);

@@ -294,6 +294,22 @@
     if (form) form.requestSubmit();
   }
 
+  document.querySelectorAll('[data-copy-token]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const value = document.getElementById('agent-token-value')?.textContent?.trim();
+      if (!value) return;
+      try {
+        await navigator.clipboard.writeText(value);
+        btn.textContent = 'Copied';
+        setTimeout(() => {
+          btn.textContent = 'Copy';
+        }, 1500);
+      } catch {
+        btn.textContent = 'Copy failed';
+      }
+    });
+  });
+
   if (document.body.classList.contains('flc-app')) {
     document.documentElement.style.setProperty('--flc-app', '1');
     requestMobileFcmToken();

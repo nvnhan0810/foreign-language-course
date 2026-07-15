@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\DevicePushTokenController;
 use App\Http\Controllers\Web\ListeningController;
 use App\Http\Controllers\Web\LookupController;
 use App\Http\Controllers\Web\MediaController;
+use App\Http\Controllers\Web\AgentTokenController as WebAgentTokenController;
 use App\Http\Controllers\Web\ProfileController;
 use App\Http\Controllers\Web\QuizController;
 use App\Http\Controllers\Web\UserAuthController;
@@ -58,6 +59,10 @@ Route::name('user.')->middleware(\App\Http\Middleware\DetectFlcMobileApp::class)
             Route::post('quiz/answer', [QuizController::class, 'answer'])->name('quiz.answer');
 
             Route::get('profile', [ProfileController::class, 'show'])->name('profile');
+            Route::post('profile/agent-tokens', [WebAgentTokenController::class, 'store'])->name('profile.agent-tokens.store');
+            Route::delete('profile/agent-tokens/{id}', [WebAgentTokenController::class, 'destroy'])
+                ->whereNumber('id')
+                ->name('profile.agent-tokens.destroy');
 
             Route::post('push-token', [DevicePushTokenController::class, 'store'])->name('push-token.store');
             Route::delete('push-token', [DevicePushTokenController::class, 'destroy'])->name('push-token.destroy');
