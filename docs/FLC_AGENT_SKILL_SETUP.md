@@ -116,10 +116,14 @@ Smoke test API bằng tay (tuỳ chọn):
 
 ```bash
 source ~/.config/nvnhan-blog/agent.env
-curl -sS -H "Authorization: Bearer $FLC_API_TOKEN" \
+curl -sS \
+  -H "Authorization: Bearer $FLC_API_TOKEN" \
   -H "Accept: application/json" \
+  -H "User-Agent: Mozilla/5.0 (compatible; FLC-Cursor-Agent/1.0)" \
   "$FLC_API_URL/api/agent/dictionary/happy" | head
 ```
+
+> Cloudflare có thể trả **403 / error 1010** nếu thiếu `User-Agent` (UA mặc định của Python/`curl` bị chặn). Skill bắt buộc gửi header trên.
 
 ---
 
@@ -149,6 +153,7 @@ cp -R docs/skills/flc-agent-api ~/.cursor/skills/flc-agent-api
 | `403` khi gọi `/api/me/agent-tokens` bằng agent key | Đúng thiết kế — quản lý key chỉ trên web/mobile |
 | Skill không được Cursor nhận | Confirm path `~/.cursor/skills/flc-agent-api/SKILL.md`, restart Cursor |
 | `404` Word not found | Từ không có trên Free Dictionary / My Dictionary |
+| `403` Cloudflare **1010** / browser signature banned | Thiếu hoặc sai `User-Agent` — dùng `Mozilla/5.0 (compatible; FLC-Cursor-Agent/1.0)` trên mọi request (xem skill) |
 
 ---
 

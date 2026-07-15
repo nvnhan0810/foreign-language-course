@@ -83,7 +83,16 @@ def load_flc_agent_config() -> tuple[str, str]:
 
 Base: `{FLC_API_URL}/api`
 
-Header: `Authorization: Bearer {FLC_API_TOKEN}`
+Headers bắt buộc trên mọi request:
+
+| Header | Giá trị |
+|--------|---------|
+| `Authorization` | `Bearer {FLC_API_TOKEN}` |
+| `Accept` | `application/json` |
+| `Content-Type` | `application/json` (khi có body) |
+| `User-Agent` | `Mozilla/5.0 (compatible; FLC-Cursor-Agent/1.0)` |
+
+**Cloudflare:** host prod có thể chặn UA mặc định của Python/`urllib`/`curl` (error **1010**). Luôn gửi `User-Agent` như trên — không dùng UA trống hoặc `Python-urllib/...`.
 
 | Method | Path | Ability | Mục đích |
 |--------|------|---------|----------|
@@ -142,6 +151,8 @@ import urllib.parse
 
 FLC_API_URL, FLC_API_TOKEN = load_flc_agent_config()
 
+FLC_USER_AGENT = "Mozilla/5.0 (compatible; FLC-Cursor-Agent/1.0)"
+
 def flc_request(method: str, path: str, payload: dict | None = None):
     data = None if payload is None else json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
@@ -151,6 +162,8 @@ def flc_request(method: str, path: str, payload: dict | None = None):
             "Content-Type": "application/json",
             "Accept": "application/json",
             "Authorization": f"Bearer {FLC_API_TOKEN}",
+            # Required: Cloudflare blocks default Python/curl user-agents (1010).
+            "User-Agent": FLC_USER_AGENT,
         },
         method=method,
     )
