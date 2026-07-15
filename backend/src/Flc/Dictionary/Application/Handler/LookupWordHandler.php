@@ -41,7 +41,7 @@ final class LookupWordHandler implements QueryHandler
     }
 
     /**
-     * Free Dictionary often omits synonyms/antonyms; fill from Datamuse so the UI tabs have lists.
+     * Free Dictionary often omits synonyms/antonyms; fill from Datamuse so each meaning can show related words.
      *
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>

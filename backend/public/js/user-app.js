@@ -288,24 +288,6 @@
     });
   });
 
-  document.querySelectorAll('[data-dict-entry]').forEach((entry) => {
-    entry.querySelectorAll('[data-dict-tab]').forEach((tab) => {
-      tab.addEventListener('click', () => {
-        const name = tab.dataset.dictTab;
-        entry.querySelectorAll('[data-dict-tab]').forEach((btn) => {
-          const active = btn === tab;
-          btn.classList.toggle('active', active);
-          btn.setAttribute('aria-selected', active ? 'true' : 'false');
-        });
-        entry.querySelectorAll('[data-dict-panel]').forEach((panel) => {
-          const active = panel.dataset.dictPanel === name;
-          panel.classList.toggle('active', active);
-          panel.hidden = !active;
-        });
-      });
-    });
-  });
-
   const main = document.querySelector('.user-main[data-autostart-quiz="1"]');
   if (main && !document.querySelector('.quiz-prompt')) {
     const form = document.querySelector('form[action*="quiz/next"]');

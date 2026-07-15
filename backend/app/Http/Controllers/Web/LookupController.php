@@ -8,6 +8,7 @@ use Flc\Shared\Application\CommandBus;
 use Flc\Shared\Application\QueryBus;
 use Flc\Shared\Support\Text;
 use Flc\Vocabulary\Application\Command\SaveUserVocabulary;
+use Flc\Vocabulary\Application\Query\FindUserVocabularyByWord;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ class LookupController extends Controller
             'result' => session('lookup_result'),
             'word' => session('lookup_word', ''),
             'saved' => session('lookup_saved', false),
+            'savedVocabularyId' => session('lookup_saved_vocabulary_id'),
         ]);
     }
 
@@ -42,16 +44,25 @@ class LookupController extends Controller
             return back()->withInput()->with('error', 'Enter a valid English word or phrase.');
         }
 
-        $result = $this->queries->ask(new LookupWord($word));
+        return $this->redirectForWord($request, $word, $text, preferDetail: false);
+    }
 
-        if (! $result) {
-            return back()->withInput()->with('error', 'Word not found.');
+    /**
+     * Open a related word: prefer saved vocabulary detail when available, else dictionary lookup.
+     */
+    public function openWord(Request $request, string $word): RedirectResponse
+    {
+        $text = trim(urldecode($word));
+        $normalized = Text::lower(preg_replace('/\s+/', ' ', $text) ?? $text);
+
+        if ($normalized === '' || ! preg_match('/^[a-z][a-z\s\'-]*$/i', $normalized)) {
+            return redirect()->route('user.home.lookup')
+                ->with('error', 'Enter a valid English word or phrase.');
         }
 
-        return redirect()->route('user.home.lookup')
-            ->with('lookup_word', $text)
-            ->with('lookup_result', $result)
-            ->with('lookup_saved', false);
+        $preferDetail = $request->boolean('detail', true);
+
+        return $this->redirectForWord($request, $normalized, $text, preferDetail: $preferDetail);
     }
 
     public function save(Request $request): RedirectResponse
@@ -101,7 +112,8 @@ class LookupController extends Controller
      */
     private function redirectToLookupAfterSave(array $data, string $message, ?array $lookup = null): RedirectResponse
     {
-        $lookup ??= $this->queries->ask(new LookupWord(Text::lower(trim($data['word']))));
+        $word = Text::lower(trim($data['word']));
+        $lookup ??= $this->queries->ask(new LookupWord($word));
 
         if ($lookup === null) {
             $lookup = [
@@ -112,11 +124,49 @@ class LookupController extends Controller
             ];
         }
 
+        /** @var array<string, mixed>|null $savedVocab */
+        $savedVocab = $this->queries->ask(new FindUserVocabularyByWord(
+            userId: (int) request()->user()->id,
+            word: $word,
+        ));
+
         return redirect()->route('user.home.lookup')
             ->with('success', $message)
             ->with('lookup_saved', true)
+            ->with('lookup_saved_vocabulary_id', is_array($savedVocab) ? ($savedVocab['id'] ?? null) : null)
             ->with('lookup_word', $data['word'])
             ->with('lookup_result', $lookup);
+    }
+
+    private function redirectForWord(
+        Request $request,
+        string $normalizedWord,
+        string $displayWord,
+        bool $preferDetail,
+    ): RedirectResponse {
+        /** @var array<string, mixed>|null $savedVocab */
+        $savedVocab = $this->queries->ask(new FindUserVocabularyByWord(
+            userId: (int) $request->user()->id,
+            word: $normalizedWord,
+        ));
+
+        if ($preferDetail && is_array($savedVocab) && ! empty($savedVocab['id'])) {
+            return redirect()->route('user.home.vocab.show', $savedVocab['id']);
+        }
+
+        $result = $this->queries->ask(new LookupWord($normalizedWord));
+
+        if (! $result) {
+            return redirect()->route('user.home.lookup')
+                ->withInput(['word' => $displayWord])
+                ->with('error', 'Word not found.');
+        }
+
+        return redirect()->route('user.home.lookup')
+            ->with('lookup_word', $displayWord)
+            ->with('lookup_result', $result)
+            ->with('lookup_saved', is_array($savedVocab))
+            ->with('lookup_saved_vocabulary_id', is_array($savedVocab) ? ($savedVocab['id'] ?? null) : null);
     }
 
     public function pronounce(Request $request, string $word): JsonResponse|RedirectResponse

@@ -40,6 +40,9 @@ Route::name('user.')->middleware(\App\Http\Middleware\DetectFlcMobileApp::class)
             Route::post('lookup', [LookupController::class, 'lookup'])->name('lookup.search');
             Route::post('lookup/save', [LookupController::class, 'save'])->name('lookup.save');
             Route::get('dictionary/{word}/pronounce', [LookupController::class, 'pronounce'])->name('dictionary.pronounce');
+            Route::get('word/{word}', [LookupController::class, 'openWord'])
+                ->where('word', "[A-Za-z][A-Za-z\\s'\\-]*")
+                ->name('word.open');
 
             Route::get('vocab', [WebVocabularyController::class, 'index'])->name('vocab');
             Route::get('vocab/{vocabulary}', [WebVocabularyController::class, 'show'])->name('vocab.show');

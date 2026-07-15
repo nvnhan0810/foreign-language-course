@@ -50,6 +50,7 @@
                 'meanings' => $result['meanings'] ?? [],
                 'synonyms' => $result['synonyms'] ?? [],
                 'antonyms' => $result['antonyms'] ?? [],
+                'preferDetail' => false,
             ])
         </div>
 
@@ -92,7 +93,12 @@
                 <button type="submit" class="btn btn-secondary btn-block">Save word</button>
             </form>
         @else
-            <p class="muted" style="text-align:center;margin-top:12px">Saved</p>
+            <p class="muted" style="text-align:center;margin-top:12px">
+                Saved
+                @if (!empty($savedVocabularyId))
+                    · <a href="{{ route('user.home.vocab.show', $savedVocabularyId) }}">View detail</a>
+                @endif
+            </p>
         @endunless
     @endif
 @endsection

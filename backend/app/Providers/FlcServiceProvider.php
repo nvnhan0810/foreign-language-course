@@ -98,10 +98,12 @@ use Flc\Vocabulary\Application\Command\DeleteUserVocabulary;
 use Flc\Vocabulary\Application\Command\SaveUserVocabulary;
 use Flc\Vocabulary\Application\Command\UpdateUserVocabulary;
 use Flc\Vocabulary\Application\Handler\DeleteUserVocabularyHandler;
+use Flc\Vocabulary\Application\Handler\FindUserVocabularyByWordHandler;
 use Flc\Vocabulary\Application\Handler\GetUserVocabularyHandler;
 use Flc\Vocabulary\Application\Handler\ListUserVocabulariesHandler;
 use Flc\Vocabulary\Application\Handler\SaveUserVocabularyHandler;
 use Flc\Vocabulary\Application\Handler\UpdateUserVocabularyHandler;
+use Flc\Vocabulary\Application\Query\FindUserVocabularyByWord;
 use Flc\Vocabulary\Application\Query\GetUserVocabulary;
 use Flc\Vocabulary\Application\Query\ListUserVocabularies;
 use Flc\Vocabulary\Application\Repository\UserVocabularyRepository;
@@ -173,6 +175,7 @@ class FlcServiceProvider extends ServiceProvider
             LookupWord::class => LookupWordHandler::class,
             ListUserVocabularies::class => ListUserVocabulariesHandler::class,
             GetUserVocabulary::class => GetUserVocabularyHandler::class,
+            FindUserVocabularyByWord::class => FindUserVocabularyByWordHandler::class,
             GetAppSettings::class => GetAppSettingsHandler::class,
             GetAppSetting::class => GetAppSettingHandler::class,
             IsEmailAllowed::class => IsEmailAllowedHandler::class,

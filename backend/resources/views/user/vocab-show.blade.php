@@ -41,6 +41,7 @@
             'synonyms' => [],
             'antonyms' => [],
             'extraExamples' => $vocab->examples,
+            'preferDetail' => true,
         ])
     </div>
 @endsection

@@ -75,6 +75,162 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
     _load();
   }
 
+  Vocabulary? _findSaved(String word) {
+    final needle = word.trim().toLowerCase();
+    for (final item in _items ?? const <Vocabulary>[]) {
+      if (item.word.toLowerCase() == needle) return item;
+    }
+    return null;
+  }
+
+  void _showVocabDetail(Vocabulary v) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        builder: (_, scroll) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: ListView(
+            controller: scroll,
+            padding: const EdgeInsets.all(24),
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              DictionaryCard.fromVocabulary(
+                v,
+                onRelatedWord: (word) {
+                  Navigator.pop(ctx);
+                  _openRelatedWord(word);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openRelatedWord(String word) async {
+    final saved = _findSaved(word);
+    if (saved != null) {
+      _showVocabDetail(saved);
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final result = await ref.read(flcApiProvider).lookup(word);
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      await _showLookupResult(result);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  Future<void> _showLookupResult(DictionaryResult result) async {
+    var saved = false;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.65,
+              builder: (_, scroll) => Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(ctx).colorScheme.surface,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: ListView(
+                  controller: scroll,
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 24),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    DictionaryCard(
+                      result: result,
+                      onRelatedWord: (word) {
+                        Navigator.pop(ctx);
+                        _openRelatedWord(word);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.tonal(
+                      onPressed: saved
+                          ? null
+                          : () async {
+                              try {
+                                await ref.read(flcApiProvider).saveVocabulary(
+                                      word: result.word,
+                                      phonetic: result.phonetic,
+                                      meanings: result.meanings,
+                                    );
+                                setModalState(() => saved = true);
+                                await _load();
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(content: Text('Word saved')),
+                                  );
+                                }
+                              } on ApiException catch (e) {
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(content: Text(e.message)),
+                                  );
+                                }
+                              }
+                            },
+                      child: Text(saved ? 'Saved' : 'Save word'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _searchField() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -181,39 +337,7 @@ class _VocabListScreenState extends ConsumerState<VocabListScreen> {
                             trailing: v.phonetic != null
                                 ? Text(v.phonetic!, style: const TextStyle(fontStyle: FontStyle.italic))
                                 : null,
-                            onTap: () => showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (ctx) => DraggableScrollableSheet(
-                                expand: false,
-                                initialChildSize: 0.6,
-                                builder: (_, scroll) => Container(
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(ctx).colorScheme.surface,
-                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                                  ),
-                                  child: ListView(
-                                    controller: scroll,
-                                    padding: const EdgeInsets.all(24),
-                                    children: [
-                                      Center(
-                                        child: Container(
-                                          width: 40,
-                                          height: 4,
-                                          margin: const EdgeInsets.only(bottom: 24),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade300,
-                                            borderRadius: BorderRadius.circular(2),
-                                          ),
-                                        ),
-                                      ),
-                                      DictionaryCard.fromVocabulary(v),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
+                            onTap: () => _showVocabDetail(v),
                           ),
                         ),
                       );

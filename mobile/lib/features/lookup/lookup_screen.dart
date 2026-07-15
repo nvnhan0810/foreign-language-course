@@ -38,18 +38,20 @@ class _LookupScreenState extends ConsumerState<LookupScreen> {
     super.dispose();
   }
 
-  Future<void> _lookup() async {
-    final text = _controller.text.trim();
+  Future<void> _lookup([String? forcedWord]) async {
+    final text = (forcedWord ?? _controller.text).trim();
     if (!isValidLookupInput(text)) {
       setState(() => _error = 'Enter a valid English word or phrase.');
       return;
     }
     final word = lookupTermFromText(text);
+    _controller.text = word;
     setState(() {
       _loading = true;
       _error = null;
       _result = null;
       _saved = false;
+      _hasText = true;
     });
     try {
       final result = await ref.read(flcApiProvider).lookup(word);
@@ -144,7 +146,10 @@ class _LookupScreenState extends ConsumerState<LookupScreen> {
         ],
         if (_result != null) ...[
           const SizedBox(height: 16),
-          DictionaryCard(result: _result!),
+          DictionaryCard(
+            result: _result!,
+            onRelatedWord: (word) => _lookup(word),
+          ),
           const SizedBox(height: 12),
           FilledButton.tonal(
             onPressed: _saved || _loading ? null : _save,

@@ -447,33 +447,17 @@ a {
   margin-bottom: 6px;
 }
 
-.dict-tabs {
-  display: flex;
-  gap: 4px;
-  margin: 16px 0 12px;
-  border-bottom: 1px solid var(--border);
+.related-group {
+  margin-top: 10px;
 }
 
-.dict-tab {
-  flex: 1;
-  border: none;
-  background: transparent;
+.related-label {
+  font-size: 12px;
+  font-weight: 700;
   color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 10px 8px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-}
-
-.dict-tab.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
-}
-
-.dict-panel[hidden] {
-  display: none !important;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .related-words {
@@ -490,6 +474,14 @@ a {
   color: var(--primary);
   font-size: 13px;
   font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+}
+
+.related-word:hover {
+  filter: brightness(0.96);
+  text-decoration: underline;
 }
 
 .quiz-prompt {
