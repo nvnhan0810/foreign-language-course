@@ -55,6 +55,7 @@ async function init() {
   bindAuth();
   bindLookup();
   bindVocabSearch();
+  bindClearableInputs();
   bindMedia();
   $('open-options').addEventListener('click', (e) => {
     e.preventDefault();
@@ -63,7 +64,9 @@ async function init() {
   await refreshAuthUi();
   const { lookupWord } = await chrome.storage.local.get('lookupWord');
   if (lookupWord) {
-    ($('lookup-input') as HTMLInputElement).value = lookupWord as string;
+    const input = $('lookup-input') as HTMLInputElement;
+    input.value = lookupWord as string;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
     await chrome.storage.local.remove('lookupWord');
     switchTab('lookup');
     await doLookup();
@@ -221,6 +224,28 @@ async function saveWord() {
 function bindVocabSearch() {
   $('vocab-search').addEventListener('input', () => {
     renderVocabList(vocabCache);
+  });
+}
+
+function bindClearableInputs() {
+  document.querySelectorAll('.input-with-clear').forEach((wrap) => {
+    const input = wrap.querySelector('input') as HTMLInputElement | null;
+    const btn = wrap.querySelector('.input-clear') as HTMLButtonElement | null;
+    if (!input || !btn) return;
+
+    const sync = () => {
+      btn.hidden = input.value.trim().length === 0;
+    };
+
+    input.addEventListener('input', sync);
+    sync();
+
+    btn.addEventListener('click', () => {
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.focus();
+      sync();
+    });
   });
 }
 
