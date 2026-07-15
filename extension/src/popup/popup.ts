@@ -10,9 +10,7 @@ import { loginWithGoogle } from '../shared/googleAuth';
 import {
   cacheSync,
   clearAuth,
-  clearPendingQuiz,
   getAuth,
-  getPendingQuiz,
   getSettings,
   saveSettings,
 } from '../shared/storage';
@@ -23,7 +21,6 @@ import type {
   DictionaryResult,
   ListeningQuestion,
   MediaItem,
-  QuizQuestion,
   Vocabulary,
 } from '../shared/types';
 
@@ -59,7 +56,6 @@ async function init() {
   bindLookup();
   bindVocabSearch();
   bindMedia();
-  bindQuiz();
   $('open-options').addEventListener('click', (e) => {
     e.preventDefault();
     chrome.runtime.openOptionsPage();
@@ -71,11 +67,6 @@ async function init() {
     await chrome.storage.local.remove('lookupWord');
     switchTab('lookup');
     await doLookup();
-  }
-  const pending = await getPendingQuiz<QuizQuestion>();
-  if (pending) {
-    switchTab('quiz');
-    renderQuiz(pending);
   }
 }
 
@@ -571,61 +562,6 @@ async function submitListeningQuiz(total: number) {
       e instanceof ApiError ? e.message : 'Could not submit.';
     $('btn-submit-listening').removeAttribute('disabled');
   }
-}
-
-function bindQuiz() {
-  $('btn-next-quiz').addEventListener('click', () => void fetchQuiz());
-}
-
-async function fetchQuiz() {
-  try {
-    const { data } = await api.nextQuiz();
-    await clearPendingQuiz();
-    renderQuiz(data);
-  } catch (e) {
-    $('quiz-area').innerHTML = `<p class="error">${
-      e instanceof ApiError ? e.message : 'Could not fetch a question.'
-    }</p><button type="button" id="btn-next-quiz">Retry</button>`;
-    $('btn-next-quiz')?.addEventListener('click', () => void fetchQuiz());
-  }
-}
-
-function renderQuiz(q: QuizQuestion) {
-  const area = $('quiz-area');
-  area.innerHTML = `
-    <p><strong>${q.question_type === 'word_to_definition' ? 'Choose the correct meaning' : 'Choose the correct word'}</strong></p>
-    <p>${escapeHtml(q.prompt)}</p>
-    <div id="quiz-options"></div>
-    <p id="quiz-feedback" class="muted"></p>
-    <button type="button" id="btn-next-quiz" class="secondary">Next</button>
-  `;
-  const opts = $('quiz-options');
-  for (const opt of q.options) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'quiz-option';
-    btn.textContent = opt;
-    btn.addEventListener('click', () => void answerQuiz(q, opt, btn));
-    opts.appendChild(btn);
-  }
-  $('btn-next-quiz').addEventListener('click', () => void fetchQuiz());
-}
-
-async function answerQuiz(q: QuizQuestion, chosen: string, btn: HTMLButtonElement) {
-  const correct = chosen === q.correct_answer;
-  btn.classList.add(correct ? 'correct' : 'wrong');
-  document.querySelectorAll('.quiz-option').forEach((b) => {
-    (b as HTMLButtonElement).disabled = true;
-    if ((b as HTMLButtonElement).textContent === q.correct_answer) {
-      b.classList.add('correct');
-    }
-  });
-  $('quiz-feedback').textContent = correct ? 'Correct!' : `Answer: ${q.correct_answer}`;
-  await api.submitQuizAttempt({
-    vocabulary_id: q.vocabulary_id,
-    question_type: q.question_type,
-    correct,
-  });
 }
 
 async function playVocabPronunciation(word: string): Promise<void> {

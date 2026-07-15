@@ -182,24 +182,6 @@ li.item a {
   word-break: break-all;
 }
 
-.quiz-option {
-  display: block;
-  width: 100%;
-  margin-bottom: 6px;
-  text-align: left;
-  background: var(--flc-tab-inactive);
-  color: var(--flc-text);
-}
-
-.quiz-option.correct {
-  background: var(--flc-success-bg);
-  color: var(--flc-success-text);
-}
-
-.quiz-option.wrong {
-  background: var(--flc-danger-bg);
-}
-
 .error {
   color: var(--flc-danger);
   font-size: 12px;
