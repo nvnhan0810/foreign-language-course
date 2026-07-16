@@ -14,27 +14,29 @@
     <link rel="stylesheet" href="{{ asset('css/user.css') }}?v={{ filemtime(public_path('css/user.css')) }}">
     <script defer src="{{ asset('js/user-app.js') }}?v={{ filemtime(public_path('js/user-app.js')) }}"></script>
 </head>
-<body class="user-body {{ ($isFlcApp ?? false) ? 'flc-app' : '' }}{{ View::hasSection('hide_nav') ? ' user-no-nav' : '' }}">
+<body class="user-body {{ ($isFlcApp ?? false) ? 'flc-app' : '' }}{{ View::hasSection('hide_nav') ? ' user-no-nav' : '' }}{{ View::hasSection('hide_header') ? ' user-no-header' : '' }}{{ View::hasSection('game_screen') ? ' user-game' : '' }}{{ View::hasSection('game_bg') ? ' user-game-bg' : '' }}">
 <div class="user-shell">
-    @hasSection('header')
-        @yield('header')
-    @else
-        <header class="user-header">
-            @hasSection('back_url')
-                <a href="@yield('back_url')" class="user-header-back" aria-label="Back">←</a>
-            @else
+    @unless (View::hasSection('hide_header'))
+        @hasSection('header')
+            @yield('header')
+        @else
+            <header class="user-header">
+                @hasSection('back_url')
+                    <a href="@yield('back_url')" class="user-header-back" aria-label="Back">←</a>
+                @else
+                    <span class="user-header-spacer" aria-hidden="true"></span>
+                @endif
+                <h1>@yield('heading', 'FLC')</h1>
                 <span class="user-header-spacer" aria-hidden="true"></span>
-            @endif
-            <h1>@yield('heading', 'FLC')</h1>
-            <span class="user-header-spacer" aria-hidden="true"></span>
-        </header>
-    @endif
+            </header>
+        @endif
+    @endunless
 
     @hasSection('below_header')
         @yield('below_header')
     @endif
 
-    <main class="user-main" @if(request()->routeIs('user.home.quiz') && request()->query('autostart') === '1') data-autostart-quiz="1" @endif>
+    <main class="user-main" @if(request()->routeIs('user.home.quiz.play') && request()->query('autostart') === '1') data-autostart-quiz="1" @endif>
         @if (session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
         @endif
@@ -68,9 +70,9 @@
                 <span class="icon">🎧</span>
                 Listen
             </a>
-            <a href="{{ route('user.home.quiz') }}" class="{{ request()->routeIs('user.home.quiz') ? 'active' : '' }}">
-                <span class="icon">❓</span>
-                Quiz
+            <a href="{{ route('user.home.quiz') }}" class="{{ request()->routeIs('user.home.quiz*') ? 'active' : '' }}">
+                <span class="icon">🎮</span>
+                Games
             </a>
             <a href="{{ route('user.home.profile') }}" class="{{ request()->routeIs('user.home.profile') ? 'active' : '' }}">
                 <span class="icon">👤</span>

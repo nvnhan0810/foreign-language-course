@@ -80,6 +80,10 @@ use Flc\Notification\Application\Repository\VocabQuizReminderRepository;
 use Flc\Notification\Infrastructure\External\FcmPushNotifier;
 use Flc\Notification\Infrastructure\Persistence\EloquentUserNotificationPreferenceRepository;
 use Flc\Notification\Infrastructure\Persistence\EloquentVocabQuizReminderRepository;
+use Flc\Puzzle\Application\Handler\GetNextScramblePuzzleHandler;
+use Flc\Puzzle\Application\Handler\GetScrambleHintHandler;
+use Flc\Puzzle\Application\Query\GetNextScramblePuzzle;
+use Flc\Puzzle\Application\Query\GetScrambleHint;
 use Flc\Quiz\Application\Command\RecordQuizAttempt;
 use Flc\Quiz\Application\Handler\GetNextQuizQuestionHandler;
 use Flc\Quiz\Application\Handler\RecordQuizAttemptHandler;
@@ -183,6 +187,8 @@ class FlcServiceProvider extends ServiceProvider
             GetAllowedEmail::class => GetAllowedEmailHandler::class,
             CountActiveAllowedEmails::class => CountActiveAllowedEmailsHandler::class,
             GetNextQuizQuestion::class => GetNextQuizQuestionHandler::class,
+            GetNextScramblePuzzle::class => GetNextScramblePuzzleHandler::class,
+            GetScrambleHint::class => GetScrambleHintHandler::class,
             GetUserNotificationPreference::class => GetUserNotificationPreferenceHandler::class,
             GetListeningSessionOptions::class => GetListeningSessionOptionsHandler::class,
             GetListeningAssessmentQuestions::class => GetListeningAssessmentQuestionsHandler::class,

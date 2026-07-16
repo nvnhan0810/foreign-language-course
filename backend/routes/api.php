@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DevicePushTokenController;
 use App\Http\Controllers\Api\MediaItemController;
 use App\Http\Controllers\Api\NotificationSettingsController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\PuzzleController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\VocabularyController;
@@ -85,6 +86,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/quiz/next', [QuizController::class, 'next']);
     Route::post('/quiz/attempts', [QuizController::class, 'attempt']);
+
+    Route::get('/puzzle/scramble/next', [PuzzleController::class, 'nextScramble']);
+    Route::post('/puzzle/scramble/hint', [PuzzleController::class, 'hintScramble']);
+    Route::post('/puzzle/scramble/attempts', [PuzzleController::class, 'attemptScramble']);
 
     Route::get('/sync', [SyncController::class, 'index']);
 });

@@ -18,13 +18,20 @@ class QuizController extends Controller
         private readonly CommandBus $commands,
     ) {}
 
-    public function index(Request $request): View|RedirectResponse
+    public function index(): View
+    {
+        $this->clearQuizSession();
+
+        return view('user.quiz.hub');
+    }
+
+    public function play(Request $request): View|RedirectResponse
     {
         if ($request->query('autostart') === '1' && ! session()->has('quiz_question')) {
             return $this->next($request);
         }
 
-        return view('user.quiz', [
+        return view('user.quiz.play', [
             'question' => session('quiz_question'),
             'feedback' => session('quiz_feedback'),
             'wasCorrect' => session('quiz_was_correct'),
@@ -36,11 +43,11 @@ class QuizController extends Controller
         $question = $this->queries->ask(new GetNextQuizQuestion($request->user()->id));
 
         if (! $question) {
-            return redirect()->route('user.home.quiz')
+            return redirect()->route('user.home.quiz.play')
                 ->with('error', 'You need at least 4 saved words to generate a question.');
         }
 
-        return redirect()->route('user.home.quiz')
+        return redirect()->route('user.home.quiz.play')
             ->with('quiz_question', $question)
             ->with('quiz_feedback', null)
             ->with('quiz_was_correct', null);
@@ -73,9 +80,14 @@ class QuizController extends Controller
             'correct_answer' => $data['correct_answer'],
         ];
 
-        return redirect()->route('user.home.quiz')
+        return redirect()->route('user.home.quiz.play')
             ->with('quiz_question', $question)
             ->with('quiz_feedback', $correct ? 'Correct!' : 'Incorrect. Answer: '.$data['correct_answer'])
             ->with('quiz_was_correct', $correct);
+    }
+
+    private function clearQuizSession(): void
+    {
+        session()->forget(['quiz_question', 'quiz_feedback', 'quiz_was_correct']);
     }
 }

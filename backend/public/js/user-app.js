@@ -415,6 +415,129 @@
     });
   });
 
+  const puzzleExitTriggers = document.querySelectorAll('[data-puzzle-exit]');
+  if (puzzleExitTriggers.length > 0) {
+    let modal = null;
+    let pendingTrigger = null;
+
+    const buildModal = () => {
+      const overlay = document.createElement('div');
+      overlay.className = 'puzzle-modal';
+      overlay.hidden = true;
+      overlay.innerHTML = [
+        '<div class="puzzle-modal-backdrop" data-modal-dismiss></div>',
+        '<div class="puzzle-modal-card" role="dialog" aria-modal="true" aria-labelledby="puzzle-modal-title">',
+        '  <div class="puzzle-modal-icon" aria-hidden="true">🚪</div>',
+        '  <h3 class="puzzle-modal-title" id="puzzle-modal-title">Leave?</h3>',
+        '  <p class="puzzle-modal-text">Your current round won\'t be saved.</p>',
+        '  <div class="puzzle-modal-actions">',
+        '    <button type="button" class="btn btn-secondary puzzle-modal-stay" data-modal-dismiss>Stay</button>',
+        '    <button type="button" class="btn puzzle-modal-leave">Leave</button>',
+        '  </div>',
+        '</div>',
+      ].join('');
+      document.body.appendChild(overlay);
+
+      const close = () => {
+        overlay.classList.remove('is-open');
+        pendingTrigger = null;
+        window.setTimeout(() => {
+          overlay.hidden = true;
+        }, 180);
+      };
+
+      overlay.querySelectorAll('[data-modal-dismiss]').forEach((el) => {
+        el.addEventListener('click', close);
+      });
+
+      overlay.querySelector('.puzzle-modal-leave').addEventListener('click', () => {
+        const trigger = pendingTrigger;
+        close();
+        if (!trigger) return;
+        const href = trigger.getAttribute('href');
+        if (href) {
+          window.location.href = href;
+          return;
+        }
+        const form = trigger.closest('form');
+        if (form) form.submit();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && overlay.classList.contains('is-open')) {
+          close();
+        }
+      });
+
+      return overlay;
+    };
+
+    puzzleExitTriggers.forEach((trigger) => {
+      trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!modal) modal = buildModal();
+        pendingTrigger = trigger;
+        modal.querySelector('.puzzle-modal-title').textContent =
+          trigger.getAttribute('data-confirm') || 'Leave?';
+        modal.hidden = false;
+        requestAnimationFrame(() => modal.classList.add('is-open'));
+      });
+    });
+  }
+
+  const helpBtn = document.querySelector('[data-puzzle-help]');
+  if (helpBtn && !helpBtn.hasAttribute('data-puzzle-help-used')) {
+    const delayMs = Number(helpBtn.getAttribute('data-help-delay-ms') || 15000);
+    const delaySec = Math.ceil((Number.isFinite(delayMs) ? delayMs : 15000) / 1000);
+    const label = helpBtn.getAttribute('data-help-label') || helpBtn.textContent.trim() || 'Help';
+
+    const startedAttr = Number(
+      document.querySelector('[data-puzzle-timer]')?.getAttribute('data-started-at')
+    );
+    const startedAtMs = Number.isFinite(startedAttr) ? startedAttr * 1000 : Date.now();
+
+    helpBtn.disabled = true;
+    helpBtn.setAttribute('aria-disabled', 'true');
+
+    const enable = () => {
+      helpBtn.disabled = false;
+      helpBtn.removeAttribute('aria-disabled');
+      helpBtn.textContent = label;
+    };
+
+    const renderCountdown = () => {
+      const elapsed = Date.now() - startedAtMs;
+      const remaining = Math.ceil((delaySec * 1000 - elapsed) / 1000);
+      if (remaining <= 0) {
+        enable();
+        window.clearInterval(helpBtn._puzzleHelpInterval);
+        return;
+      }
+      helpBtn.textContent = `${label} ${remaining}s`;
+    };
+
+    renderCountdown();
+    helpBtn._puzzleHelpInterval = window.setInterval(renderCountdown, 250);
+  }
+
+  const timerEl = document.querySelector('[data-puzzle-timer]');
+  if (timerEl) {
+    const startedAt = Number(timerEl.getAttribute('data-started-at'));
+    const formatTime = (totalSeconds) => {
+      const seconds = Math.max(0, Math.floor(totalSeconds));
+      const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+      const ss = String(seconds % 60).padStart(2, '0');
+      return `${mm}:${ss}`;
+    };
+    const tick = () => {
+      if (!Number.isFinite(startedAt)) return;
+      const nowSec = Math.floor(Date.now() / 1000);
+      timerEl.textContent = formatTime(nowSec - startedAt);
+    };
+    tick();
+    window.setInterval(tick, 250);
+  }
+
   if (document.body.classList.contains('flc-app')) {
     document.documentElement.style.setProperty('--flc-app', '1');
     requestMobileFcmToken();

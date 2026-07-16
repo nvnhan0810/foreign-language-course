@@ -48,7 +48,7 @@ final class SendVocabQuizRemindersHandler implements CommandHandler
             foreach ($recipient->pushTokens as $token) {
                 if ($this->notifier->sendToToken($token, $title, $body, [
                     'type' => 'vocab_quiz',
-                    'route' => '/home/quiz',
+                    'route' => '/home/quiz/play',
                     'autostart' => '1',
                 ])) {
                     $sentAny = true;

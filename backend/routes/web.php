@@ -14,6 +14,7 @@ use App\Http\Controllers\Web\LookupController;
 use App\Http\Controllers\Web\MediaController;
 use App\Http\Controllers\Web\AgentTokenController as WebAgentTokenController;
 use App\Http\Controllers\Web\ProfileController;
+use App\Http\Controllers\Web\PuzzleController;
 use App\Http\Controllers\Web\QuizController;
 use App\Http\Controllers\Web\UserAuthController;
 use App\Http\Controllers\Web\VocabularyController as WebVocabularyController;
@@ -57,8 +58,16 @@ Route::name('user.')->middleware(\App\Http\Middleware\DetectFlcMobileApp::class)
             Route::put('media/{mediaItem}/transcript', [MediaController::class, 'updateTranscript'])->name('media.transcript');
 
             Route::get('quiz', [QuizController::class, 'index'])->name('quiz');
+            Route::get('quiz/play', [QuizController::class, 'play'])->name('quiz.play');
             Route::post('quiz/next', [QuizController::class, 'next'])->name('quiz.next');
             Route::post('quiz/answer', [QuizController::class, 'answer'])->name('quiz.answer');
+
+            Route::get('puzzle', [PuzzleController::class, 'index'])->name('puzzle');
+            Route::post('puzzle/exit', [PuzzleController::class, 'exit'])->name('puzzle.exit');
+            Route::get('puzzle/scramble', [PuzzleController::class, 'scramble'])->name('puzzle.scramble');
+            Route::post('puzzle/scramble/next', [PuzzleController::class, 'nextScramble'])->name('puzzle.scramble.next');
+            Route::post('puzzle/scramble/hint', [PuzzleController::class, 'hintScramble'])->name('puzzle.scramble.hint');
+            Route::post('puzzle/scramble/answer', [PuzzleController::class, 'answerScramble'])->name('puzzle.scramble.answer');
 
             Route::get('profile', [ProfileController::class, 'show'])->name('profile');
             Route::post('profile/agent-tokens', [WebAgentTokenController::class, 'store'])->name('profile.agent-tokens.store');
