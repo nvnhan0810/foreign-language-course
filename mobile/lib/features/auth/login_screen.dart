@@ -27,7 +27,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ref.invalidate(authStateProvider);
       await ref.read(authStateProvider.future);
       await ref.read(fcmTokenRegistrarProvider).registerIfLoggedIn();
-      if (mounted) context.go('/home/lookup');
+      if (mounted) context.go('/app');
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {

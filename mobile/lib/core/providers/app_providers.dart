@@ -38,3 +38,6 @@ final notificationSettingsProvider =
   }
   return ref.read(flcApiProvider).getNotificationSettings();
 });
+
+/// Absolute or path URL the embedded WebView should navigate to (FCM / deep link).
+final webAppNavigateProvider = StateProvider<String?>((ref) => null);

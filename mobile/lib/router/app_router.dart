@@ -1,12 +1,6 @@
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/features/auth/login_screen.dart';
-import 'package:flc_mobile/features/home/home_shell.dart';
-import 'package:flc_mobile/features/listening/listening_quiz_screen.dart';
-import 'package:flc_mobile/features/media/media_detail_screen.dart';
-import 'package:flc_mobile/features/puzzle/puzzle_hub_screen.dart';
-import 'package:flc_mobile/features/puzzle/scramble_screen.dart';
-import 'package:flc_mobile/features/quiz/vocab_quiz_screen.dart';
-import 'package:flc_mobile/models/flc_models.dart';
+import 'package:flc_mobile/features/webapp/web_app_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,59 +19,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loggedIn = auth.value == true;
       final onLogin = state.matchedLocation == '/login';
       if (!loggedIn && !onLogin) return '/login';
-      if (loggedIn && onLogin) return '/home/lookup';
+      if (loggedIn && onLogin) return '/app';
       return null;
     },
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      ShellRoute(
-        builder: (context, state, child) => HomeShell(child: child),
-        routes: [
-          GoRoute(path: '/home/lookup', builder: (_, __) => const HomeTabLookup()),
-          GoRoute(path: '/home/vocab', builder: (_, __) => const HomeTabVocab()),
-          GoRoute(path: '/home/media', builder: (_, __) => const HomeTabMedia()),
-          GoRoute(path: '/home/quiz', builder: (_, __) => const HomeTabGames()),
-          GoRoute(path: '/home/profile', builder: (_, __) => const HomeTabProfile()),
-        ],
-      ),
       GoRoute(
-        path: '/home/quiz/play',
+        path: '/app',
         builder: (context, state) {
-          final autostart = state.uri.queryParameters['autostart'] == '1';
-          return VocabQuizScreen(autostart: autostart);
-        },
-      ),
-      GoRoute(
-        path: '/home/puzzle',
-        builder: (_, __) => const PuzzleHubScreen(),
-      ),
-      GoRoute(
-        path: '/home/puzzle/scramble',
-        builder: (context, state) {
-          final autostart = state.uri.queryParameters['autostart'] == '1';
-          return ScrambleScreen(autostart: autostart);
-        },
-      ),
-      GoRoute(
-        path: '/media/:id',
-        builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          final extra = state.extra;
-          return MediaDetailScreen(
-            mediaId: id,
-            initial: extra is MediaItem ? extra : null,
-          );
-        },
-      ),
-      GoRoute(
-        path: '/listening/:id',
-        builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          final extra = state.extra;
-          return ListeningQuizScreen(
-            assessmentId: id,
-            title: extra is String ? extra : 'Listening quiz',
-          );
+          final next = state.uri.queryParameters['next'];
+          return WebAppScreen(initialPath: next);
         },
       ),
     ],
