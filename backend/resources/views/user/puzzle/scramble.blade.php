@@ -28,34 +28,33 @@
             $letters = $scrambled !== '' ? str_split($scrambled) : [];
             $wordLength = (int) ($puzzle['word_length'] ?? count($letters));
             $hintUsed = is_array($hint);
-            $displayElapsed = $elapsedSeconds;
-            if ($displayElapsed === null && $answered && $startedAt) {
-                $displayElapsed = max(0, time() - (int) $startedAt);
-            }
+            $hintDefinition = (string) ($hint['definition'] ?? $puzzle['hint_definition'] ?? '');
+            $hintPos = $hint['part_of_speech'] ?? $puzzle['hint_part_of_speech'] ?? null;
             $formatTime = function (?int $seconds): string {
                 $seconds = max(0, (int) $seconds);
                 return sprintf('%02d:%02d', intdiv($seconds, 60), $seconds % 60);
             };
+            $liveElapsed = $startedAt ? max(0, time() - (int) $startedAt) : 0;
         @endphp
 
         <div class="puzzle-screen {{ $answered ? 'is-resolved' : 'is-playing' }} {{ $wasCorrect === true ? 'is-win' : '' }} {{ $wasCorrect === false ? 'is-lose' : '' }}">
             <div class="puzzle-topbar">
                 <a href="{{ route('user.home.puzzle') }}" class="puzzle-close" aria-label="Back to modes" data-puzzle-exit data-confirm="Leave this round?">✕</a>
-                <div class="puzzle-timer-pill {{ $answered ? 'is-frozen' : '' }}">
+                <div class="puzzle-timer-pill">
                     <span class="puzzle-timer-label">TIME</span>
                     <span
                         class="puzzle-timer-value"
                         id="puzzle-timer"
-                        @if (!$answered && $startedAt)
+                        @if ($startedAt)
                             data-puzzle-timer
                             data-started-at="{{ $startedAt }}"
                         @endif
-                    >{{ $formatTime($answered ? $displayElapsed : ($startedAt ? max(0, time() - (int) $startedAt) : 0)) }}</span>
+                    >{{ $formatTime($liveElapsed) }}</span>
                 </div>
                 <div class="puzzle-meta-pill">{{ $wordLength }} LTR</div>
             </div>
 
-            <div class="puzzle-screen-body">
+            <div class="puzzle-screen-scroll">
                 <div class="puzzle-arena">
                     <p class="puzzle-arena-prompt">Unscramble</p>
                     <div class="puzzle-letter-row" aria-label="Scrambled letters">
@@ -65,54 +64,42 @@
                     </div>
                 </div>
 
-                @if ($hintUsed && !$answered)
-                    <div class="puzzle-hint-card">
+                @if (! $answered)
+                    <div
+                        class="puzzle-hint-countdown"
+                        data-puzzle-hint-countdown
+                        data-help-delay-ms="15000"
+                        @if ($wordStartedAt) data-word-started-at="{{ $wordStartedAt }}" @endif
+                        @if ($hintUsed) hidden @endif
+                        aria-live="polite"
+                    >
+                        <span class="puzzle-hint-countdown-label">Hint in</span>
+                        <span class="puzzle-hint-countdown-value" data-puzzle-hint-countdown-value>15</span>
+                        <span class="puzzle-hint-countdown-unit">s</span>
+                    </div>
+                    <div
+                        class="puzzle-hint-card"
+                        data-puzzle-auto-hint
+                        data-help-delay-ms="15000"
+                        @if ($wordStartedAt) data-word-started-at="{{ $wordStartedAt }}" @endif
+                        @if ($hintUsed) data-puzzle-hint-ready @endif
+                        @unless ($hintUsed) hidden @endunless
+                    >
                         <div class="puzzle-hint-label">Hint</div>
-                        @if (!empty($hint['part_of_speech']))
-                            <p class="puzzle-hint-pos">{{ $hint['part_of_speech'] }}</p>
+                        @if (!empty($hintPos))
+                            <p class="puzzle-hint-pos">{{ $hintPos }}</p>
                         @endif
-                        <p class="puzzle-hint-text">{{ $hint['definition'] ?? '' }}</p>
+                        <p class="puzzle-hint-text">{{ $hintDefinition }}</p>
                     </div>
                 @endif
 
-                @if (!$answered)
-                    <form action="{{ route('user.home.puzzle.scramble.answer') }}" method="POST" class="flc-form-submit puzzle-answer-form">
-                        @csrf
-                        <input
-                            id="scramble-answer"
-                            type="text"
-                            name="answer"
-                            class="puzzle-answer-input"
-                            autocomplete="off"
-                            autocapitalize="off"
-                            spellcheck="false"
-                            maxlength="40"
-                            required
-                            autofocus
-                            placeholder="Your guess"
-                            aria-label="Your guess"
-                        >
-                        <div class="puzzle-action-row">
-                            <button type="submit" class="btn puzzle-btn-submit">Submit</button>
-                            <button
-                                type="submit"
-                                class="btn btn-secondary puzzle-btn-help"
-                                formaction="{{ route('user.home.puzzle.scramble.hint') }}"
-                                formnovalidate
-                                id="puzzle-help-btn"
-                                data-puzzle-help
-                                data-help-delay-ms="15000"
-                                data-help-label="Help"
-                                @if ($hintUsed) data-puzzle-help-used @endif
-                                disabled
-                            >Help</button>
-                        </div>
-                    </form>
-                @else
+                @if ($answered)
                     <div class="puzzle-result {{ $wasCorrect ? 'is-win' : 'is-lose' }}">
                         <div class="puzzle-result-banner">
                             <span class="puzzle-result-title">{{ $wasCorrect ? 'Nice!' : 'Not quite' }}</span>
-                            <span class="puzzle-result-time">{{ $formatTime($displayElapsed) }}</span>
+                            @if ($elapsedSeconds !== null)
+                                <span class="puzzle-result-time">{{ $formatTime($elapsedSeconds) }}</span>
+                            @endif
                         </div>
                         <p class="puzzle-result-msg">{{ $feedback }}</p>
                     </div>
@@ -147,7 +134,30 @@
                             ])
                         </div>
                     @endif
+                @endif
+            </div>
 
+            <div class="puzzle-screen-footer">
+                @if (! $answered)
+                    <form action="{{ route('user.home.puzzle.scramble.answer') }}" method="POST" class="flc-form-submit puzzle-answer-form">
+                        @csrf
+                        <input
+                            id="scramble-answer"
+                            type="text"
+                            name="answer"
+                            class="puzzle-answer-input"
+                            autocomplete="off"
+                            autocapitalize="off"
+                            spellcheck="false"
+                            maxlength="40"
+                            required
+                            autofocus
+                            placeholder="Your guess"
+                            aria-label="Your guess"
+                        >
+                        <button type="submit" class="btn btn-block puzzle-btn-submit">Submit</button>
+                    </form>
+                @else
                     <form action="{{ route('user.home.puzzle.scramble.next') }}" method="POST" class="flc-form-submit puzzle-next-form">
                         @csrf
                         <button type="submit" class="btn btn-block puzzle-btn-play">Next round →</button>

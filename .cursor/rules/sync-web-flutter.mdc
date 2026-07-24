@@ -1,8 +1,9 @@
 ---
-description: Ensure UI changes are synchronized between web and Flutter mobile applications
+description: Mobile is a WebView shell — prefer web UI changes for user-facing features
 globs: *
 ---
-# Sync Web and Flutter UI
+# Web UI vs Flutter mobile
 
-- Khi sửa giao diện web dành cho user, bạn bắt buộc phải sửa cả giao diện trên ứng dụng Flutter mobile tương ứng.
-- Đảm bảo đồng bộ giao diện cho cả 2 nền tảng (Web và Mobile), chúng luôn phải giống nhau và nhất quán về mặt UI/UX cũng như yêu cầu chức năng.
+- Flutter mobile is a **WebView shell** (Google OAuth native → session handoff → Blade web app).
+- User-facing screens (lookup, vocab, media, quiz, scramble, profile, …) live on **web** (`backend/resources/views`, CSS/JS). Do **not** recreate them as native Flutter screens.
+- When changing those features, update the **web** app. Flutter only needs changes for shell concerns: login, WebView, theme handoff, FCM deep links, auth/API helpers.

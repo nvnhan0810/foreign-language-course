@@ -182,12 +182,17 @@ a {
 
 .user-game,
 .user-game .user-shell {
+  height: 100dvh;
+  max-height: 100dvh;
   min-height: 100dvh;
+  overflow: hidden;
 }
 
 .user-game .user-shell,
 .user-game-bg .user-shell {
   position: relative;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: var(--bg);
 }
@@ -267,7 +272,10 @@ a {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+  overflow: hidden;
   padding: 0;
   padding-left: 0;
   padding-right: 0;
@@ -1483,11 +1491,18 @@ a {
 }
 
 .puzzle-screen {
-  flex: 1;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: 0;
   width: 100%;
+  overflow: hidden;
+}
+
+.puzzle-screen.is-playing,
+.puzzle-screen.is-resolved {
+  position: relative;
+  height: 100%;
 }
 
 .puzzle-screen-idle .puzzle-screen-body {
@@ -1495,6 +1510,7 @@ a {
 }
 
 .puzzle-topbar {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: 44px 1fr 72px;
   align-items: center;
@@ -1575,6 +1591,40 @@ a {
   flex-direction: column;
   gap: 14px;
   padding: 8px calc(16px + var(--sar)) calc(18px + var(--sab)) calc(16px + var(--sal));
+}
+
+.puzzle-screen-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px calc(16px + var(--sar)) 12px calc(16px + var(--sal));
+}
+
+.puzzle-screen.is-playing .puzzle-screen-scroll {
+  /* room for input + submit footer */
+  padding-bottom: calc(148px + var(--sab));
+}
+
+.puzzle-screen.is-resolved .puzzle-screen-scroll {
+  padding-bottom: calc(88px + var(--sab));
+}
+
+.puzzle-screen-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  padding: 10px calc(16px + var(--sar)) calc(14px + var(--sab)) calc(16px + var(--sal));
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 96%, var(--card));
+  backdrop-filter: blur(12px);
+  box-shadow: 0 -8px 24px var(--shadow-sticky);
 }
 
 .puzzle-screen-idle {
@@ -1712,6 +1762,48 @@ a {
   animation: puzzle-tile-pop 0.35s ease both;
 }
 
+.puzzle-hint-card[hidden],
+.puzzle-hint-countdown[hidden] {
+  display: none !important;
+}
+
+.puzzle-hint-countdown {
+  display: inline-flex;
+  align-items: baseline;
+  align-self: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  box-shadow: 0 6px 16px var(--shadow-card);
+  backdrop-filter: blur(8px);
+  animation: puzzle-tile-pop 0.3s ease both;
+}
+
+.puzzle-hint-countdown-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.puzzle-hint-countdown-value {
+  font-size: 20px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary);
+  min-width: 1.4em;
+  text-align: center;
+}
+
+.puzzle-hint-countdown-unit {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
 .puzzle-hint-label {
   margin: 0 0 6px;
   font-size: 11px;
@@ -1736,10 +1828,8 @@ a {
 }
 
 .puzzle-answer-form {
-  margin-top: auto;
   display: grid;
   gap: 10px;
-  padding-top: 8px;
 }
 
 .puzzle-answer-input {
@@ -1761,34 +1851,12 @@ a {
   box-shadow: 0 0 0 4px var(--primary-soft);
 }
 
-.puzzle-action-row {
-  display: flex;
-  gap: 10px;
-}
-
-.puzzle-action-row .btn {
-  flex: 1;
-  min-width: 0;
-}
-
 .puzzle-btn-play,
 .puzzle-btn-submit {
   min-height: 52px;
   font-weight: 800;
   letter-spacing: 0.02em;
   border-radius: 16px;
-}
-
-.puzzle-btn-help {
-  min-height: 52px;
-  font-weight: 700;
-  border-radius: 16px;
-  flex: 0 0 30% !important;
-}
-
-#puzzle-help-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .puzzle-result {
@@ -1842,8 +1910,7 @@ a {
 }
 
 .puzzle-next-form {
-  margin-top: auto;
-  padding-top: 8px;
+  margin: 0;
 }
 
 .quiz-game-prompt {
