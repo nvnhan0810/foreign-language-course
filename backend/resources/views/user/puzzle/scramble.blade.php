@@ -30,6 +30,8 @@
             $hintUsed = is_array($hint);
             $hintDefinition = (string) ($hint['definition'] ?? $puzzle['hint_definition'] ?? '');
             $hintPos = $hint['part_of_speech'] ?? $puzzle['hint_part_of_speech'] ?? null;
+            $sessionCorrect = (int) ($sessionCorrect ?? 0);
+            $bestCorrect = (int) ($bestCorrect ?? 0);
             $formatTime = function (?int $seconds): string {
                 $seconds = max(0, (int) $seconds);
                 return sprintf('%02d:%02d', intdiv($seconds, 60), $seconds % 60);
@@ -37,8 +39,10 @@
             $liveElapsed = $startedAt ? max(0, time() - (int) $startedAt) : 0;
         @endphp
 
+        @include('user.partials.game-record-celebrate', ['celebrateRecord' => $celebrateRecord ?? null])
+
         <div class="puzzle-screen {{ $answered ? 'is-resolved' : 'is-playing' }} {{ $wasCorrect === true ? 'is-win' : '' }} {{ $wasCorrect === false ? 'is-lose' : '' }}">
-            <div class="puzzle-topbar">
+            <div class="puzzle-topbar puzzle-topbar-score">
                 <a href="{{ route('user.home.puzzle') }}" class="puzzle-close" aria-label="Back to modes" data-puzzle-exit data-confirm="Leave this round?">✕</a>
                 <div class="puzzle-timer-pill">
                     <span class="puzzle-timer-label">TIME</span>
@@ -51,7 +55,11 @@
                         @endif
                     >{{ $formatTime($liveElapsed) }}</span>
                 </div>
-                <div class="puzzle-meta-pill">{{ $wordLength }} LTR</div>
+                <div class="game-score-pill" title="Correct this run / personal best">
+                    <span class="game-score-current">✓ {{ $sessionCorrect }}</span>
+                    <span class="game-score-sep">·</span>
+                    <span class="game-score-best">Best {{ $bestCorrect }}</span>
+                </div>
             </div>
 
             <div class="puzzle-screen-scroll">
@@ -97,9 +105,7 @@
                     <div class="puzzle-result {{ $wasCorrect ? 'is-win' : 'is-lose' }}">
                         <div class="puzzle-result-banner">
                             <span class="puzzle-result-title">{{ $wasCorrect ? 'Nice!' : 'Not quite' }}</span>
-                            @if ($elapsedSeconds !== null)
-                                <span class="puzzle-result-time">{{ $formatTime($elapsedSeconds) }}</span>
-                            @endif
+                            <span class="puzzle-result-time">✓ {{ $sessionCorrect }} · {{ $formatTime($elapsedSeconds ?? $liveElapsed) }}</span>
                         </div>
                         <p class="puzzle-result-msg">{{ $feedback }}</p>
                     </div>

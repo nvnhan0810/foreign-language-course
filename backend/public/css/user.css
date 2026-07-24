@@ -1985,5 +1985,165 @@ a {
   margin: calc(10px + var(--sat)) 16px 0;
 }
 
+.puzzle-topbar-score {
+  grid-template-columns: 44px 1fr auto;
+}
+
+.game-score-pill {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+  box-shadow: 0 6px 16px var(--shadow-card);
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+}
+
+.game-score-current {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-score-sep {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.game-score-best {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.game-record-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 10, 24, 0.45);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.game-record-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.game-record-overlay.is-leaving {
+  opacity: 0;
+}
+
+.game-record-overlay[hidden] {
+  display: none !important;
+}
+
+.game-record-card {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 340px);
+  padding: 28px 24px 24px;
+  border-radius: 24px;
+  text-align: center;
+  background: var(--card);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+  box-shadow: 0 24px 60px var(--shadow-card);
+  animation: game-record-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.game-record-eyebrow {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.game-record-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.game-record-score {
+  margin: 12px 0 8px;
+  font-size: 42px;
+  font-weight: 900;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-record-score span {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.game-record-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.game-record-burst {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.game-record-confetti {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  width: 10px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--hue, var(--primary));
+  opacity: 0;
+  animation: game-record-confetti var(--d, 1s) ease-out forwards;
+  animation-delay: calc(var(--i, 0) * 18ms);
+}
+
+@keyframes game-record-pop {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes game-record-confetti {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, 0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--x, 0)), -48vh) rotate(var(--r, 180deg)) scale(0.7);
+  }
+}
+
 
 
