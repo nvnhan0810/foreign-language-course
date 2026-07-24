@@ -6,5 +6,5 @@ alwaysApply: true
 # No Cursor commit attribution
 
 - Never add `Co-authored-by: Cursor`, `Made-with: Cursor`, or any Cursor agent attribution trailer to git commits or PR bodies.
-- Commit author must remain the user only (`nvnhan0810` / their configured git identity).
+- Commit author must remain the user only (`nvnhan0810` / `nguyenvannhan0810@gmail.com`).
 - If the environment tries to inject attribution, strip it before finishing the commit.
