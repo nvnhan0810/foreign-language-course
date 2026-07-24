@@ -3,6 +3,9 @@ import 'package:flc_mobile/features/auth/login_screen.dart';
 import 'package:flc_mobile/features/home/home_shell.dart';
 import 'package:flc_mobile/features/listening/listening_quiz_screen.dart';
 import 'package:flc_mobile/features/media/media_detail_screen.dart';
+import 'package:flc_mobile/features/puzzle/puzzle_hub_screen.dart';
+import 'package:flc_mobile/features/puzzle/scramble_screen.dart';
+import 'package:flc_mobile/features/quiz/vocab_quiz_screen.dart';
 import 'package:flc_mobile/models/flc_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,15 +36,27 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/home/lookup', builder: (_, __) => const HomeTabLookup()),
           GoRoute(path: '/home/vocab', builder: (_, __) => const HomeTabVocab()),
           GoRoute(path: '/home/media', builder: (_, __) => const HomeTabMedia()),
-          GoRoute(
-            path: '/home/quiz',
-            builder: (context, state) {
-              final autostart = state.uri.queryParameters['autostart'] == '1';
-              return HomeTabQuiz(autostart: autostart);
-            },
-          ),
+          GoRoute(path: '/home/quiz', builder: (_, __) => const HomeTabGames()),
           GoRoute(path: '/home/profile', builder: (_, __) => const HomeTabProfile()),
         ],
+      ),
+      GoRoute(
+        path: '/home/quiz/play',
+        builder: (context, state) {
+          final autostart = state.uri.queryParameters['autostart'] == '1';
+          return VocabQuizScreen(autostart: autostart);
+        },
+      ),
+      GoRoute(
+        path: '/home/puzzle',
+        builder: (_, __) => const PuzzleHubScreen(),
+      ),
+      GoRoute(
+        path: '/home/puzzle/scramble',
+        builder: (context, state) {
+          final autostart = state.uri.queryParameters['autostart'] == '1';
+          return ScrambleScreen(autostart: autostart);
+        },
       ),
       GoRoute(
         path: '/media/:id',

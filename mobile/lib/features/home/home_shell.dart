@@ -1,7 +1,7 @@
 import 'package:flc_mobile/features/lookup/lookup_screen.dart';
 import 'package:flc_mobile/features/media/media_list_screen.dart';
 import 'package:flc_mobile/features/profile/profile_screen.dart';
-import 'package:flc_mobile/features/quiz/vocab_quiz_screen.dart';
+import 'package:flc_mobile/features/quiz/games_hub_screen.dart';
 import 'package:flc_mobile/features/vocab/vocab_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,7 +23,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     _Tab('/home/lookup', Icons.menu_book, 'Lookup'),
     _Tab('/home/vocab', Icons.bookmark, 'Vocabulary'),
     _Tab('/home/media', Icons.headphones, 'Listen'),
-    _Tab('/home/quiz', Icons.quiz, 'Quiz'),
+    _Tab('/home/quiz', Icons.sports_esports_outlined, 'Games'),
     _Tab('/home/profile', Icons.person, 'Profile'),
   ];
 
@@ -78,13 +78,11 @@ class HomeTabMedia extends StatelessWidget {
   Widget build(BuildContext context) => const MediaListScreen();
 }
 
-class HomeTabQuiz extends StatelessWidget {
-  const HomeTabQuiz({super.key, this.autostart = false});
-
-  final bool autostart;
+class HomeTabGames extends StatelessWidget {
+  const HomeTabGames({super.key});
 
   @override
-  Widget build(BuildContext context) => VocabQuizScreen(autostart: autostart);
+  Widget build(BuildContext context) => const GamesHubScreen();
 }
 
 class HomeTabProfile extends StatelessWidget {
