@@ -50,7 +50,13 @@ class PuzzleController extends Controller
 
         $reveal = session('puzzle_scramble_reveal');
         $startedAt = session('puzzle_scramble_started_at');
+        $wordStartedAt = session('puzzle_scramble_word_started_at');
         $elapsed = session('puzzle_scramble_elapsed');
+
+        if (session()->has('puzzle_scramble') && ! is_numeric($wordStartedAt)) {
+            $wordStartedAt = now()->timestamp;
+            session(['puzzle_scramble_word_started_at' => $wordStartedAt]);
+        }
 
         return view('user.puzzle.scramble', [
             'puzzle' => session('puzzle_scramble'),
@@ -59,6 +65,7 @@ class PuzzleController extends Controller
             'wasCorrect' => session('puzzle_scramble_was_correct'),
             'reveal' => is_array($reveal) ? $this->toViewModel($reveal) : null,
             'startedAt' => is_numeric($startedAt) ? (int) $startedAt : null,
+            'wordStartedAt' => is_numeric($wordStartedAt) ? (int) $wordStartedAt : null,
             'elapsedSeconds' => is_numeric($elapsed) ? (int) $elapsed : null,
         ]);
     }
@@ -75,15 +82,22 @@ class PuzzleController extends Controller
                 ->with('error', 'You need at least one saved single word (3–14 letters) to play Scramble. Add words in Vocabulary.');
         }
 
-        session([
+        $payload = [
             'puzzle_scramble' => $puzzle,
             'puzzle_scramble_hint' => null,
             'puzzle_scramble_feedback' => null,
             'puzzle_scramble_was_correct' => null,
             'puzzle_scramble_reveal' => null,
             'puzzle_scramble_elapsed' => null,
-            'puzzle_scramble_started_at' => now()->timestamp,
-        ]);
+            'puzzle_scramble_word_started_at' => now()->timestamp,
+        ];
+
+        // Keep one continuous session clock across rounds until the player exits.
+        if (! session()->has('puzzle_scramble_started_at')) {
+            $payload['puzzle_scramble_started_at'] = now()->timestamp;
+        }
+
+        session($payload);
 
         return redirect()->route('user.home.puzzle.scramble');
     }
@@ -165,6 +179,7 @@ class PuzzleController extends Controller
             'puzzle_scramble_was_correct',
             'puzzle_scramble_reveal',
             'puzzle_scramble_started_at',
+            'puzzle_scramble_word_started_at',
             'puzzle_scramble_elapsed',
         ]);
     }

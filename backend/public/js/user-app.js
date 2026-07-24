@@ -485,39 +485,62 @@
     });
   }
 
-  const helpBtn = document.querySelector('[data-puzzle-help]');
-  if (helpBtn && !helpBtn.hasAttribute('data-puzzle-help-used')) {
-    const delayMs = Number(helpBtn.getAttribute('data-help-delay-ms') || 15000);
-    const delaySec = Math.ceil((Number.isFinite(delayMs) ? delayMs : 15000) / 1000);
-    const label = helpBtn.getAttribute('data-help-label') || helpBtn.textContent.trim() || 'Help';
-
-    const startedAttr = Number(
-      document.querySelector('[data-puzzle-timer]')?.getAttribute('data-started-at')
+  const autoHint = document.querySelector('[data-puzzle-auto-hint]');
+  const hintCountdown = document.querySelector('[data-puzzle-hint-countdown]');
+  if (autoHint && !autoHint.hasAttribute('data-puzzle-hint-ready')) {
+    const delayMs = Number(
+      autoHint.getAttribute('data-help-delay-ms')
+        || hintCountdown?.getAttribute('data-help-delay-ms')
+        || 15000
     );
-    const startedAtMs = Number.isFinite(startedAttr) ? startedAttr * 1000 : Date.now();
+    const rawStarted =
+      autoHint.getAttribute('data-word-started-at')
+      || hintCountdown?.getAttribute('data-word-started-at');
+    const wordStartedSec = rawStarted ? Number(rawStarted) : NaN;
+    // Missing/invalid attr must NOT become 0 (Number(null) === 0 → waitMs = 0).
+    const wordStartedMs =
+      Number.isFinite(wordStartedSec) && wordStartedSec > 1_000_000_000
+        ? wordStartedSec * 1000
+        : Date.now();
+    const totalDelay = Number.isFinite(delayMs) ? delayMs : 15000;
+    const countdownValue = hintCountdown?.querySelector('[data-puzzle-hint-countdown-value]');
 
-    helpBtn.disabled = true;
-    helpBtn.setAttribute('aria-disabled', 'true');
+    const remainingMs = () => Math.max(0, totalDelay - (Date.now() - wordStartedMs));
 
-    const enable = () => {
-      helpBtn.disabled = false;
-      helpBtn.removeAttribute('aria-disabled');
-      helpBtn.textContent = label;
+    const revealHint = () => {
+      if (!autoHint || autoHint.hasAttribute('data-puzzle-hint-ready')) return;
+      if (hintCountdown) {
+        hintCountdown.hidden = true;
+        hintCountdown.setAttribute('hidden', '');
+      }
+      autoHint.hidden = false;
+      autoHint.removeAttribute('hidden');
+      autoHint.setAttribute('data-puzzle-hint-ready', '');
     };
 
     const renderCountdown = () => {
-      const elapsed = Date.now() - startedAtMs;
-      const remaining = Math.ceil((delaySec * 1000 - elapsed) / 1000);
-      if (remaining <= 0) {
-        enable();
-        window.clearInterval(helpBtn._puzzleHelpInterval);
-        return;
+      const leftMs = remainingMs();
+      const leftSec = Math.ceil(leftMs / 1000);
+      if (countdownValue) {
+        countdownValue.textContent = String(Math.max(0, leftSec));
       }
-      helpBtn.textContent = `${label} ${remaining}s`;
+      if (leftMs <= 0) {
+        revealHint();
+        return false;
+      }
+      return true;
     };
 
-    renderCountdown();
-    helpBtn._puzzleHelpInterval = window.setInterval(renderCountdown, 250);
+    if (renderCountdown()) {
+      const tickId = window.setInterval(() => {
+        if (!renderCountdown()) {
+          window.clearInterval(tickId);
+        }
+      }, 200);
+    }
+  } else if (hintCountdown) {
+    hintCountdown.hidden = true;
+    hintCountdown.setAttribute('hidden', '');
   }
 
   const timerEl = document.querySelector('[data-puzzle-timer]');

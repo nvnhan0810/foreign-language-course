@@ -1,43 +1,35 @@
 # FLC Mobile (Flutter)
 
-App native Flutter cho người học — tương ứng web user, gọi **REST API** với **Sanctum Bearer token** (giống browser extension).
+WebView shell cho FLC web app: đăng nhập Google native → handoff Sanctum → Laravel session → load UI Blade trong WebView.
 
-## Tính năng
+## Flow
 
-| Tab | Mô tả |
-|-----|--------|
-| Tra từ | Tra Anh–Anh, lưu từ vựng |
-| Từ vựng | Danh sách, xóa, nghe phát âm |
-| Nghe | YouTube (native player) / MP3, làm quiz listening |
-| Quiz | Ôn từ đã lưu |
-| Cá nhân | Thống kê, lịch sử, bật/tắt nhắc push |
-
-Đăng nhập: **Google OAuth** → redirect `flc://oauth-callback` → lưu Bearer token.
+1. **Sign in with Google** (`flutter_web_auth_2` → `flc://oauth-callback`) → Sanctum token  
+2. `POST /api/auth/webview-session` → one-time handoff URL  
+3. WebView mở web app (UA `FLCApp/`, theme sync qua `flc_theme`)
 
 ## Cấu hình (`.env`)
 
 ```env
+WEBAPP_URL=https://flc.nvnhan0810.com
 API_BASE_URL=https://flc.nvnhan0810.com/api
 ```
 
-Local dev:
+Local:
 
 ```env
-# Android emulator → host
+# Android emulator
+WEBAPP_URL=http://10.0.2.2:8080
 API_BASE_URL=http://10.0.2.2:8080/api
 
 # iOS Simulator
+WEBAPP_URL=http://localhost:8080
 API_BASE_URL=http://localhost:8080/api
 ```
 
 Copy: `cp .env.example .env`
 
-## Yêu cầu
-
-- Flutter SDK 3.16+
-- Backend FLC với API routes (`/api/...`)
-
-## Chạy app
+## Chạy
 
 ```bash
 cd mobile
@@ -46,31 +38,14 @@ flutter pub get
 flutter run
 ```
 
-Hot restart sau khi sửa `.env` — cần **stop & run lại**.
-
-## Cấu trúc chính
+## Cấu trúc
 
 ```
 lib/
-  config/app_config.dart       # API_BASE_URL, OAuth redirect
-  core/api/                    # Dio + FlcApi
-  core/auth/                   # Google OAuth (flutter_web_auth_2)
-  core/fcm/                    # Push token via API + deep link routes
-  features/                    # login, lookup, vocab, media, quiz, profile
-  router/app_router.dart       # GoRouter
+  features/auth/       # Login native
+  features/webapp/     # WebView shell
+  core/auth/           # Google OAuth + handoff
+  core/webview/        # Deep-link path mapping
+  core/fcm/            # Push + in-app navigation
+  router/              # /login + /app
 ```
-
-## Push quiz từ vựng (FCM)
-
-Nhắc **11:00** và **20:00** (giờ VN), tap mở tab Quiz. Token đăng ký qua `POST /api/me/push-token`. Chi tiết Firebase: [docs/FCM_VOCAB_QUIZ.md](../docs/FCM_VOCAB_QUIZ.md).
-
-## Build release
-
-Đặt `API_BASE_URL` production trong `.env` trước khi build:
-
-```bash
-flutter build apk
-flutter build ios
-```
-
-Package: `com.nvnhan0810.flc`
