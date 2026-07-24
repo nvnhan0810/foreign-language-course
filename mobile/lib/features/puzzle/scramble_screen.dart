@@ -4,6 +4,7 @@ import 'package:flc_mobile/core/api/api_client.dart';
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/models/flc_models.dart';
 import 'package:flc_mobile/widgets/dictionary_card.dart';
+import 'package:flc_mobile/widgets/game_topbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -188,73 +189,66 @@ class _ScrambleScreenState extends ConsumerState<ScrambleScreen> {
     final displaySeconds = _elapsedSeconds ?? 0;
 
     return Scaffold(
-      appBar: AppBar(
-        title: answered
-            ? Text(_formatTime(displaySeconds))
-            : puzzle == null
-                ? const Text('Scramble')
-                : null,
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          tooltip: 'Back',
-          onPressed: _confirmLeave,
-        ),
-        actions: [
-          if (puzzle != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '${puzzle.wordLength} LTR',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                  ),
-                ),
-              ),
-            ),
-        ],
-        bottom: puzzle != null && !answered
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(36),
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: scheme.primaryContainer.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      'TIME  ${_formatTime(displaySeconds)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.6,
-                        color: scheme.onPrimaryContainer,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            GameTopbar(
+              title: answered ? _formatTime(displaySeconds) : (puzzle == null ? 'Scramble' : null),
+              onClose: _confirmLeave,
+              actions: [
+                if (puzzle != null)
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '${puzzle.wordLength} LTR',
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                     ),
                   ),
-                ),
-              )
-            : null,
-      ),
-      body: _loading && puzzle == null
-          ? const Center(child: CircularProgressIndicator())
-          : puzzle == null
-              ? _IdleBody(
-                  error: _error,
-                  onPlay: _next,
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
+              ],
+              bottomWidget: puzzle != null && !answered
+                  ? Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: scheme.primaryContainer.withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'TIME  ${_formatTime(displaySeconds)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.6,
+                              color: scheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            Expanded(
+              child: _loading && puzzle == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : puzzle == null
+                      ? _IdleBody(
+                          error: _error,
+                          onPlay: _next,
+                        )
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
                         'Unscramble',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -453,6 +447,10 @@ class _ScrambleScreenState extends ConsumerState<ScrambleScreen> {
                     ],
                   ),
                 ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flc_mobile/core/api/api_client.dart';
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/models/flc_models.dart';
+import 'package:flc_mobile/widgets/game_topbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -96,56 +97,35 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quiz'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          tooltip: 'Back',
-          onPressed: _confirmLeave,
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Vocabulary quiz (review saved words)',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            GameTopbar(
+              title: 'Quiz',
+              onClose: _confirmLeave,
             ),
-            const SizedBox(height: 16),
-            if (_question == null && !_loading)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 40),
-                  child: Column(
-                    children: [
-                      if (_feedback != null) ...[
-                        Text(
-                          _feedback!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Theme.of(context).colorScheme.error),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                      FilledButton.icon(
-                        onPressed: _next,
-                        icon: const Icon(Icons.play_arrow),
-                        label: const Text('Start Quiz', style: TextStyle(fontSize: 16)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            if (_loading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(40),
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-            if (_question != null) ...[
-              Card(
+            Expanded(
+              child: _loading && _question == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : _question == null
+                      ? _IdleBody(
+                          error: _feedback,
+                          onPlay: _next,
+                        )
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (_loading)
+                                const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(40),
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                              Card(
                 margin: const EdgeInsets.only(bottom: 24),
                 color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
                 child: Padding(
@@ -269,7 +249,80 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
                     ),
                   ),
                 ),
+                            ],
+                          ),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _IdleBody extends StatelessWidget {
+  const _IdleBody({required this.onPlay, this.error});
+
+  final VoidCallback onPlay;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Wrap(
+              spacing: 6,
+              children: ['?', 'A', 'B', 'C', '?']
+                  .map(
+                    (c) => Container(
+                      width: 40,
+                      height: 48,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: scheme.primaryContainer.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        c,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Vocabulary Quiz',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Pick the right answer. Review your saved words.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            if (error != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: scheme.error),
+              ),
             ],
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: onPlay,
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Play', style: TextStyle(fontSize: 16)),
+            ),
           ],
         ),
       ),
