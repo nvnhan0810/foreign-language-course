@@ -1,0 +1,8 @@
+---
+description: Ensure UI changes are synchronized between web and Flutter mobile applications
+globs: *
+---
+# Sync Web and Flutter UI
+
+- Khi sửa giao diện web dành cho user, bạn bắt buộc phải sửa cả giao diện trên ứng dụng Flutter mobile tương ứng.
+- Đảm bảo đồng bộ giao diện cho cả 2 nền tảng (Web và Mobile), chúng luôn phải giống nhau và nhất quán về mặt UI/UX cũng như yêu cầu chức năng.
