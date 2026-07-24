@@ -24,19 +24,28 @@
             <div class="alert alert-success">{{ session('success') }}</div>
         @endif
 
-        <a href="{{ route('user.auth.google') }}" class="btn btn-block">
-            Sign in with Google
-        </a>
+        @if ($isFlcApp ?? false)
+            <p class="muted" style="margin-top:8px">
+                Session expired. Return to the app sign-in screen.
+            </p>
+            <p class="muted" style="margin-top:16px;font-size:12px" data-flc-app-login="1">
+                Google sign-in is not available inside the in-app browser.
+            </p>
+        @else
+            <a href="{{ route('user.auth.google') }}" class="btn btn-block">
+                Sign in with Google
+            </a>
 
-        <div class="theme-toggle" role="group" aria-label="Choose theme" style="margin-top:24px">
-            <button type="button" data-theme-choice="light">☀️</button>
-            <button type="button" data-theme-choice="dark">🌙</button>
-            <button type="button" data-theme-choice="system">💻</button>
-        </div>
+            <div class="theme-toggle" role="group" aria-label="Choose theme" style="margin-top:24px">
+                <button type="button" data-theme-choice="light">☀️</button>
+                <button type="button" data-theme-choice="dark">🌙</button>
+                <button type="button" data-theme-choice="system">💻</button>
+            </div>
 
-        <p class="muted" style="margin-top:16px;font-size:12px">
-            Your email must be on the allowlist. Contact an admin if you need access.
-        </p>
+            <p class="muted" style="margin-top:16px;font-size:12px">
+                Your email must be on the allowlist. Contact an admin if you need access.
+            </p>
+        @endif
     </div>
 </div>
 </body>
