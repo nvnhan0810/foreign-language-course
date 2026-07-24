@@ -1,5 +1,7 @@
 import 'package:flc_mobile/core/theme/app_theme.dart';
 import 'package:flc_mobile/core/theme/theme_mode_provider.dart';
+import 'package:flc_mobile/core/providers/app_providers.dart';
+import 'package:flc_mobile/core/webview/web_app_navigation.dart';
 import 'package:flc_mobile/init_dependencies.dart';
 import 'package:flc_mobile/router/app_router.dart';
 import 'package:flutter/material.dart';
@@ -38,7 +40,11 @@ class _FlcAppState extends ConsumerState<FlcApp> with WidgetsBindingObserver {
   void _wireFcm(GoRouter router) {
     appFcmRedirectCoordinator.start((path) {
       if (!mounted) return;
-      router.go(path);
+      final webPath = mapAppPathToWeb(path);
+      router.go(
+        Uri(path: '/app', queryParameters: {'next': webPath}).toString(),
+      );
+      ref.read(webAppNavigateProvider.notifier).state = webPath;
     });
   }
 

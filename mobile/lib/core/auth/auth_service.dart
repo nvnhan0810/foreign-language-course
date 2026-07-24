@@ -1,11 +1,14 @@
 import 'package:flc_mobile/config/app_config.dart';
+import 'package:flc_mobile/core/api/api_client.dart';
+import 'package:flc_mobile/core/api/flc_api.dart';
 import 'package:flc_mobile/core/storage/token_storage.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
 class AuthService {
-  AuthService(this._tokenStorage);
+  AuthService(this._tokenStorage, this._api);
 
   final TokenStorage _tokenStorage;
+  final FlcApi _api;
 
   Future<bool> isLoggedIn() async {
     final token = await _tokenStorage.getToken();
@@ -39,7 +42,16 @@ class AuthService {
     );
   }
 
+  Future<String> mintWebviewHandoffUrl({String? next}) {
+    return _api.mintWebviewHandoffUrl(next: next);
+  }
+
   Future<void> logout() async {
+    try {
+      await _api.logout();
+    } on ApiException {
+      // Token may already be invalid; still clear local state.
+    } catch (_) {}
     await _tokenStorage.clear();
   }
 }

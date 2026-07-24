@@ -29,7 +29,7 @@ Future<void> initDependencies() async {
   appTokenStorage = TokenStorage();
   appApiClient = ApiClient(appTokenStorage);
   appFlcApi = FlcApi(appApiClient);
-  appAuthService = AuthService(appTokenStorage);
+  appAuthService = AuthService(appTokenStorage, appFlcApi);
   appFcmService = FcmService(localNoti: LocalNotificationsService.instance);
 
   try {
