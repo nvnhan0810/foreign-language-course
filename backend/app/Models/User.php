@@ -45,6 +45,11 @@ class User extends Authenticatable
         return $this->hasMany(QuizAttempt::class);
     }
 
+    public function gameRecords(): HasMany
+    {
+        return $this->hasMany(GameRecord::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

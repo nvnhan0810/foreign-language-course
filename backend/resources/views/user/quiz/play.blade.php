@@ -25,13 +25,21 @@
         @php
             $answered = $feedback !== null;
             $isWordToDef = ($question['question_type'] ?? '') === 'word_to_definition';
+            $sessionCorrect = (int) ($sessionCorrect ?? 0);
+            $bestCorrect = (int) ($bestCorrect ?? 0);
         @endphp
 
+        @include('user.partials.game-record-celebrate', ['celebrateRecord' => $celebrateRecord ?? null])
+
         <div class="puzzle-screen {{ $answered ? 'is-resolved' : 'is-playing' }} {{ $wasCorrect === true ? 'is-win' : '' }} {{ $wasCorrect === false ? 'is-lose' : '' }}">
-            <div class="puzzle-topbar">
+            <div class="puzzle-topbar puzzle-topbar-score">
                 <a href="{{ route('user.home.quiz') }}" class="puzzle-close" aria-label="Back to games" data-puzzle-exit data-confirm="Leave the quiz?">✕</a>
-                <div class="puzzle-topbar-title">Quiz</div>
                 <span class="puzzle-topbar-spacer" aria-hidden="true"></span>
+                <div class="game-score-pill" title="Correct this run / personal best">
+                    <span class="game-score-current">✓ {{ $sessionCorrect }}</span>
+                    <span class="game-score-sep">·</span>
+                    <span class="game-score-best">Best {{ $bestCorrect }}</span>
+                </div>
             </div>
 
             <div class="puzzle-screen-body">
@@ -67,6 +75,7 @@
                     <div class="puzzle-result {{ $wasCorrect ? 'is-win' : 'is-lose' }}">
                         <div class="puzzle-result-banner">
                             <span class="puzzle-result-title">{{ $wasCorrect ? 'Correct!' : 'Wrong' }}</span>
+                            <span class="puzzle-result-time">✓ {{ $sessionCorrect }}</span>
                         </div>
                         <p class="puzzle-result-msg">{{ $feedback }}</p>
                     </div>

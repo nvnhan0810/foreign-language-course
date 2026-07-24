@@ -565,4 +565,33 @@
     document.documentElement.style.setProperty('--flc-app', '1');
     requestMobileFcmToken();
   }
+
+  const celebrate = document.querySelector('[data-game-record-celebrate]');
+  if (celebrate) {
+    celebrate.hidden = false;
+    celebrate.removeAttribute('hidden');
+    celebrate.classList.add('is-open');
+    const burst = celebrate.querySelector('.game-record-burst');
+    if (burst) {
+      const colors = ['#4361ee', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#a855f7'];
+      for (let i = 0; i < 28; i += 1) {
+        const piece = document.createElement('span');
+        piece.className = 'game-record-confetti';
+        piece.style.setProperty('--i', String(i));
+        piece.style.setProperty('--hue', colors[i % colors.length]);
+        piece.style.setProperty('--x', `${(Math.random() * 160 - 80).toFixed(1)}vw`);
+        piece.style.setProperty('--r', `${(Math.random() * 720 - 360).toFixed(0)}deg`);
+        piece.style.setProperty('--d', `${(0.7 + Math.random() * 0.9).toFixed(2)}s`);
+        burst.appendChild(piece);
+      }
+    }
+    window.setTimeout(() => {
+      celebrate.classList.add('is-leaving');
+      window.setTimeout(() => {
+        celebrate.hidden = true;
+        celebrate.setAttribute('hidden', '');
+        celebrate.classList.remove('is-open', 'is-leaving');
+      }, 420);
+    }, 2200);
+  }
 })();

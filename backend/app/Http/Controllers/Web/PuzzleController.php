@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\GameRecord;
+use App\Models\User;
 use Flc\Puzzle\Application\Query\GetNextScramblePuzzle;
 use Flc\Quiz\Application\Command\RecordQuizAttempt;
 use Flc\Shared\Application\CommandBus;
@@ -58,6 +60,11 @@ class PuzzleController extends Controller
             session(['puzzle_scramble_word_started_at' => $wordStartedAt]);
         }
 
+        /** @var User $user */
+        $user = $request->user();
+        $celebrateRecord = session('puzzle_scramble_celebrate_record');
+        session()->forget('puzzle_scramble_celebrate_record');
+
         return view('user.puzzle.scramble', [
             'puzzle' => session('puzzle_scramble'),
             'hint' => session('puzzle_scramble_hint'),
@@ -67,6 +74,9 @@ class PuzzleController extends Controller
             'startedAt' => is_numeric($startedAt) ? (int) $startedAt : null,
             'wordStartedAt' => is_numeric($wordStartedAt) ? (int) $wordStartedAt : null,
             'elapsedSeconds' => is_numeric($elapsed) ? (int) $elapsed : null,
+            'sessionCorrect' => (int) session('puzzle_scramble_session_correct', 0),
+            'bestCorrect' => GameRecord::bestCorrectFor($user->id, GameRecord::GAME_SCRAMBLE),
+            'celebrateRecord' => $celebrateRecord,
         ]);
     }
 
@@ -90,11 +100,13 @@ class PuzzleController extends Controller
             'puzzle_scramble_reveal' => null,
             'puzzle_scramble_elapsed' => null,
             'puzzle_scramble_word_started_at' => now()->timestamp,
+            'puzzle_scramble_celebrate_record' => null,
         ];
 
-        // Keep one continuous session clock across rounds until the player exits.
+        // Keep one continuous session clock + score across rounds until the player exits.
         if (! session()->has('puzzle_scramble_started_at')) {
             $payload['puzzle_scramble_started_at'] = now()->timestamp;
+            $payload['puzzle_scramble_session_correct'] = 0;
         }
 
         session($payload);
@@ -160,12 +172,25 @@ class PuzzleController extends Controller
         $startedAt = (int) session('puzzle_scramble_started_at', now()->timestamp);
         $elapsed = max(0, now()->timestamp - $startedAt);
 
-        session([
+        $sessionUpdate = [
             'puzzle_scramble_feedback' => $correct ? 'Correct!' : 'Incorrect. Answer: '.$correctWord,
             'puzzle_scramble_was_correct' => $correct,
             'puzzle_scramble_reveal' => is_array($reveal) ? $reveal : null,
             'puzzle_scramble_elapsed' => $elapsed,
-        ]);
+            'puzzle_scramble_celebrate_record' => null,
+        ];
+
+        if ($correct) {
+            $sessionCorrect = (int) session('puzzle_scramble_session_correct', 0) + 1;
+            $sessionUpdate['puzzle_scramble_session_correct'] = $sessionCorrect;
+
+            $bump = GameRecord::bumpIfBetter($request->user()->id, GameRecord::GAME_SCRAMBLE, $sessionCorrect);
+            if ($bump['is_new_record']) {
+                $sessionUpdate['puzzle_scramble_celebrate_record'] = $sessionCorrect;
+            }
+        }
+
+        session($sessionUpdate);
 
         return redirect()->route('user.home.puzzle.scramble');
     }
@@ -181,6 +206,8 @@ class PuzzleController extends Controller
             'puzzle_scramble_started_at',
             'puzzle_scramble_word_started_at',
             'puzzle_scramble_elapsed',
+            'puzzle_scramble_session_correct',
+            'puzzle_scramble_celebrate_record',
         ]);
     }
 
