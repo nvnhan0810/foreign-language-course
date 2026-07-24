@@ -33,6 +33,7 @@ Route::name('user.')->middleware(\App\Http\Middleware\DetectFlcMobileApp::class)
     Route::get('login', [UserAuthController::class, 'showLogin'])->name('login');
     Route::get('auth/google', [UserAuthController::class, 'redirectGoogle'])->name('auth.google');
     Route::get('auth/google/callback', [UserAuthController::class, 'callbackGoogle'])->name('auth.google.callback');
+    Route::get('auth/webview-handoff', [UserAuthController::class, 'webviewHandoff'])->name('auth.webview.handoff');
 
     Route::middleware('auth')->group(function () {
         Route::post('logout', [UserAuthController::class, 'logout'])->name('logout');

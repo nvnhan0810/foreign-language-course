@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AppConfigController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DictionaryController;
 use App\Http\Controllers\Api\GoogleAuthController;
+use App\Http\Controllers\Api\WebviewSessionController;
 use App\Http\Controllers\Api\ListeningAssessmentController;
 use App\Http\Controllers\Api\ListeningMediaController;
 use App\Http\Controllers\Api\DevicePushTokenController;
@@ -28,6 +29,7 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
+    Route::post('/auth/webview-session', [WebviewSessionController::class, 'store']);
     Route::get('/profile', [ProfileController::class, 'show']);
 
     Route::post('/me/push-token', [DevicePushTokenController::class, 'store']);
