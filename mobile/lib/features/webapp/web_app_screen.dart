@@ -1,7 +1,10 @@
 import 'package:flc_mobile/config/app_config.dart';
 import 'package:flc_mobile/core/providers/app_providers.dart';
+import 'package:flc_mobile/core/theme/theme_mode_provider.dart';
+import 'package:flc_mobile/core/theme/theme_storage.dart';
 import 'package:flc_mobile/core/webview/web_app_navigation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -26,6 +29,9 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
 
   Uri get _webOrigin => Uri.parse(webAppUrl);
 
+  String get _themeParam =>
+      ref.read(themePreferenceProvider).storageValue;
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +46,13 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
         widget.initialPath!.isNotEmpty) {
       _navigateWeb(widget.initialPath!);
     }
+  }
+
+  Uri _withAppParams(Uri uri) {
+    final params = Map<String, String>.from(uri.queryParameters);
+    params['flc_app'] = '1';
+    params['flc_theme'] = _themeParam;
+    return uri.replace(queryParameters: params);
   }
 
   Future<void> _bootstrap({String? nextPath}) async {
@@ -58,15 +71,17 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
 
       final controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(Theme.of(context).scaffoldBackgroundColor)
         ..setNavigationDelegate(
           NavigationDelegate(
             onPageStarted: (_) {
               if (mounted) setState(() => _loading = true);
             },
-            onPageFinished: (url) {
+            onPageFinished: (url) async {
               if (!mounted) return;
               setState(() => _loading = false);
-              _onUrl(url);
+              await _syncWebChrome();
+              await _onUrl(url);
             },
             onNavigationRequest: (request) {
               if (_isExternal(request.url)) {
@@ -91,7 +106,7 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
       );
 
       _controller = controller;
-      await controller.loadRequest(Uri.parse(handoff));
+      await controller.loadRequest(_withAppParams(Uri.parse(handoff)));
 
       if (mounted) {
         setState(() => _bootstrapping = false);
@@ -105,6 +120,52 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
         });
       }
     }
+  }
+
+  Future<void> _syncWebChrome() async {
+    final controller = _controller;
+    if (controller == null || !mounted) return;
+
+    final padding = MediaQuery.paddingOf(context);
+    final theme = ref.read(themePreferenceProvider).storageValue;
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness:
+            isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor:
+            isDark ? const Color(0xFF1A2332) : Colors.white,
+        systemNavigationBarIconBrightness:
+            isDark ? Brightness.light : Brightness.dark,
+      ),
+    );
+
+    final sat = padding.top.toStringAsFixed(2);
+    final sab = padding.bottom.toStringAsFixed(2);
+    final sal = padding.left.toStringAsFixed(2);
+    final sar = padding.right.toStringAsFixed(2);
+
+    await controller.runJavaScript('''
+(function () {
+  var root = document.documentElement;
+  root.style.setProperty('--sat', '${sat}px');
+  root.style.setProperty('--sab', '${sab}px');
+  root.style.setProperty('--sal', '${sal}px');
+  root.style.setProperty('--sar', '${sar}px');
+  try {
+    localStorage.setItem('flc-theme', '$theme');
+  } catch (e) {}
+  var dark = '$theme' === 'dark' || ('$theme' === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  root.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#1a2332' : '#4361ee');
+  document.cookie = 'flc_theme=$theme; path=/; max-age=31536000; SameSite=Lax';
+})();
+''');
   }
 
   bool _isOurHost(Uri uri) {
@@ -145,12 +206,10 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
       }
 
       if (_sessionEstablished) {
-        // Laravel session expired — remint from Sanctum token (no Google again).
         await _bootstrap();
         return;
       }
 
-      // Handoff failed (expired/invalid) — keep Sanctum token for retry.
       if (mounted) {
         setState(() {
           _error = 'Could not open web session. Tap Retry.';
@@ -185,7 +244,7 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
       await _bootstrap(nextPath: pathOrUrl);
       return;
     }
-    await controller.loadRequest(resolveWebAppUri(pathOrUrl));
+    await controller.loadRequest(_withAppParams(resolveWebAppUri(pathOrUrl)));
   }
 
   @override
@@ -198,14 +257,23 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
       });
     });
 
+    ref.listen<ThemePreference>(themePreferenceProvider, (prev, next) {
+      if (prev == next) return;
+      _syncWebChrome();
+    });
+
+    final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
+
     if (_bootstrapping && _controller == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: scaffoldBg,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_error != null && _controller == null) {
       return Scaffold(
+        backgroundColor: scaffoldBg,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -233,20 +301,22 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
       );
     }
 
+    // Edge-to-edge WebView: no Flutter SafeArea (that caused black bars).
+    // Safe insets are pushed into CSS --sat/--sab via _syncWebChrome.
     return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            if (_controller != null) WebViewWidget(controller: _controller!),
-            if (_loading)
-              const Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: LinearProgressIndicator(minHeight: 2),
-              ),
-          ],
-        ),
+      backgroundColor: scaffoldBg,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (_controller != null) WebViewWidget(controller: _controller!),
+          if (_loading)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
+        ],
       ),
     );
   }
