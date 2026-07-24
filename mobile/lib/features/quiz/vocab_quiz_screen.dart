@@ -3,6 +3,7 @@ import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/models/flc_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class VocabQuizScreen extends ConsumerStatefulWidget {
   const VocabQuizScreen({super.key, this.autostart = false});
@@ -71,57 +72,109 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
   bool _sameOption(String a, String b) =>
       a.trim().toLowerCase() == b.trim().toLowerCase();
 
+  Future<void> _confirmLeave() async {
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Leave this round?'),
+        content: const Text("Your current round won't be saved."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Stay')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Leave')),
+        ],
+      ),
+    );
+    if (leave == true && mounted) {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/home/quiz');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Vocabulary quiz (review saved words)',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 16),
-          if (_question == null && !_loading)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 40),
-                child: FilledButton.icon(
-                  onPressed: _next, 
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text('Start Quiz', style: TextStyle(fontSize: 16)),
-                ),
-              ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Quiz'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          tooltip: 'Back',
+          onPressed: _confirmLeave,
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Vocabulary quiz (review saved words)',
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
-          if (_loading) const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator())),
-          if (_question != null) ...[
-            Card(
-              margin: const EdgeInsets.only(bottom: 24),
-              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    Text(
-                      _question!.questionType == 'word_to_definition' ? 'Choose the correct meaning' : 'Choose the correct word',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
+            const SizedBox(height: 16),
+            if (_question == null && !_loading)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 40),
+                  child: Column(
+                    children: [
+                      if (_feedback != null) ...[
+                        Text(
+                          _feedback!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Theme.of(context).colorScheme.error),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      FilledButton.icon(
+                        onPressed: _next,
+                        icon: const Icon(Icons.play_arrow),
+                        label: const Text('Start Quiz', style: TextStyle(fontSize: 16)),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _question!.prompt,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            ..._question!.options.map(
-              (opt) {
+            if (_loading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            if (_question != null) ...[
+              Card(
+                margin: const EdgeInsets.only(bottom: 24),
+                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Text(
+                        _question!.questionType == 'word_to_definition'
+                            ? 'Choose the correct meaning'
+                            : 'Choose the correct word',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _question!.prompt,
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              ..._question!.options.map((opt) {
                 final revealed = _wasCorrect != null;
                 final isCorrectOpt = _sameOption(opt, _question!.correctAnswer);
                 final isSelectedOpt =
@@ -150,8 +203,6 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
                       padding: const EdgeInsets.all(16),
                       backgroundColor: bgColor,
                       foregroundColor: textColor,
-                      // Keep result colors readable: disabled buttons otherwise
-                      // fade the label into the tinted background.
                       disabledBackgroundColor: bgColor,
                       disabledForegroundColor: textColor,
                       side: borderColor != null ? BorderSide(color: borderColor) : null,
@@ -173,49 +224,54 @@ class _VocabQuizScreenState extends ConsumerState<VocabQuizScreen> {
                     ),
                   ),
                 );
-              }
-            ),
-            if (_feedback != null)
-              Container(
-                margin: const EdgeInsets.only(top: 16, bottom: 24),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _wasCorrect == true ? Colors.green.shade50 : Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _wasCorrect == true ? Colors.green.shade200 : Colors.red.shade200,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _wasCorrect == true ? Icons.check_circle : Icons.cancel,
-                      color: _wasCorrect == true ? Colors.green : Colors.red,
+              }),
+              if (_feedback != null)
+                Container(
+                  margin: const EdgeInsets.only(top: 16, bottom: 24),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _wasCorrect == true ? Colors.green.shade50 : Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _wasCorrect == true ? Colors.green.shade200 : Colors.red.shade200,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _feedback!,
-                        style: TextStyle(
-                          color: _wasCorrect == true ? Colors.green.shade800 : Colors.red.shade800,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _wasCorrect == true ? Icons.check_circle : Icons.cancel,
+                        color: _wasCorrect == true ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _feedback!,
+                          style: TextStyle(
+                            color: _wasCorrect == true
+                                ? Colors.green.shade800
+                                : Colors.red.shade800,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
+              if (_wasCorrect != null)
+                SizedBox(
+                  height: 50,
+                  child: FilledButton(
+                    onPressed: _next,
+                    child: const Text(
+                      'Next question',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            if (_wasCorrect != null)
-              SizedBox(
-                height: 50,
-                child: FilledButton(
-                  onPressed: _next,
-                  child: const Text('Next question', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

@@ -113,7 +113,7 @@ class FcmService {
 
   static String? _routeFromData(Map<String, dynamic> data) {
     if (data['type'] == 'vocab_quiz') {
-      return '/home/quiz?autostart=1';
+      return '/home/quiz/play?autostart=1';
     }
 
     final route = data['route'];

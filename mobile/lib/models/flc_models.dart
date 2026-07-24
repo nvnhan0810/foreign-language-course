@@ -286,6 +286,66 @@ class QuizQuestion {
       );
 }
 
+class ScramblePuzzle {
+  ScramblePuzzle({
+    required this.vocabularyId,
+    required this.mode,
+    required this.scrambled,
+    required this.wordLength,
+  });
+
+  final int vocabularyId;
+  final String mode;
+  final String scrambled;
+  final int wordLength;
+
+  factory ScramblePuzzle.fromJson(Map<String, dynamic> json) => ScramblePuzzle(
+        vocabularyId: json['vocabulary_id'] as int,
+        mode: json['mode'] as String? ?? 'scramble',
+        scrambled: json['scrambled'] as String? ?? '',
+        wordLength: json['word_length'] as int? ?? 0,
+      );
+}
+
+class ScrambleHint {
+  ScrambleHint({
+    required this.vocabularyId,
+    required this.definition,
+    this.partOfSpeech,
+  });
+
+  final int vocabularyId;
+  final String definition;
+  final String? partOfSpeech;
+
+  factory ScrambleHint.fromJson(Map<String, dynamic> json) => ScrambleHint(
+        vocabularyId: json['vocabulary_id'] as int,
+        definition: json['definition'] as String? ?? '',
+        partOfSpeech: json['part_of_speech'] as String?,
+      );
+}
+
+class ScrambleAttemptResult {
+  ScrambleAttemptResult({
+    required this.correct,
+    required this.correctWord,
+    this.entry,
+  });
+
+  final bool correct;
+  final String correctWord;
+  final Vocabulary? entry;
+
+  factory ScrambleAttemptResult.fromJson(Map<String, dynamic> json) =>
+      ScrambleAttemptResult(
+        correct: json['correct'] as bool? ?? false,
+        correctWord: json['correct_word'] as String? ?? '',
+        entry: json['entry'] is Map<String, dynamic>
+            ? Vocabulary.fromJson(json['entry'] as Map<String, dynamic>)
+            : null,
+      );
+}
+
 class ProfileUser {
   ProfileUser({required this.id, required this.name, required this.email});
 

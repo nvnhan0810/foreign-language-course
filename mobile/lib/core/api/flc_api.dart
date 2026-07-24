@@ -176,6 +176,38 @@ class FlcApi {
     );
   }
 
+  Future<ScramblePuzzle> nextScramblePuzzle() async {
+    final json = await _client.get<Map<String, dynamic>>(
+      '/puzzle/scramble/next',
+      parser: (d) => d as Map<String, dynamic>,
+    );
+    return ScramblePuzzle.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  Future<ScrambleHint> getScrambleHint(int vocabularyId) async {
+    final json = await _client.post<Map<String, dynamic>>(
+      '/puzzle/scramble/hint',
+      data: {'vocabulary_id': vocabularyId},
+      parser: (d) => d as Map<String, dynamic>,
+    );
+    return ScrambleHint.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  Future<ScrambleAttemptResult> submitScrambleAttempt({
+    required int vocabularyId,
+    required String answer,
+  }) async {
+    final json = await _client.post<Map<String, dynamic>>(
+      '/puzzle/scramble/attempts',
+      data: {
+        'vocabulary_id': vocabularyId,
+        'answer': answer,
+      },
+      parser: (d) => d as Map<String, dynamic>,
+    );
+    return ScrambleAttemptResult.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
   Future<void> registerPushToken({
     required String token,
     required String platform,
