@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 class WebAppScreen extends ConsumerStatefulWidget {
   const WebAppScreen({super.key, this.initialPath});
@@ -55,6 +57,32 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
     return uri.replace(queryParameters: params);
   }
 
+  PlatformWebViewControllerCreationParams _controllerCreationParams() {
+    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+      return WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+      );
+    }
+    return const PlatformWebViewControllerCreationParams();
+  }
+
+  Future<void> _configurePlatformWebView(WebViewController controller) async {
+    final platform = controller.platform;
+
+    if (platform is AndroidWebViewController) {
+      await platform.setMediaPlaybackRequiresUserGesture(false);
+      final cookies = WebViewCookieManager().platform;
+      if (cookies is AndroidWebViewCookieManager) {
+        await cookies.setAcceptThirdPartyCookies(platform, true);
+      }
+    }
+
+    if (platform is WebKitWebViewController) {
+      await platform.setAllowsBackForwardNavigationGestures(true);
+    }
+  }
+
   Future<void> _bootstrap({String? nextPath}) async {
     setState(() {
       _bootstrapping = true;
@@ -69,7 +97,9 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
             next: next != null ? mapAppPathToWeb(next) : null,
           );
 
-      final controller = WebViewController()
+      final controller = WebViewController.fromPlatformCreationParams(
+        _controllerCreationParams(),
+      )
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(Theme.of(context).scaffoldBackgroundColor)
         ..setNavigationDelegate(
@@ -84,10 +114,10 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
               await _onUrl(url);
             },
             onNavigationRequest: (request) {
-              if (_isExternal(request.url)) {
-                return NavigationDecision.prevent;
+              if (_shouldAllowNavigation(request.url)) {
+                return NavigationDecision.navigate;
               }
-              return NavigationDecision.navigate;
+              return NavigationDecision.prevent;
             },
             onWebResourceError: (error) {
               if (!mounted || _sessionEstablished) return;
@@ -99,6 +129,8 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
             },
           ),
         );
+
+      await _configurePlatformWebView(controller);
 
       final baseUa = await controller.getUserAgent() ?? '';
       await controller.setUserAgent(
@@ -172,11 +204,39 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
     return uri.host == _webOrigin.host;
   }
 
-  bool _isExternal(String url) {
+  /// YouTube embed / player loads (and related Google media CDNs).
+  bool _isYouTubeRelatedHost(Uri uri) {
+    final host = uri.host.toLowerCase();
+    if (host.isEmpty) return false;
+
+    const exact = <String>{
+      'youtu.be',
+      'youtube.com',
+      'www.youtube.com',
+      'm.youtube.com',
+      'youtube-nocookie.com',
+      'www.youtube-nocookie.com',
+      'accounts.google.com',
+    };
+
+    if (exact.contains(host)) return true;
+
+    return host.endsWith('.youtube.com') ||
+        host.endsWith('.youtube-nocookie.com') ||
+        host.endsWith('.googlevideo.com') ||
+        host.endsWith('.ytimg.com') ||
+        host.endsWith('.ggpht.com') ||
+        host.endsWith('.googleusercontent.com');
+  }
+
+  bool _shouldAllowNavigation(String url) {
     final uri = Uri.tryParse(url);
-    if (uri == null || !uri.hasScheme) return false;
-    if (uri.scheme != 'http' && uri.scheme != 'https') return true;
-    return !_isOurHost(uri);
+    if (uri == null || !uri.hasScheme) return true;
+    if (uri.scheme == 'about' || uri.scheme == 'data' || uri.scheme == 'blob') {
+      return true;
+    }
+    if (uri.scheme != 'http' && uri.scheme != 'https') return false;
+    return _isOurHost(uri) || _isYouTubeRelatedHost(uri);
   }
 
   bool _isLoginUrl(String url) {

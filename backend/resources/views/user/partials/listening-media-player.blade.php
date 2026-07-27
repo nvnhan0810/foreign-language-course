@@ -3,10 +3,12 @@
         @if ($media->type === 'youtube' && $media->source_id)
             <div class="video-embed video-embed--compact">
                 <iframe
-                    src="https://www.youtube.com/embed/{{ $media->source_id }}"
+                    src="https://www.youtube.com/embed/{{ $media->source_id }}?playsinline=1&rel=0"
                     title="{{ $media->title }}"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                    referrerpolicy="strict-origin-when-cross-origin"
                     allowfullscreen
+                    playsinline
                 ></iframe>
             </div>
         @elseif ($media->audio_path)
