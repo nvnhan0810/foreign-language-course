@@ -719,6 +719,13 @@ a {
   color: inherit;
 }
 
+/* WebKit/WebView: author display:flex beats UA [hidden] without !important. */
+.list-item[hidden],
+.list-item.is-filtered-out,
+.media-filter-empty[hidden] {
+  display: none !important;
+}
+
 .list-item:hover {
   border-color: var(--primary);
 }

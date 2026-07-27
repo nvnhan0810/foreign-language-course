@@ -65,6 +65,7 @@
       items.forEach((item) => {
         const show = value === 'all' || item.dataset.difficulty === value;
         item.hidden = !show;
+        item.classList.toggle('is-filtered-out', !show);
         if (show) visible++;
       });
       if (emptyState) {
