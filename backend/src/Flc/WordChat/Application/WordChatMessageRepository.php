@@ -8,6 +8,13 @@ interface WordChatMessageRepository
 {
     public function save(WordChatMessage $message): WordChatMessage;
 
+    public function findById(int $userId, int $id): ?WordChatMessage;
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    public function updateMetadata(int $userId, int $id, array $metadata): void;
+
     /**
      * @return list<WordChatMessage>
      */

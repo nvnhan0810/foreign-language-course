@@ -9,6 +9,7 @@ use Flc\WordChat\Application\Command\EnsureWordChatAgent;
 use Flc\WordChat\Application\Command\ResetWordChatAgent;
 use Flc\WordChat\Application\Command\SendWordChatMessage;
 use Flc\WordChat\Application\Query\GetWordChatAgentStatus;
+use Flc\WordChat\Application\Query\ListLearningInsights;
 use Flc\WordChat\Application\Query\ListWordChatMessages;
 use Flc\WordChat\Application\WordChatRunRepository;
 use Flc\WordChat\Application\WordChatStreamProxy;
@@ -59,6 +60,22 @@ class WordChatController extends Controller
         $code = ($result['ready'] ?? false) ? 200 : 202;
 
         return response()->json(['data' => $result], $code);
+    }
+
+    public function insights(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'word' => ['nullable', 'string', 'max:120'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $items = $this->queries->ask(new ListLearningInsights(
+            userId: (int) $request->user()->id,
+            word: isset($data['word']) ? (string) $data['word'] : null,
+            limit: (int) ($data['limit'] ?? 50),
+        ));
+
+        return response()->json(['data' => $items]);
     }
 
     public function store(Request $request): JsonResponse

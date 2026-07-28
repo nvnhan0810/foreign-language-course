@@ -2371,6 +2371,58 @@ a {
   }
 }
 
+.word-chat-insights {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
+  display: grid;
+  gap: 10px;
+}
+
+.word-chat-insight {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary) 8%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+}
+
+.word-chat-insight-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.word-chat-insight-word {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.word-chat-insight-type {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+
+.word-chat-insight-content {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.word-chat-insight-practice {
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.word-chat-insight-practice:hover {
+  text-decoration: underline;
+}
+
 .word-chat-bubble.is-error {
   align-self: center;
   max-width: 100%;

@@ -5,12 +5,10 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\ListeningAttempt;
 use App\Models\QuizAttempt;
-use App\Support\AgentToken;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
-use Laravel\Sanctum\PersonalAccessToken;
 
 class ProfileController extends Controller
 {
@@ -35,18 +33,6 @@ class ProfileController extends Controller
             $vocabPercent
         );
 
-        $agentTokens = $user->tokens()
-            ->where('name', AgentToken::NAME)
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (PersonalAccessToken $token) => (object) [
-                'id' => $token->id,
-                'name' => $token->name,
-                'abilities' => $token->abilities ?? [],
-                'last_used_at' => $token->last_used_at,
-                'created_at' => $token->created_at,
-            ]);
-
         return view('user.profile', [
             'user' => $user,
             'stats' => [
@@ -55,8 +41,6 @@ class ProfileController extends Controller
                 'average_score_percent' => $averageScorePercent,
             ],
             'history' => $this->buildHistory($user->id),
-            'agentTokens' => $agentTokens,
-            'newAgentToken' => session('agent_api_token'),
         ]);
     }
 

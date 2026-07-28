@@ -22,8 +22,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'admin' => \App\Http\Middleware\EnsureAdmin::class,
-            'agent.ability' => \App\Http\Middleware\EnsureAgentAbility::class,
-            'agent.tokens' => \App\Http\Middleware\EnsureCanManageAgentTokens::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -5,8 +5,11 @@ namespace Flc\WordChat\Application\Handler;
 use Flc\Shared\Application\Command;
 use Flc\Shared\Application\CommandHandler;
 use Flc\WordChat\Application\Command\CompleteWordChatRun;
+use Flc\WordChat\Application\LearningInsightRepository;
+use Flc\WordChat\Application\WordChatInsightExtractor;
 use Flc\WordChat\Application\WordChatMessageRepository;
 use Flc\WordChat\Application\WordChatRunRepository;
+use Flc\WordChat\Domain\LearningInsight;
 use Flc\WordChat\Domain\WordChatMessage;
 
 final class CompleteWordChatRunHandler implements CommandHandler
@@ -14,6 +17,8 @@ final class CompleteWordChatRunHandler implements CommandHandler
     public function __construct(
         private readonly WordChatMessageRepository $messages,
         private readonly WordChatRunRepository $runs,
+        private readonly WordChatInsightExtractor $insightExtractor,
+        private readonly LearningInsightRepository $insights,
     ) {}
 
     public function handle(Command $command): mixed
@@ -22,15 +27,24 @@ final class CompleteWordChatRunHandler implements CommandHandler
 
         $existing = $this->runs->findByCursorRunForUser($command->userId, $command->cursorRunId);
         if ($existing !== null && $existing->status === 'finished' && $existing->assistantContent !== null) {
-            return [
-                'id' => $existing->assistantMessageId,
-                'role' => 'assistant',
-                'content' => $existing->assistantContent,
-                'cursor_run_id' => $command->cursorRunId,
-            ];
+            return $this->existingAssistantPayload($command->userId, $existing);
         }
 
-        $content = trim($command->assistantContent);
+        $run = $existing ?? $this->runs->findByCursorRunForUser($command->userId, $command->cursorRunId);
+        $userQuestion = '';
+        if ($run !== null) {
+            $userMessage = $this->messages->findById($command->userId, $run->userMessageId);
+            $userQuestion = $userMessage?->content ?? '';
+        }
+
+        $extracted = $this->insightExtractor->extract(
+            userId: $command->userId,
+            userQuestion: $userQuestion,
+            assistantReply: trim($command->assistantContent),
+            sourceMessageId: null,
+        );
+
+        $content = $extracted['content'];
         if ($content === '') {
             $this->runs->markError($command->userId, $command->cursorRunId);
 
@@ -45,6 +59,29 @@ final class CompleteWordChatRunHandler implements CommandHandler
             cursorRunId: $command->cursorRunId,
         ));
 
+        $savedInsights = [];
+        foreach ($extracted['insights'] as $insight) {
+            $savedInsights[] = $this->insights->save(new LearningInsight(
+                id: null,
+                userId: $insight->userId,
+                vocabularyId: $insight->vocabularyId,
+                word: $insight->word,
+                insightType: $insight->insightType,
+                question: $insight->question,
+                content: $insight->content,
+                sourceMessageId: (int) $assistant->id,
+                metadata: $insight->metadata,
+                quizEligible: $insight->quizEligible,
+                timesUsedInQuiz: $insight->timesUsedInQuiz,
+            ));
+        }
+
+        if ($savedInsights !== []) {
+            $this->messages->updateMetadata($command->userId, (int) $assistant->id, [
+                'insight_ids' => array_map(fn ($item) => $item->id, $savedInsights),
+            ]);
+        }
+
         $this->runs->complete(
             userId: $command->userId,
             cursorRunId: $command->cursorRunId,
@@ -52,6 +89,40 @@ final class CompleteWordChatRunHandler implements CommandHandler
             assistantMessageId: (int) $assistant->id,
         );
 
-        return $assistant->toApiArray();
+        $payload = $assistant->toApiArray();
+        $payload['insights'] = array_map(
+            fn ($insight) => $insight->toApiArray(),
+            $savedInsights,
+        );
+
+        return $payload;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function existingAssistantPayload(int $userId, \Flc\WordChat\Domain\WordChatRun $run): ?array
+    {
+        if ($run->assistantMessageId === null) {
+            return null;
+        }
+
+        $assistant = $this->messages->findById($userId, $run->assistantMessageId);
+        if ($assistant === null) {
+            return null;
+        }
+
+        $payload = $assistant->toApiArray();
+        $insightIds = is_array($assistant->metadata['insight_ids'] ?? null)
+            ? $assistant->metadata['insight_ids']
+            : [];
+
+        $payload['insights'] = [];
+        foreach ($insightIds as $insightId) {
+            $insight = $this->insights->findForUser($userId, (int) $insightId);
+            if ($insight !== null) {
+                $payload['insights'][] = $insight->toApiArray();
+            }
+        }
+
+        return $payload;
     }
 }

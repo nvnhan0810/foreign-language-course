@@ -24,7 +24,10 @@
     @else
         @php
             $answered = $feedback !== null;
-            $isWordToDef = ($question['question_type'] ?? '') === 'word_to_definition';
+            $questionType = $question['question_type'] ?? '';
+            $isWordToDef = $questionType === 'word_to_definition';
+            $isInsight = $questionType === 'insight_to_word';
+            $promptLabel = $isInsight ? 'From your Learn chat' : ($isWordToDef ? 'Choose the meaning' : 'Choose the word');
             $sessionCorrect = (int) ($sessionCorrect ?? 0);
             $bestCorrect = (int) ($bestCorrect ?? 0);
         @endphp
@@ -44,7 +47,7 @@
 
             <div class="puzzle-screen-body">
                 <div class="puzzle-arena">
-                    <p class="puzzle-arena-prompt">{{ $isWordToDef ? 'Choose the meaning' : 'Choose the word' }}</p>
+                    <p class="puzzle-arena-prompt">{{ $promptLabel }}</p>
                     <p class="quiz-prompt quiz-game-prompt">{{ $question['prompt'] ?? '' }}</p>
                 </div>
 
@@ -54,6 +57,9 @@
                             <form action="{{ route('user.home.quiz.answer') }}" method="POST" class="flc-form-submit">
                                 @csrf
                                 <input type="hidden" name="vocabulary_id" value="{{ $question['vocabulary_id'] ?? '' }}">
+                                @if (!empty($question['insight_id']))
+                                    <input type="hidden" name="insight_id" value="{{ $question['insight_id'] }}">
+                                @endif
                                 <input type="hidden" name="question_type" value="{{ $question['question_type'] ?? '' }}">
                                 <input type="hidden" name="prompt" value="{{ $question['prompt'] ?? '' }}">
                                 <input type="hidden" name="correct_answer" value="{{ $question['correct_answer'] ?? '' }}">

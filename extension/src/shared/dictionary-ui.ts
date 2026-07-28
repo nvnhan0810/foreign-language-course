@@ -159,3 +159,30 @@ export function isTranslatableSelection(text: string): boolean {
   const word = lookupTermFromSelection(t);
   return word.length >= 1 && word.length <= 48;
 }
+
+export function truncateText(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1)}…`;
+}
+
+export function buildResolveHeader(
+  selected: string,
+  resolved: string,
+  originalSelection?: string
+): string {
+  const displaySelected = originalSelection?.trim() || selected;
+
+  if (selected !== resolved) {
+    if (displaySelected.includes(' ') && displaySelected.toLowerCase() !== selected) {
+      return `Selected: <em>${escapeHtml(truncateText(displaySelected, 80))}</em><br>Looking up: <em>${escapeHtml(resolved)}</em>`;
+    }
+
+    return `Selected: <em>${escapeHtml(selected)}</em><br>Looking up: <em>${escapeHtml(resolved)}</em>`;
+  }
+
+  if (displaySelected.includes(' ')) {
+    return `Selected: <em>${escapeHtml(truncateText(displaySelected, 80))}</em><br>Looking up: <em>${escapeHtml(resolved)}</em>`;
+  }
+
+  return `Word: <em>${escapeHtml(resolved)}</em>`;
+}
