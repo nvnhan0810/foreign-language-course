@@ -2,7 +2,16 @@ import 'package:flc_mobile/config/app_config.dart';
 import 'package:flc_mobile/core/api/api_client.dart';
 import 'package:flc_mobile/core/api/flc_api.dart';
 import 'package:flc_mobile/core/storage/token_storage.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+
+/// User dismissed the Google / OAuth browser sheet (back / cancel).
+class AuthCanceledException implements Exception {
+  const AuthCanceledException();
+
+  @override
+  String toString() => 'AuthCanceledException';
+}
 
 class AuthService {
   AuthService(this._tokenStorage, this._api);
@@ -15,14 +24,25 @@ class AuthService {
     return token != null && token.isNotEmpty;
   }
 
-  Future<void> loginWithGoogle() async {
+  /// Returns `true` when login succeeded. Throws [AuthCanceledException] if the
+  /// user cancels so the UI can retry without showing a PlatformException.
+  Future<bool> loginWithGoogle() async {
     final startUrl =
         '$apiBaseUrl/auth/google/redirect?redirect_uri=${Uri.encodeComponent(oauthRedirectUri)}';
 
-    final result = await FlutterWebAuth2.authenticate(
-      url: startUrl,
-      callbackUrlScheme: 'flc',
-    );
+    final String result;
+    try {
+      result = await FlutterWebAuth2.authenticate(
+        url: startUrl,
+        callbackUrlScheme: 'flc',
+      );
+    } on PlatformException catch (e) {
+      // Android Custom Tabs / iOS ASWebAuthenticationSession cancel.
+      if (e.code == 'CANCELED') {
+        throw const AuthCanceledException();
+      }
+      rethrow;
+    }
 
     final parsed = Uri.parse(result);
     final error = parsed.queryParameters['error'];
@@ -40,6 +60,7 @@ class AuthService {
       email: parsed.queryParameters['email'],
       name: parsed.queryParameters['name'],
     );
+    return true;
   }
 
   Future<String> mintWebviewHandoffUrl({String? next}) {

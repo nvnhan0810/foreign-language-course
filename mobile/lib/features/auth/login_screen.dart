@@ -1,3 +1,4 @@
+import 'package:flc_mobile/core/auth/auth_service.dart';
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/core/theme/app_theme.dart';
 import 'package:flc_mobile/core/theme/theme_mode_provider.dart';
@@ -18,6 +19,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _error;
 
   Future<void> _login() async {
+    if (_loading) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -28,8 +30,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref.read(authStateProvider.future);
       await ref.read(fcmTokenRegistrarProvider).registerIfLoggedIn();
       if (mounted) context.go('/app');
+    } on AuthCanceledException {
+      // User closed the OAuth sheet — stay on login and allow retry.
+      if (mounted) setState(() => _error = null);
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
