@@ -298,21 +298,35 @@ async function openPanel(): Promise<void> {
   panel.style.visibility = 'hidden';
 
   const lookupWord = lookupTermFromSelection(currentSelection);
-  const multiWord = currentSelection.includes(' ');
-  const headerHtml = multiWord
-    ? `Selected: <em>${escapeHtml(truncate(currentSelection, 80))}</em><br>Looking up: <em>${escapeHtml(lookupWord)}</em>`
-    : `Word: <em>${escapeHtml(lookupWord)}</em>`;
 
-  await loadWordIntoPanel(lookupWord, headerHtml);
+  await loadWordIntoPanel(lookupWord, currentSelection);
   panel.style.visibility = 'visible';
 }
 
-async function loadWordIntoPanel(lookupWord: string, headerHtml: string): Promise<void> {
+function buildResolveHeader(selected: string, resolved: string, originalSelection?: string): string {
+  const displaySelected = originalSelection?.trim() || selected;
+
+  if (selected !== resolved) {
+    if (displaySelected.includes(' ') && displaySelected.toLowerCase() !== selected) {
+      return `Selected: <em>${escapeHtml(truncate(displaySelected, 80))}</em><br>Looking up: <em>${escapeHtml(resolved)}</em>`;
+    }
+
+    return `Selected: <em>${escapeHtml(selected)}</em><br>Looking up: <em>${escapeHtml(resolved)}</em>`;
+  }
+
+  if (displaySelected.includes(' ')) {
+    return `Selected: <em>${escapeHtml(truncate(displaySelected, 80))}</em><br>Looking up: <em>${escapeHtml(resolved)}</em>`;
+  }
+
+  return `Word: <em>${escapeHtml(resolved)}</em>`;
+}
+
+async function loadWordIntoPanel(lookupWord: string, originalSelection?: string): Promise<void> {
   if (!panel) return;
 
   panel.innerHTML = `
     <div class="flc-panel-header">
-      <div class="flc-selected-text">${headerHtml}</div>
+      <div class="flc-selected-text">${buildResolveHeader(lookupWord, lookupWord, originalSelection)}</div>
       <button type="button" class="flc-close" aria-label="Close">×</button>
     </div>
     <div class="flc-panel-body">
@@ -342,11 +356,22 @@ async function loadWordIntoPanel(lookupWord: string, headerHtml: string): Promis
   }
 
   try {
-    currentLookup = await api.lookup(lookupWord);
+    const resolved = await api.resolveLookup(lookupWord);
+    currentLookup = resolved.dictionary;
+
+    const headerEl = panel.querySelector('.flc-selected-text');
+    if (headerEl) {
+      headerEl.innerHTML = buildResolveHeader(
+        resolved.selected,
+        resolved.resolved,
+        originalSelection
+      );
+    }
+
     body.innerHTML = renderDictionaryHtml(currentLookup);
     bindPronunciationButtons(body);
     bindRelatedWordClicks(body, (word) => {
-      void loadWordIntoPanel(word, `Word: <em>${escapeHtml(word)}</em>`);
+      void loadWordIntoPanel(word);
     });
     const actions = showPanelFooter(`
       <button type="button" class="flc-btn flc-btn-primary flc-save">Save word</button>

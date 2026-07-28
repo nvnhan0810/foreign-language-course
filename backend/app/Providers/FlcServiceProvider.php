@@ -19,11 +19,15 @@ use Flc\Dictionary\Application\FreeDictionaryGateway;
 use Flc\Dictionary\Application\Handler\CurateDictionaryEntryHandler;
 use Flc\Dictionary\Application\Handler\DeleteDictionaryEntryHandler;
 use Flc\Dictionary\Application\Handler\LookupWordHandler;
+use Flc\Dictionary\Application\Handler\ResolveLookupWordHandler;
 use Flc\Dictionary\Application\Handler\UpsertDictionaryOnSaveHandler;
 use Flc\Dictionary\Application\Query\LookupWord;
+use Flc\Dictionary\Application\Query\ResolveLookupWord;
 use Flc\Dictionary\Application\RelatedWordsGateway;
 use Flc\Dictionary\Application\Repository\DictionaryEntryRepository;
+use Flc\Dictionary\Application\SpellSuggestionGateway;
 use Flc\Dictionary\Infrastructure\Http\HttpDatamuseRelatedWordsGateway;
+use Flc\Dictionary\Infrastructure\Http\HttpDatamuseSpellSuggestionGateway;
 use Flc\Dictionary\Infrastructure\Http\HttpFreeDictionaryGateway;
 use Flc\Dictionary\Infrastructure\Persistence\EloquentDictionaryEntryRepository;
 use Flc\Identity\Application\Command\CreateAllowedEmail;
@@ -128,6 +132,7 @@ class FlcServiceProvider extends ServiceProvider
         $this->app->bind(AllowedEmailRepository::class, EloquentAllowedEmailRepository::class);
         $this->app->bind(FreeDictionaryGateway::class, HttpFreeDictionaryGateway::class);
         $this->app->bind(RelatedWordsGateway::class, HttpDatamuseRelatedWordsGateway::class);
+        $this->app->bind(SpellSuggestionGateway::class, HttpDatamuseSpellSuggestionGateway::class);
         $this->app->bind(MediaItemRepository::class, EloquentMediaItemRepository::class);
         $this->app->bind(MediaContentResolver::class, DefaultMediaContentResolver::class);
         $this->app->bind(ContentAnalyzer::class, DefaultContentAnalyzer::class);
@@ -177,6 +182,7 @@ class FlcServiceProvider extends ServiceProvider
     {
         return [
             LookupWord::class => LookupWordHandler::class,
+            ResolveLookupWord::class => ResolveLookupWordHandler::class,
             ListUserVocabularies::class => ListUserVocabulariesHandler::class,
             GetUserVocabulary::class => GetUserVocabularyHandler::class,
             FindUserVocabularyByWord::class => FindUserVocabularyByWordHandler::class,

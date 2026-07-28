@@ -18,6 +18,15 @@ export interface DictionaryResult {
   curated?: boolean;
 }
 
+export type DictionaryResolveMethod = 'exact' | 'lemma_rules' | 'datamuse_spell';
+
+export interface DictionaryResolveResult {
+  selected: string;
+  resolved: string;
+  method: DictionaryResolveMethod;
+  dictionary: DictionaryResult;
+}
+
 export interface Vocabulary {
   id: number;
   word: string;
