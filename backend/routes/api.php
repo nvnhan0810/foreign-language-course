@@ -37,7 +37,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me/notification-settings', [NotificationSettingsController::class, 'show']);
     Route::put('/me/notification-settings', [NotificationSettingsController::class, 'update']);
 
-    Route::get('/dictionary/{word}', [DictionaryController::class, 'show']);
+    Route::get('/dictionary/resolve/{word}', [DictionaryController::class, 'resolve'])
+        ->where('word', '.*');
+    Route::get('/dictionary/{word}', [DictionaryController::class, 'show'])
+        ->where('word', '.*');
 
     Route::apiResource('vocabularies', VocabularyController::class);
 

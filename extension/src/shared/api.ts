@@ -1,6 +1,7 @@
 import { clearAuth, getAuth, getSettings } from './storage';
 import type {
   DictionaryResult,
+  DictionaryResolveResult,
   ListeningQuestion,
   ListeningSessionOption,
   ListeningSessionStart,
@@ -63,6 +64,12 @@ export const api = {
 
   lookup(word: string) {
     return request<DictionaryResult>(`/dictionary/${encodeURIComponent(word)}`);
+  },
+
+  resolveLookup(word: string) {
+    return request<DictionaryResolveResult>(
+      `/dictionary/resolve/${encodeURIComponent(word)}`
+    );
   },
 
   listVocabularies() {
