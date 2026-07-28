@@ -60,6 +60,8 @@ Cascade (dừng khi hit):
 | 4 | Datamuse spell suggest (optional) | typo / variant |
 | 5 | **AI fallback** (optional, off by default) | chỉ khi 1–4 fail |
 
+**Lemma upgrade (khi exact match tồn tại):** nếu API có cả dạng biến thể lẫn lemma (vd. `outlets` + `outlet`) nhưng dạng selected **thiếu phonetic/audio** trong khi lemma **có**, resolve sang lemma. Giữ exact nếu selected đã có pronunciation đầy đủ (vd. `news`).
+
 ---
 
 ## 3. Web Word Chat — spec (chưa implement)
