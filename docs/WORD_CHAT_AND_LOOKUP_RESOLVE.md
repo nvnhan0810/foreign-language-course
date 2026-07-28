@@ -60,6 +60,8 @@ Cascade (dừng khi hit):
 | 4 | Datamuse spell suggest (optional) | typo / variant |
 | 5 | **AI fallback** (optional, off by default) | chỉ khi 1–4 fail |
 
+**Lemma upgrade (khi exact match tồn tại):** nếu API có cả dạng biến thể lẫn lemma (vd. `outlets` + `outlet`) nhưng dạng selected **thiếu phonetic/audio** trong khi lemma **có**, resolve sang lemma. Giữ exact nếu selected đã có pronunciation đầy đủ (vd. `news`).
+
 ---
 
 ## 3. Web Word Chat — spec (chưa implement)
@@ -154,7 +156,7 @@ LOOKUP_RESOLVE_AI_FALLBACK=false
 | Date | Done |
 |------|------|
 | 2026-07-28 | Doc created from design discussion |
-| 2026-07-28 | **Phase 0 done** — `ResolveLookupWord` + lemma rules + Datamuse spell fallback; `GET /api/dictionary/resolve/{word}`; extension selection overlay dùng `resolveLookup`; tests added |
+| 2026-07-28 | **Phase 0 fix** — when both inflected + lemma exist in API (e.g. `outlets`/`outlet`), prefer lemma if selected lacks phonetic/audio but lemma has it |
 
 ### Phase 0 — files touched
 
