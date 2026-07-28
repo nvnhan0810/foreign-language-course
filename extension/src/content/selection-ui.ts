@@ -3,6 +3,7 @@ import {
   escapeHtml,
   bindPronunciationButtons,
   bindRelatedWordClicks,
+  buildResolveHeader,
   isTranslatableSelection,
   lookupTermFromSelection,
   normalizeSelection,
@@ -303,24 +304,6 @@ async function openPanel(): Promise<void> {
   panel.style.visibility = 'visible';
 }
 
-function buildResolveHeader(selected: string, resolved: string, originalSelection?: string): string {
-  const displaySelected = originalSelection?.trim() || selected;
-
-  if (selected !== resolved) {
-    if (displaySelected.includes(' ') && displaySelected.toLowerCase() !== selected) {
-      return `Selected: <em>${escapeHtml(truncate(displaySelected, 80))}</em><br>Looking up: <em>${escapeHtml(resolved)}</em>`;
-    }
-
-    return `Selected: <em>${escapeHtml(selected)}</em><br>Looking up: <em>${escapeHtml(resolved)}</em>`;
-  }
-
-  if (displaySelected.includes(' ')) {
-    return `Selected: <em>${escapeHtml(truncate(displaySelected, 80))}</em><br>Looking up: <em>${escapeHtml(resolved)}</em>`;
-  }
-
-  return `Word: <em>${escapeHtml(resolved)}</em>`;
-}
-
 async function loadWordIntoPanel(lookupWord: string, originalSelection?: string): Promise<void> {
   if (!panel) return;
 
@@ -473,8 +456,4 @@ function hideAll(): void {
   if (fab) fab.style.display = 'none';
   currentSelection = '';
   panelOpen = false;
-}
-
-function truncate(s: string, max: number): string {
-  return s.length > max ? `${s.slice(0, max)}…` : s;
 }

@@ -126,16 +126,21 @@ use Flc\WordChat\Application\Handler\CompleteWordChatRunHandler;
 use Flc\WordChat\Application\Handler\CreateWordChatAgentHandler;
 use Flc\WordChat\Application\Handler\EnsureWordChatAgentHandler;
 use Flc\WordChat\Application\Handler\GetWordChatAgentStatusHandler;
+use Flc\WordChat\Application\Handler\ListLearningInsightsHandler;
 use Flc\WordChat\Application\Handler\ListWordChatMessagesHandler;
 use Flc\WordChat\Application\Handler\ResetWordChatAgentHandler;
 use Flc\WordChat\Application\Handler\SendWordChatMessageHandler;
+use Flc\WordChat\Application\LearningInsightRepository;
 use Flc\WordChat\Application\Query\GetWordChatAgentStatus;
+use Flc\WordChat\Application\Query\ListLearningInsights;
 use Flc\WordChat\Application\Query\ListWordChatMessages;
 use Flc\WordChat\Application\WordChatAgentRepository;
+use Flc\WordChat\Application\WordChatInsightExtractor;
 use Flc\WordChat\Application\WordChatMessageRepository;
 use Flc\WordChat\Application\WordChatRunRepository;
 use Flc\WordChat\Application\WordChatStreamProxy;
 use Flc\WordChat\Infrastructure\External\HttpCursorWordChatGateway as CursorWordChatGatewayImpl;
+use Flc\WordChat\Infrastructure\Persistence\EloquentLearningInsightRepository;
 use Flc\WordChat\Infrastructure\Persistence\EloquentWordChatAgentRepository;
 use Flc\WordChat\Infrastructure\Persistence\EloquentWordChatMessageRepository;
 use Flc\WordChat\Infrastructure\Persistence\EloquentWordChatRunRepository;
@@ -157,10 +162,12 @@ class FlcServiceProvider extends ServiceProvider
         $this->app->bind(RelatedWordsGateway::class, HttpDatamuseRelatedWordsGateway::class);
         $this->app->bind(SpellSuggestionGateway::class, HttpDatamuseSpellSuggestionGateway::class);
         $this->app->bind(WordChatAgentRepository::class, EloquentWordChatAgentRepository::class);
+        $this->app->bind(LearningInsightRepository::class, EloquentLearningInsightRepository::class);
         $this->app->bind(WordChatMessageRepository::class, EloquentWordChatMessageRepository::class);
         $this->app->bind(WordChatRunRepository::class, EloquentWordChatRunRepository::class);
         $this->app->bind(CursorWordChatGateway::class, CursorWordChatGatewayImpl::class);
         $this->app->singleton(WordChatStreamProxy::class);
+        $this->app->singleton(WordChatInsightExtractor::class);
         $this->app->bind(MediaItemRepository::class, EloquentMediaItemRepository::class);
         $this->app->bind(MediaContentResolver::class, DefaultMediaContentResolver::class);
         $this->app->bind(ContentAnalyzer::class, DefaultContentAnalyzer::class);
@@ -233,6 +240,7 @@ class FlcServiceProvider extends ServiceProvider
             GetListeningAssessmentQuestions::class => GetListeningAssessmentQuestionsHandler::class,
             GetListeningAttempts::class => GetListeningAttemptsHandler::class,
             ListWordChatMessages::class => ListWordChatMessagesHandler::class,
+            ListLearningInsights::class => ListLearningInsightsHandler::class,
             GetWordChatAgentStatus::class => GetWordChatAgentStatusHandler::class,
         ];
     }

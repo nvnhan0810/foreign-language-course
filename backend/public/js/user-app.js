@@ -98,6 +98,7 @@
     const sendUrl = root.dataset.sendUrl || '/api/word-chat/messages';
     const agentUrl = root.dataset.agentUrl || '/api/word-chat/agent';
     const agentEnsureUrl = root.dataset.agentEnsureUrl || '/api/word-chat/agent/ensure';
+    const quizPlayBase = root.dataset.quizPlayUrl || '/home/quiz/play?autostart=1';
     const agentLoadingEl = root.querySelector('[data-word-chat-agent-loading]');
     const agentLoadingTextEl = root.querySelector('[data-word-chat-agent-loading-text]');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -309,6 +310,38 @@
       setBubbleContent(bubble, 'assistant', text);
     };
 
+    const renderInsightPanel = (bubble, items) => {
+      if (!Array.isArray(items) || items.length === 0) return;
+
+      bubble.querySelector('.word-chat-insights')?.remove();
+
+      const panel = document.createElement('div');
+      panel.className = 'word-chat-insights';
+      panel.innerHTML = items.map((item) => {
+        const word = item.word || 'word';
+        const type = item.insight_type || 'note';
+        const content = item.content || '';
+        const insightId = item.id;
+        const quizHref = insightId
+          ? `${quizPlayBase}&insight_id=${encodeURIComponent(String(insightId))}`
+          : quizPlayBase;
+
+        return `
+          <div class="word-chat-insight">
+            <div class="word-chat-insight-meta">
+              <span class="word-chat-insight-word">${escapeHtml(word)}</span>
+              <span class="word-chat-insight-type">${escapeHtml(type)}</span>
+            </div>
+            <p class="word-chat-insight-content">${escapeHtml(content)}</p>
+            <a class="word-chat-insight-practice" href="${quizHref}">Practice in quiz</a>
+          </div>
+        `;
+      }).join('');
+
+      bubble.appendChild(panel);
+      scrollToBottom();
+    };
+
     const appendBubble = (role, content, options = {}) => {
       const bubble = document.createElement('div');
       bubble.className = `word-chat-bubble is-${role}`;
@@ -396,6 +429,15 @@
           }
         });
 
+        source.addEventListener('insights', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            renderInsightPanel(assistantBubble, data.items || []);
+          } catch {
+            // ignore malformed payload
+          }
+        });
+
         source.addEventListener('saved', (event) => {
           try {
             const data = JSON.parse(event.data);
@@ -405,6 +447,9 @@
             }
             if (saved && saved.id) {
               assistantBubble.dataset.messageId = String(saved.id);
+            }
+            if (saved && Array.isArray(saved.insights)) {
+              renderInsightPanel(assistantBubble, saved.insights);
             }
           } catch {
             // ignore malformed payload

@@ -242,6 +242,18 @@ li.item a {
   font-size: 12px;
 }
 
+.lookup-resolve-header {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--flc-muted);
+}
+
+.lookup-resolve-header em {
+  color: var(--flc-text);
+  font-style: normal;
+  font-weight: 600;
+}
+
 footer {
   padding: 8px 12px;
   border-top: 1px solid var(--flc-border);

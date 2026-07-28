@@ -21,6 +21,24 @@ final class EloquentWordChatMessageRepository implements WordChatMessageReposito
         return $this->toDomain($model);
     }
 
+    public function findById(int $userId, int $id): ?WordChatMessage
+    {
+        $model = WordChatMessageModel::query()
+            ->where('user_id', $userId)
+            ->whereKey($id)
+            ->first();
+
+        return $model !== null ? $this->toDomain($model) : null;
+    }
+
+    public function updateMetadata(int $userId, int $id, array $metadata): void
+    {
+        WordChatMessageModel::query()
+            ->where('user_id', $userId)
+            ->whereKey($id)
+            ->update(['metadata' => $metadata]);
+    }
+
     public function listForUser(int $userId, ?int $beforeId = null, int $limit = 50): array
     {
         $query = WordChatMessageModel::query()

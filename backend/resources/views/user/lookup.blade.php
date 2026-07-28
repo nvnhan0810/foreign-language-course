@@ -12,6 +12,7 @@
         data-send-url="{{ url('/api/word-chat/messages') }}"
         data-agent-url="{{ url('/api/word-chat/agent') }}"
         data-agent-ensure-url="{{ url('/api/word-chat/agent/ensure') }}"
+        data-quiz-play-url="{{ route('user.home.quiz.play', ['autostart' => 1]) }}"
     >
         <div class="word-chat-agent-loading" data-word-chat-agent-loading hidden>
             <div class="word-chat-agent-loading-card">

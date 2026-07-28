@@ -8,11 +8,15 @@ use Flc\Shared\Application\Query;
 use Flc\Shared\Application\QueryHandler;
 use Flc\Vocabulary\Application\Repository\UserVocabularyRepository;
 use Flc\Vocabulary\Domain\UserVocabulary;
+use Flc\WordChat\Application\LearningInsightRepository;
+use Flc\WordChat\Domain\LearningInsight;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 final class GetNextQuizQuestionHandler implements QueryHandler
 {
     public function __construct(
         private readonly UserVocabularyRepository $vocabularies,
+        private readonly LearningInsightRepository $insights,
         private readonly Clock $clock,
     ) {}
 
@@ -26,12 +30,100 @@ final class GetNextQuizQuestionHandler implements QueryHandler
             return null;
         }
 
+        if ($query->insightId !== null) {
+            return $this->questionFromInsight($query->userId, $query->insightId, $vocabularies);
+        }
+
+        if ($query->vocabularyId !== null) {
+            $target = $this->findVocabulary($vocabularies, $query->vocabularyId);
+            if ($target !== null) {
+                $insightQuestion = $this->tryInsightQuestion($query->userId, $target, $vocabularies);
+                if ($insightQuestion !== null) {
+                    return $insightQuestion;
+                }
+            }
+        }
+
         $target = $this->pickWeighted($vocabularies);
 
         if ($target === null) {
             return null;
         }
 
+        if (random_int(1, 100) <= 35) {
+            $insightQuestion = $this->tryInsightQuestion($query->userId, $target, $vocabularies);
+            if ($insightQuestion !== null) {
+                return $insightQuestion;
+            }
+        }
+
+        return $this->standardQuestion($target, $vocabularies);
+    }
+
+    /**
+     * @param  list<UserVocabulary>  $vocabularies
+     */
+    private function questionFromInsight(int $userId, int $insightId, array $vocabularies): ?array
+    {
+        $insight = $this->insights->findForUser($userId, $insightId);
+        if ($insight === null || ! $insight->quizEligible) {
+            throw new AccessDeniedHttpException();
+        }
+
+        $target = $this->findVocabularyByWord($vocabularies, $insight->word);
+        if ($target === null && $insight->vocabularyId !== null) {
+            $target = $this->findVocabulary($vocabularies, $insight->vocabularyId);
+        }
+
+        if ($target === null) {
+            return null;
+        }
+
+        return $this->buildInsightQuestion($insight, $target, $vocabularies);
+    }
+
+    /**
+     * @param  list<UserVocabulary>  $vocabularies
+     */
+    private function tryInsightQuestion(int $userId, UserVocabulary $target, array $vocabularies): ?array
+    {
+        $insight = $this->insights->findEligibleForVocabulary($userId, $target->id);
+        if ($insight === null) {
+            return null;
+        }
+
+        return $this->buildInsightQuestion($insight, $target, $vocabularies);
+    }
+
+    /**
+     * @param  list<UserVocabulary>  $vocabularies
+     * @return array<string, mixed>
+     */
+    private function buildInsightQuestion(
+        LearningInsight $insight,
+        UserVocabulary $target,
+        array $vocabularies,
+    ): array {
+        $options = $this->buildWordOptions($vocabularies, $target);
+        shuffle($options);
+
+        return [
+            'vocabulary_id' => $target->id,
+            'insight_id' => $insight->id,
+            'question_type' => 'insight_to_word',
+            'prompt' => $insight->content,
+            'options' => $options,
+            'correct_answer' => $target->word,
+            'source' => 'word_chat_insight',
+        ];
+    }
+
+    /**
+     * @param  list<UserVocabulary>  $vocabularies
+     * @return array<string, mixed>
+     */
+    private function standardQuestion(UserVocabulary $target, array $vocabularies): array
+    {
         $questionType = random_int(0, 1) === 0 ? 'definition_to_word' : 'word_to_definition';
         $correctDefinition = $this->primaryDefinition($target);
 
@@ -54,6 +146,35 @@ final class GetNextQuizQuestionHandler implements QueryHandler
             'options' => $options,
             'correct_answer' => $correctAnswer,
         ];
+    }
+
+    /**
+     * @param  list<UserVocabulary>  $vocabularies
+     */
+    private function findVocabulary(array $vocabularies, int $vocabularyId): ?UserVocabulary
+    {
+        foreach ($vocabularies as $vocabulary) {
+            if ($vocabulary->id === $vocabularyId) {
+                return $vocabulary;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<UserVocabulary>  $vocabularies
+     */
+    private function findVocabularyByWord(array $vocabularies, string $word): ?UserVocabulary
+    {
+        $needle = strtolower(trim($word));
+        foreach ($vocabularies as $vocabulary) {
+            if (strtolower($vocabulary->word) === $needle) {
+                return $vocabulary;
+            }
+        }
+
+        return null;
     }
 
     /**

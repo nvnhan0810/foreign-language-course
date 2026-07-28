@@ -52,9 +52,7 @@ final class WordChatStreamProxy
             ));
 
             if (is_array($saved)) {
-                $this->emitClientEvent($write, 'saved', [
-                    'assistant_message' => $saved,
-                ]);
+                $this->emitSavedEvent($write, $saved);
             }
         } else {
             $this->runs->markError($run->userId, $run->cursorRunId);
@@ -90,9 +88,7 @@ final class WordChatStreamProxy
         ));
 
         if (is_array($saved)) {
-            $this->emitClientEvent($write, 'saved', [
-                'assistant_message' => $saved,
-            ]);
+            $this->emitSavedEvent($write, $saved);
         }
 
         $this->emitClientEvent($write, 'done', []);
@@ -157,6 +153,23 @@ final class WordChatStreamProxy
         if ($event === 'result' && isset($payload['text']) && is_string($payload['text']) && trim($payload['text']) !== '') {
             $assistantText = (string) $payload['text'];
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $saved
+     */
+    private function emitSavedEvent(callable $write, array $saved): void
+    {
+        $insights = is_array($saved['insights'] ?? null) ? $saved['insights'] : [];
+        if ($insights !== []) {
+            $this->emitClientEvent($write, 'insights', [
+                'items' => $insights,
+            ]);
+        }
+
+        $this->emitClientEvent($write, 'saved', [
+            'assistant_message' => $saved,
+        ]);
     }
 
     /**

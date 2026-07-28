@@ -80,8 +80,9 @@ Cascade (dừng khi hit):
 GET  /api/word-chat/agent             → { status: ready|creating|missing|error, ready: bool }
 POST /api/word-chat/agent/ensure      → 202 { status: creating } (queue job if needed)
 GET  /api/word-chat/messages?before=&limit=
+GET  /api/word-chat/insights?word=&limit=
 POST /api/word-chat/messages          → 202 { run_id, stream_url } (requires ready agent)
-GET  /api/word-chat/stream/{runId}  → SSE proxy
+GET  /api/word-chat/stream/{runId}  → SSE proxy (+ `insights` event)
 POST /api/word-chat/reset
 ```
 
@@ -121,17 +122,33 @@ POST /api/word-chat/reset
 | 2.4 | Nav label "Learn"; related word opens chat with `?q=` | done |
 | 2.5 | Agent pre-warm on page load (`GET/POST /api/word-chat/agent*`) + queue job | done |
 
-### Phase 3 — Learning insights + quiz
+### Phase 3 — Learning insights + quiz ✅ done
 
-Chưa bắt đầu.
+| # | Task | Status |
+|---|------|--------|
+| 3.1 | `vocabulary_learning_insights` migration + repository | done |
+| 3.2 | `WordChatInsightExtractor` (JSON block + rule fallback) | done |
+| 3.3 | Persist insights on stream complete; SSE `insights` event | done |
+| 3.4 | `GET /api/word-chat/insights` | done |
+| 3.5 | Quiz `insight_to_word` + scramble hint from insights | done |
+| 3.6 | Learn chat UI insight chips + Practice link | done |
 
-### Phase 4 — Extension polish
+### Phase 4 — Extension polish ✅ done
 
-Chưa bắt đầu.
+| # | Task | Status |
+|---|------|--------|
+| 4.1 | Popup lookup uses `resolveLookup()` | done |
+| 4.2 | Shared `buildResolveHeader()` in `dictionary-ui.ts` | done |
+| 4.3 | Resolve header in popup + selection overlay | done |
 
-### Phase 5 — Deprecate agent skill/API
+### Phase 5 — Deprecate agent skill/API ✅ done
 
-Chưa bắt đầu.
+| # | Task | Status |
+|---|------|--------|
+| 5.1 | Remove `/api/agent/*` and `/api/me/agent-tokens` | done |
+| 5.2 | Remove profile Agent API keys UI | done |
+| 5.3 | Remove `docs/FLC_AGENT_SKILL_SETUP.md` + skill files | done |
+| 5.4 | Dictionary curate remains on admin web UI | done |
 
 ---
 
@@ -220,4 +237,7 @@ WORD_CHAT_MAX_MESSAGE_LENGTH=4000
 
 **Unchanged**
 - `GET /api/dictionary/{word}` — exact lookup (backward compat)
-- Extension popup lookup tab — still `api.lookup()` (Phase 4)
+
+**Removed (Phase 5)**
+- `/api/agent/*`, `/api/me/agent-tokens`, Cursor global skill docs
+- End-user Agent API keys in profile — use web Learn chat + extension instead

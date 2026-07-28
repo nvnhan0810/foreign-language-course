@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Support\AgentToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\Sanctum;
@@ -72,12 +71,12 @@ class WebviewSessionTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_agent_token_cannot_mint_webview_session(): void
+    public function test_scoped_token_cannot_mint_webview_session(): void
     {
         $user = User::factory()->create();
-        $agent = $user->createToken(AgentToken::NAME, AgentToken::defaultAbilities());
+        $scoped = $user->createToken('scoped-token', ['agent:lookup']);
 
-        $this->withToken($agent->plainTextToken)
+        $this->withToken($scoped->plainTextToken)
             ->postJson('/api/auth/webview-session')
             ->assertForbidden();
     }

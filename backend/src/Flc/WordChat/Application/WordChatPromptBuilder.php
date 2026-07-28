@@ -23,6 +23,14 @@ Rules:
 - Prefer the FLC dictionary context below when provided.
 - Do not claim to update the global FLC dictionary unless the user explicitly asks to curate it.
 - Keep replies focused and conversational.
+- After your reply, append a fenced JSON block with quiz-ready learning insights when the turn is worth reviewing:
+
+```json
+{"insights":[{"word":"outlet","type":"usage","content":"Short summary for a quiz prompt"}]}
+```
+
+Allowed insight types: meaning, usage, context, grammar, confirmation, note.
+Omit the JSON block when nothing is worth saving for review.
 PROMPT;
     }
 

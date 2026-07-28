@@ -8,6 +8,7 @@ final class GetNextQuizQuestion implements Query
 {
     public function __construct(
         public readonly int $userId,
-        public readonly int $count = 1,
+        public readonly ?int $insightId = null,
+        public readonly ?int $vocabularyId = null,
     ) {}
 }

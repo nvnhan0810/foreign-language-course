@@ -3,6 +3,7 @@ import {
   escapeHtml,
   bindPronunciationButtons,
   bindRelatedWordClicks,
+  buildResolveHeader,
   renderDictionaryHtml,
   playPronunciation,
 } from '../shared/dictionary-ui';
@@ -182,18 +183,24 @@ async function doLookup() {
   const word = ($('lookup-input') as HTMLInputElement).value.trim();
   if (!word) return;
   try {
-    currentLookup = await api.lookup(word);
-    renderLookup(currentLookup);
+    const resolved = await api.resolveLookup(word);
+    currentLookup = resolved.dictionary;
+    renderLookup(resolved.selected, resolved.resolved, currentLookup);
   } catch (e) {
     currentLookup = null;
     $('lookup-result').classList.add('hidden');
     $('lookup-actions').classList.add('hidden');
+    $('lookup-resolve-header').classList.add('hidden');
     $('lookup-error').textContent =
       e instanceof ApiError ? e.message : 'Could not look up that word.';
   }
 }
 
-function renderLookup(data: DictionaryResult) {
+function renderLookup(selected: string, resolved: string, data: DictionaryResult) {
+  const header = $('lookup-resolve-header');
+  header.innerHTML = buildResolveHeader(selected, resolved);
+  header.classList.remove('hidden');
+
   const el = $('lookup-result');
   el.classList.remove('hidden');
   $('lookup-actions').classList.remove('hidden');
@@ -596,8 +603,8 @@ async function submitListeningQuiz(total: number) {
 
 async function playVocabPronunciation(word: string): Promise<void> {
   try {
-    const data = await api.lookup(word);
-    playPronunciation(data.audio_url, data.word);
+    const resolved = await api.resolveLookup(word);
+    playPronunciation(resolved.dictionary.audio_url, resolved.dictionary.word);
   } catch {
     playPronunciation(null, word);
   }
