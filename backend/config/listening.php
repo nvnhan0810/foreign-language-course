@@ -2,6 +2,12 @@
 
 return [
 
+    /*
+    |--------------------------------------------------------------------------
+    | Cursor Cloud Agents API (shared: listening analysis + word chat)
+    |--------------------------------------------------------------------------
+    */
+
     'cursor_api_key' => env('CURSOR_API_KEY'),
 
     'cursor_api_base' => env('CURSOR_API_BASE', 'https://api.cursor.com'),

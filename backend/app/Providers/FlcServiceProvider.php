@@ -19,11 +19,15 @@ use Flc\Dictionary\Application\FreeDictionaryGateway;
 use Flc\Dictionary\Application\Handler\CurateDictionaryEntryHandler;
 use Flc\Dictionary\Application\Handler\DeleteDictionaryEntryHandler;
 use Flc\Dictionary\Application\Handler\LookupWordHandler;
+use Flc\Dictionary\Application\Handler\ResolveLookupWordHandler;
 use Flc\Dictionary\Application\Handler\UpsertDictionaryOnSaveHandler;
 use Flc\Dictionary\Application\Query\LookupWord;
+use Flc\Dictionary\Application\Query\ResolveLookupWord;
 use Flc\Dictionary\Application\RelatedWordsGateway;
 use Flc\Dictionary\Application\Repository\DictionaryEntryRepository;
+use Flc\Dictionary\Application\SpellSuggestionGateway;
 use Flc\Dictionary\Infrastructure\Http\HttpDatamuseRelatedWordsGateway;
+use Flc\Dictionary\Infrastructure\Http\HttpDatamuseSpellSuggestionGateway;
 use Flc\Dictionary\Infrastructure\Http\HttpFreeDictionaryGateway;
 use Flc\Dictionary\Infrastructure\Persistence\EloquentDictionaryEntryRepository;
 use Flc\Identity\Application\Command\CreateAllowedEmail;
@@ -112,6 +116,29 @@ use Flc\Vocabulary\Application\Query\GetUserVocabulary;
 use Flc\Vocabulary\Application\Query\ListUserVocabularies;
 use Flc\Vocabulary\Application\Repository\UserVocabularyRepository;
 use Flc\Vocabulary\Infrastructure\Persistence\EloquentUserVocabularyRepository;
+use Flc\WordChat\Application\Command\CompleteWordChatRun;
+use Flc\WordChat\Application\Command\CreateWordChatAgent;
+use Flc\WordChat\Application\Command\EnsureWordChatAgent;
+use Flc\WordChat\Application\Command\ResetWordChatAgent;
+use Flc\WordChat\Application\Command\SendWordChatMessage;
+use Flc\WordChat\Application\CursorWordChatGateway;
+use Flc\WordChat\Application\Handler\CompleteWordChatRunHandler;
+use Flc\WordChat\Application\Handler\CreateWordChatAgentHandler;
+use Flc\WordChat\Application\Handler\EnsureWordChatAgentHandler;
+use Flc\WordChat\Application\Handler\GetWordChatAgentStatusHandler;
+use Flc\WordChat\Application\Handler\ListWordChatMessagesHandler;
+use Flc\WordChat\Application\Handler\ResetWordChatAgentHandler;
+use Flc\WordChat\Application\Handler\SendWordChatMessageHandler;
+use Flc\WordChat\Application\Query\GetWordChatAgentStatus;
+use Flc\WordChat\Application\Query\ListWordChatMessages;
+use Flc\WordChat\Application\WordChatAgentRepository;
+use Flc\WordChat\Application\WordChatMessageRepository;
+use Flc\WordChat\Application\WordChatRunRepository;
+use Flc\WordChat\Application\WordChatStreamProxy;
+use Flc\WordChat\Infrastructure\External\HttpCursorWordChatGateway as CursorWordChatGatewayImpl;
+use Flc\WordChat\Infrastructure\Persistence\EloquentWordChatAgentRepository;
+use Flc\WordChat\Infrastructure\Persistence\EloquentWordChatMessageRepository;
+use Flc\WordChat\Infrastructure\Persistence\EloquentWordChatRunRepository;
 use Illuminate\Support\ServiceProvider;
 
 class FlcServiceProvider extends ServiceProvider
@@ -128,6 +155,12 @@ class FlcServiceProvider extends ServiceProvider
         $this->app->bind(AllowedEmailRepository::class, EloquentAllowedEmailRepository::class);
         $this->app->bind(FreeDictionaryGateway::class, HttpFreeDictionaryGateway::class);
         $this->app->bind(RelatedWordsGateway::class, HttpDatamuseRelatedWordsGateway::class);
+        $this->app->bind(SpellSuggestionGateway::class, HttpDatamuseSpellSuggestionGateway::class);
+        $this->app->bind(WordChatAgentRepository::class, EloquentWordChatAgentRepository::class);
+        $this->app->bind(WordChatMessageRepository::class, EloquentWordChatMessageRepository::class);
+        $this->app->bind(WordChatRunRepository::class, EloquentWordChatRunRepository::class);
+        $this->app->bind(CursorWordChatGateway::class, CursorWordChatGatewayImpl::class);
+        $this->app->singleton(WordChatStreamProxy::class);
         $this->app->bind(MediaItemRepository::class, EloquentMediaItemRepository::class);
         $this->app->bind(MediaContentResolver::class, DefaultMediaContentResolver::class);
         $this->app->bind(ContentAnalyzer::class, DefaultContentAnalyzer::class);
@@ -169,6 +202,11 @@ class FlcServiceProvider extends ServiceProvider
             ResumeOrStartListeningSession::class => ResumeOrStartListeningSessionHandler::class,
             InitializeSessionQuestions::class => InitializeSessionQuestionsHandler::class,
             SubmitListeningAttempt::class => SubmitListeningAttemptHandler::class,
+            SendWordChatMessage::class => SendWordChatMessageHandler::class,
+            CompleteWordChatRun::class => CompleteWordChatRunHandler::class,
+            ResetWordChatAgent::class => ResetWordChatAgentHandler::class,
+            EnsureWordChatAgent::class => EnsureWordChatAgentHandler::class,
+            CreateWordChatAgent::class => CreateWordChatAgentHandler::class,
         ];
     }
 
@@ -177,6 +215,7 @@ class FlcServiceProvider extends ServiceProvider
     {
         return [
             LookupWord::class => LookupWordHandler::class,
+            ResolveLookupWord::class => ResolveLookupWordHandler::class,
             ListUserVocabularies::class => ListUserVocabulariesHandler::class,
             GetUserVocabulary::class => GetUserVocabularyHandler::class,
             FindUserVocabularyByWord::class => FindUserVocabularyByWordHandler::class,
@@ -193,6 +232,8 @@ class FlcServiceProvider extends ServiceProvider
             GetListeningSessionOptions::class => GetListeningSessionOptionsHandler::class,
             GetListeningAssessmentQuestions::class => GetListeningAssessmentQuestionsHandler::class,
             GetListeningAttempts::class => GetListeningAttemptsHandler::class,
+            ListWordChatMessages::class => ListWordChatMessagesHandler::class,
+            GetWordChatAgentStatus::class => GetWordChatAgentStatusHandler::class,
         ];
     }
 }

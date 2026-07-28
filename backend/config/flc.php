@@ -35,4 +35,11 @@ return [
         explode(',', (string) env('FLC_ADMIN_EMAILS', ''))
     ))),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Dictionary lookup resolve (extension quick lookup)
+    |--------------------------------------------------------------------------
+    */
+    'lookup_resolve_enable_datamuse' => (bool) env('LOOKUP_RESOLVE_ENABLE_DATAMUSE', true),
+
 ];

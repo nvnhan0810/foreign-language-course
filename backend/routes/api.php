@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\PuzzleController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\VocabularyController;
+use App\Http\Controllers\Api\WordChatController;
 use App\Support\AgentToken;
 use Illuminate\Support\Facades\Route;
 
@@ -37,7 +38,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me/notification-settings', [NotificationSettingsController::class, 'show']);
     Route::put('/me/notification-settings', [NotificationSettingsController::class, 'update']);
 
-    Route::get('/dictionary/{word}', [DictionaryController::class, 'show']);
+    Route::get('/dictionary/resolve/{word}', [DictionaryController::class, 'resolve'])
+        ->where('word', '.*');
+    Route::get('/dictionary/{word}', [DictionaryController::class, 'show'])
+        ->where('word', '.*');
+
+    Route::prefix('word-chat')->group(function () {
+        Route::get('/agent', [WordChatController::class, 'agentStatus']);
+        Route::post('/agent/ensure', [WordChatController::class, 'ensureAgent']);
+        Route::get('/messages', [WordChatController::class, 'index']);
+        Route::post('/messages', [WordChatController::class, 'store']);
+        Route::get('/stream/{runId}', [WordChatController::class, 'stream']);
+        Route::post('/reset', [WordChatController::class, 'reset']);
+    });
 
     Route::apiResource('vocabularies', VocabularyController::class);
 
