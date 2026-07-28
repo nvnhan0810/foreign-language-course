@@ -50,6 +50,11 @@ class User extends Authenticatable
         return $this->hasMany(GameRecord::class);
     }
 
+    public function wordChatAgents(): HasMany
+    {
+        return $this->hasMany(WordChatAgent::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

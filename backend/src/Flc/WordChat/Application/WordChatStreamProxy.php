@@ -1,0 +1,131 @@
+<?php
+
+namespace Flc\WordChat\Application;
+
+use Flc\Shared\Application\CommandBus;
+use Flc\WordChat\Application\Command\CompleteWordChatRun;
+use Flc\WordChat\Domain\WordChatRun;
+use Illuminate\Http\Client\Response;
+
+final class WordChatStreamProxy
+{
+    public function __construct(
+        private readonly CursorWordChatGateway $cursor,
+        private readonly WordChatRunRepository $runs,
+        private readonly CommandBus $commands,
+    ) {}
+
+    /**
+     * Proxy Cursor SSE to output stream and persist assistant reply when finished.
+     */
+    public function pipe(WordChatRun $run, ?string $lastEventId, callable $write): void
+    {
+        $response = $this->cursor->openRunStream($run->cursorAgentId, $run->cursorRunId, $lastEventId);
+
+        if ($response === null) {
+            $this->emitClientEvent($write, 'error', [
+                'code' => 'stream_unavailable',
+                'message' => 'Could not open word chat stream.',
+            ]);
+            $this->runs->markError($run->userId, $run->cursorRunId);
+
+            return;
+        }
+
+        $assistantText = '';
+        $this->relayStream($response, $write, $assistantText);
+
+        if ($assistantText === '') {
+            $terminal = $this->cursor->getRun($run->cursorAgentId, $run->cursorRunId);
+            $assistantText = trim((string) ($terminal['text'] ?? ''));
+        }
+
+        if ($assistantText !== '') {
+            $saved = $this->commands->dispatch(new CompleteWordChatRun(
+                userId: $run->userId,
+                cursorRunId: $run->cursorRunId,
+                assistantContent: $assistantText,
+            ));
+
+            if (is_array($saved)) {
+                $this->emitClientEvent($write, 'saved', [
+                    'assistant_message' => $saved,
+                ]);
+            }
+        } else {
+            $this->runs->markError($run->userId, $run->cursorRunId);
+            $this->emitClientEvent($write, 'error', [
+                'code' => 'empty_reply',
+                'message' => 'Word chat returned an empty reply.',
+            ]);
+        }
+    }
+
+    private function relayStream(Response $response, callable $write, string &$assistantText): void
+    {
+        $body = $response->toPsrResponse()->getBody();
+        $buffer = '';
+
+        while (! $body->eof()) {
+            $chunk = $body->read(8192);
+            if ($chunk === '') {
+                continue;
+            }
+
+            $buffer .= $chunk;
+
+            while (($pos = strpos($buffer, "\n\n")) !== false) {
+                $block = substr($buffer, 0, $pos);
+                $buffer = substr($buffer, $pos + 2);
+                $this->accumulateAssistantText($block, $assistantText);
+            }
+
+            $write($chunk);
+        }
+
+        if ($buffer !== '') {
+            $this->accumulateAssistantText($buffer, $assistantText);
+            $write($buffer);
+        }
+    }
+
+    private function accumulateAssistantText(string $block, string &$assistantText): void
+    {
+        $event = null;
+        $data = null;
+
+        foreach (explode("\n", $block) as $line) {
+            if (str_starts_with($line, 'event:')) {
+                $event = trim(substr($line, 6));
+            } elseif (str_starts_with($line, 'data:')) {
+                $data = trim(substr($line, 5));
+            }
+        }
+
+        if ($data === null || $data === '') {
+            return;
+        }
+
+        $payload = json_decode($data, true);
+        if (! is_array($payload)) {
+            return;
+        }
+
+        if ($event === 'assistant' && isset($payload['text']) && is_string($payload['text'])) {
+            $assistantText .= $payload['text'];
+        }
+
+        if ($event === 'result' && isset($payload['text']) && is_string($payload['text']) && trim($payload['text']) !== '') {
+            $assistantText = (string) $payload['text'];
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function emitClientEvent(callable $write, string $event, array $payload): void
+    {
+        $write("event: {$event}\n");
+        $write('data: '.json_encode($payload, JSON_UNESCAPED_UNICODE)."\n\n");
+    }
+}

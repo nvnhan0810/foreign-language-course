@@ -64,15 +64,24 @@ Cascade (dừng khi hit):
 
 ---
 
-## 3. Web Word Chat — spec (chưa implement)
+## 3. Web Word Chat — spec
 
 | Hạng mục | Quyết định |
 |----------|------------|
 | Transport | SSE (BE proxy Cursor stream) |
 | Session | 1 Cursor agent / user (no-repo, durable) |
 | Model | Auto — omit `model` |
-| API key | Server `CURSOR_API_KEY` |
-| Insights | Structured → quiz / game / exam |
+| API key | Server `CURSOR_API_KEY` — **shared with listening / web agent** (`config/listening.php`) |
+| Insights | Structured → quiz / game / exam (Phase 3) |
+
+### API (Phase 1 — live)
+
+```
+GET  /api/word-chat/messages?before=&limit=
+POST /api/word-chat/messages          → 202 { run_id, stream_url }
+GET  /api/word-chat/stream/{runId}  → SSE proxy
+POST /api/word-chat/reset
+```
 
 ---
 
@@ -89,9 +98,16 @@ Cascade (dừng khi hit):
 | 0.5 | Extension: `api.resolveLookup()` + header resolve | done |
 | 0.6 | Tests | done |
 
-### Phase 1 — Word Chat backend (web)
+### Phase 1 — Word Chat backend (web) ✅ done
 
-Chưa bắt đầu.
+| # | Task | Status |
+|---|------|--------|
+| 1.1 | Migrations: agents, messages, runs | done |
+| 1.2 | `CursorWordChatGateway` — create, follow-up, SSE | done |
+| 1.3 | CQRS: send message, list history, complete run, reset | done |
+| 1.4 | Orchestrator: dictionary context in prompt | done |
+| 1.5 | API + SSE proxy (`/api/word-chat/*`) | done |
+| 1.6 | Feature tests | done |
 
 ### Phase 2 — Web chat UI
 
@@ -147,6 +163,10 @@ GET  /api/word-chat/stream/{runId}
 ```env
 LOOKUP_RESOLVE_ENABLE_DATAMUSE=true
 LOOKUP_RESOLVE_AI_FALLBACK=false
+
+# Word chat — optional overrides (API key/base shared via CURSOR_API_KEY above)
+WORD_CHAT_STREAM_TIMEOUT_SECONDS=300
+WORD_CHAT_MAX_MESSAGE_LENGTH=4000
 ```
 
 ---
@@ -157,6 +177,19 @@ LOOKUP_RESOLVE_AI_FALLBACK=false
 |------|------|
 | 2026-07-28 | Doc created from design discussion |
 | 2026-07-28 | **Phase 0 fix** — when both inflected + lemma exist in API (e.g. `outlets`/`outlet`), prefer lemma if selected lacks phonetic/audio but lemma has it |
+| 2026-07-28 | **Phase 1 done** — Word Chat backend: Cursor agent per user, SSE stream proxy, message history, dictionary context in prompts |
+| 2026-07-28 | Word chat dùng chung `CURSOR_API_KEY` / `CURSOR_API_BASE` với listening (không config key riêng) |
+
+### Phase 1 — files touched
+
+**Backend**
+- `database/migrations/2026_07_28_100000_create_word_chat_tables.php`
+- `app/Models/WordChatAgent.php`, `WordChatMessage.php`, `WordChatRun.php`
+- `src/Flc/WordChat/**` — domain, CQRS, `CursorWordChatGateway`, `WordChatStreamProxy`
+- `app/Http/Controllers/Api/WordChatController.php`
+- `routes/api.php` — `/api/word-chat/*`
+- `config/word_chat.php`
+- `tests/Feature/WordChatApiTest.php`
 
 ### Phase 0 — files touched
 
