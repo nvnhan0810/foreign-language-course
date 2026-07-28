@@ -43,6 +43,11 @@ PROMPT;
         return $this->systemPrompt()."\n\n---\n\n".$this->buildUserPrompt($userText);
     }
 
+    public function buildWarmupPrompt(): string
+    {
+        return $this->systemPrompt()."\n\n---\n\nWait for the user's first message about English words, phrases, usage, or grammar.";
+    }
+
     private function dictionaryContext(string $userText): ?string
     {
         $word = $this->extractLookupWord($userText);

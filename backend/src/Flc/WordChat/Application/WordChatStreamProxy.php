@@ -23,6 +23,10 @@ final class WordChatStreamProxy
         $response = $this->cursor->openRunStream($run->cursorAgentId, $run->cursorRunId, $lastEventId);
 
         if ($response === null) {
+            if ($this->emitTerminalRunFallback($run, $write)) {
+                return;
+            }
+
             $this->emitClientEvent($write, 'error', [
                 'code' => 'stream_unavailable',
                 'message' => 'Could not open word chat stream.',
@@ -59,6 +63,41 @@ final class WordChatStreamProxy
                 'message' => 'Word chat returned an empty reply.',
             ]);
         }
+    }
+
+    private function emitTerminalRunFallback(WordChatRun $run, callable $write): bool
+    {
+        $terminal = $this->cursor->getRun($run->cursorAgentId, $run->cursorRunId);
+        if ($terminal === null) {
+            return false;
+        }
+
+        $text = trim((string) ($terminal['text'] ?? ''));
+        if ($text === '' || strtoupper($terminal['status']) !== 'FINISHED') {
+            return false;
+        }
+
+        $this->emitClientEvent($write, 'result', [
+            'runId' => $run->cursorRunId,
+            'status' => 'FINISHED',
+            'text' => $text,
+        ]);
+
+        $saved = $this->commands->dispatch(new CompleteWordChatRun(
+            userId: $run->userId,
+            cursorRunId: $run->cursorRunId,
+            assistantContent: $text,
+        ));
+
+        if (is_array($saved)) {
+            $this->emitClientEvent($write, 'saved', [
+                'assistant_message' => $saved,
+            ]);
+        }
+
+        $this->emitClientEvent($write, 'done', []);
+
+        return true;
     }
 
     private function relayStream(Response $response, callable $write, string &$assistantText): void

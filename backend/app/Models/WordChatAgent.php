@@ -12,6 +12,7 @@ class WordChatAgent extends Model
         'user_id',
         'cursor_agent_id',
         'status',
+        'error_message',
         'last_run_at',
     ];
 

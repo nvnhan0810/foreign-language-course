@@ -26,5 +26,7 @@ interface CursorWordChatGateway
      */
     public function getRun(string $agentId, string $runId): ?array;
 
+    public function waitForRunSettlement(string $agentId, string $runId, int $timeoutSeconds): bool;
+
     public function archiveAgent(string $agentId): void;
 }

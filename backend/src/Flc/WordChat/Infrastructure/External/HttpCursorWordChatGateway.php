@@ -2,7 +2,7 @@
 
 namespace Flc\WordChat\Infrastructure\External;
 
-use Flc\WordChat\Application\CursorWordChatGateway;
+use Flc\WordChat\Application\CursorWordChatGateway as CursorWordChatGatewayContract;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-final class CursorWordChatGateway implements CursorWordChatGateway
+final class HttpCursorWordChatGateway implements CursorWordChatGatewayContract
 {
     public function isConfigured(): bool
     {
@@ -27,10 +27,14 @@ final class CursorWordChatGateway implements CursorWordChatGateway
         $baseUrl = $this->baseUrl();
 
         try {
-            $response = $this->jsonClient($apiKey)->post("{$baseUrl}/v1/agents", [
+            $response = $this->jsonClient($apiKey, $this->createTimeout())->post("{$baseUrl}/v1/agents", [
                 'prompt' => ['text' => $prompt],
                 'name' => 'FLC Word Chat',
             ]);
+        } catch (ConnectionException $e) {
+            Log::warning('Word chat cursor agent create timed out', ['error' => $e->getMessage()]);
+
+            return null;
         } catch (Throwable $e) {
             Log::warning('Word chat cursor agent create failed', ['error' => $e->getMessage()]);
 
@@ -88,29 +92,49 @@ final class CursorWordChatGateway implements CursorWordChatGateway
             return null;
         }
 
-        $baseUrl = $this->baseUrl();
-        $headers = ['Accept' => 'text/event-stream'];
+        $waitSeconds = max(1, (int) config('word_chat.cursor_stream_wait_seconds', 30));
+        $this->waitForRunStreamReady($agentId, $runId, $waitSeconds);
 
-        if ($lastEventId !== null && $lastEventId !== '') {
-            $headers['Last-Event-ID'] = $lastEventId;
+        $attempts = max(1, (int) config('word_chat.cursor_stream_open_attempts', 20));
+        $delayMs = max(100, (int) config('word_chat.cursor_stream_open_delay_ms', 1000));
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            $response = $this->tryOpenRunStream($apiKey, $agentId, $runId, $lastEventId);
+            if ($response !== null) {
+                return $response;
+            }
+
+            if ($attempt < $attempts) {
+                usleep($delayMs * 1000);
+            }
         }
 
-        try {
-            $response = $this->streamClient($apiKey)
-                ->withOptions(['stream' => true])
-                ->withHeaders($headers)
-                ->get("{$baseUrl}/v1/agents/{$agentId}/runs/{$runId}/stream");
-        } catch (Throwable $e) {
-            Log::warning('Word chat cursor stream open failed', [
-                'agent_id' => $agentId,
-                'run_id' => $runId,
-                'error' => $e->getMessage(),
-            ]);
+        return null;
+    }
 
-            return null;
+    public function waitForRunSettlement(string $agentId, string $runId, int $timeoutSeconds): bool
+    {
+        $deadline = time() + max(1, $timeoutSeconds);
+        $interval = max(1, (int) config('listening.cursor_poll_interval_seconds', 2));
+
+        while (time() < $deadline) {
+            $run = $this->getRun($agentId, $runId);
+            if ($run === null) {
+                sleep($interval);
+
+                continue;
+            }
+
+            if ($this->isTerminalRunStatus($run['status'])) {
+                return true;
+            }
+
+            sleep($interval);
         }
 
-        return $response->successful() ? $response : null;
+        $run = $this->getRun($agentId, $runId);
+
+        return $run !== null && $this->isTerminalRunStatus($run['status']);
     }
 
     public function getRun(string $agentId, string $runId): ?array
@@ -168,22 +192,102 @@ final class CursorWordChatGateway implements CursorWordChatGateway
         return rtrim((string) config('listening.cursor_api_base'), '/');
     }
 
-    private function jsonClient(string $apiKey): PendingRequest
+    private function jsonClient(string $apiKey, ?int $timeout = null): PendingRequest
     {
-        return $this->baseClient($apiKey, (int) config('word_chat.cursor_http_timeout_seconds', 60));
+        return $this->baseClient(
+            $apiKey,
+            $timeout ?? (int) config('word_chat.cursor_http_timeout_seconds', 90),
+            $timeout === null,
+        );
+    }
+
+    private function createTimeout(): int
+    {
+        return max(30, (int) config('word_chat.cursor_create_timeout_seconds', 180));
     }
 
     private function streamClient(string $apiKey): PendingRequest
     {
         $timeout = max(30, (int) config('word_chat.cursor_stream_timeout_seconds', 300));
+        $connectTimeout = max(3, (int) config('word_chat.cursor_connect_timeout_seconds', 10));
 
-        return $this->baseClient($apiKey, $timeout);
+        return Http::withBasicAuth($apiKey, '')
+            ->withHeaders(['Accept' => 'text/event-stream'])
+            ->timeout($timeout)
+            ->connectTimeout($connectTimeout);
     }
 
-    private function baseClient(string $apiKey, int $timeout): PendingRequest
+    private function waitForRunStreamReady(string $agentId, string $runId, int $timeoutSeconds): void
+    {
+        $deadline = time() + $timeoutSeconds;
+        $interval = max(1, (int) config('listening.cursor_poll_interval_seconds', 2));
+
+        while (time() < $deadline) {
+            $run = $this->getRun($agentId, $runId);
+            if ($run !== null && $this->isStreamReadyStatus($run['status'])) {
+                return;
+            }
+
+            usleep($interval * 1_000_000);
+        }
+    }
+
+    private function tryOpenRunStream(string $apiKey, string $agentId, string $runId, ?string $lastEventId): ?Response
+    {
+        $baseUrl = $this->baseUrl();
+        $headers = [];
+
+        if ($lastEventId !== null && $lastEventId !== '') {
+            $headers['Last-Event-ID'] = $lastEventId;
+        }
+
+        try {
+            $request = $this->streamClient($apiKey)
+                ->withOptions(['stream' => true]);
+
+            if ($headers !== []) {
+                $request = $request->withHeaders($headers);
+            }
+
+            $response = $request->get("{$baseUrl}/v1/agents/{$agentId}/runs/{$runId}/stream");
+        } catch (Throwable $e) {
+            Log::warning('Word chat cursor stream open failed', [
+                'agent_id' => $agentId,
+                'run_id' => $runId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        if ($response->successful()) {
+            return $response;
+        }
+
+        Log::warning('Word chat cursor stream open rejected', [
+            'agent_id' => $agentId,
+            'run_id' => $runId,
+            'status' => $response->status(),
+            'body' => substr($response->body(), 0, 500),
+        ]);
+
+        return null;
+    }
+
+    private function isStreamReadyStatus(string $status): bool
+    {
+        return in_array(strtoupper($status), ['RUNNING', 'FINISHED'], true);
+    }
+
+    private function isTerminalRunStatus(string $status): bool
+    {
+        return in_array(strtoupper($status), ['FINISHED', 'FAILED', 'CANCELLED', 'ERROR'], true);
+    }
+
+    private function baseClient(string $apiKey, int $timeout, bool $retry = true): PendingRequest
     {
         $connectTimeout = max(3, (int) config('word_chat.cursor_connect_timeout_seconds', 10));
-        $retries = max(0, (int) config('word_chat.cursor_http_retries', 1));
+        $retries = $retry ? max(0, (int) config('word_chat.cursor_http_retries', 1)) : 0;
 
         $request = Http::withBasicAuth($apiKey, '')
             ->acceptJson()

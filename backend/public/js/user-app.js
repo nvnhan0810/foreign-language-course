@@ -85,6 +85,432 @@
 
   initMediaDifficultyFilter();
 
+  function initWordChat() {
+    const root = document.querySelector('[data-word-chat]');
+    if (!root) return;
+
+    const messagesEl = root.querySelector('[data-word-chat-messages]');
+    const emptyEl = root.querySelector('[data-word-chat-empty]');
+    const form = root.querySelector('[data-word-chat-form]');
+    const input = root.querySelector('[data-word-chat-input]');
+    const sendBtn = root.querySelector('[data-word-chat-send]');
+    const messagesUrl = root.dataset.messagesUrl || '/api/word-chat/messages';
+    const sendUrl = root.dataset.sendUrl || '/api/word-chat/messages';
+    const agentUrl = root.dataset.agentUrl || '/api/word-chat/agent';
+    const agentEnsureUrl = root.dataset.agentEnsureUrl || '/api/word-chat/agent/ensure';
+    const agentLoadingEl = root.querySelector('[data-word-chat-agent-loading]');
+    const agentLoadingTextEl = root.querySelector('[data-word-chat-agent-loading-text]');
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    let streaming = false;
+    let agentReady = false;
+    let agentPollTimer = null;
+    let activeSource = null;
+
+    const jsonHeaders = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': csrf,
+      'X-Requested-With': 'XMLHttpRequest',
+    };
+
+    const setBusy = (busy) => {
+      streaming = busy;
+      if (sendBtn) sendBtn.disabled = busy || !agentReady;
+      if (input) input.disabled = busy || !agentReady;
+    };
+
+    const setAgentLoading = (visible, message) => {
+      if (agentLoadingEl) {
+        agentLoadingEl.hidden = !visible;
+      }
+      if (agentLoadingTextEl && message) {
+        agentLoadingTextEl.textContent = message;
+      }
+      root.classList.toggle('is-agent-loading', visible);
+    };
+
+    const setAgentReady = (ready) => {
+      agentReady = ready;
+      setBusy(streaming);
+      if (ready) {
+        setAgentLoading(false);
+        root.classList.remove('is-agent-error');
+      }
+    };
+
+    const fetchAgentStatus = async () => {
+      const res = await fetch(agentUrl, {
+        credentials: 'same-origin',
+        headers: {
+          Accept: 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      if (!res.ok) {
+        throw new Error('agent_status_failed');
+      }
+      const payload = await res.json();
+      return payload?.data || {};
+    };
+
+    const ensureAgent = async () => {
+      const res = await fetch(agentEnsureUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: jsonHeaders,
+      });
+      if (!res.ok && res.status !== 202) {
+        throw new Error('agent_ensure_failed');
+      }
+      const payload = await res.json();
+      return payload?.data || {};
+    };
+
+    const waitForAgent = async () => {
+      setAgentLoading(true, 'Starting your word tutor session.');
+      setAgentReady(false);
+
+      try {
+        let status = await fetchAgentStatus();
+
+        if (status.ready) {
+          setAgentReady(true);
+          return;
+        }
+
+        if (status.status === 'missing' || status.status === 'error') {
+          status = await ensureAgent();
+          if (status.ready) {
+            setAgentReady(true);
+            return;
+          }
+        }
+
+        const deadline = Date.now() + 300000;
+        while (Date.now() < deadline) {
+          await new Promise((resolve) => {
+            agentPollTimer = window.setTimeout(resolve, 2000);
+          });
+
+          status = await fetchAgentStatus();
+          if (status.ready) {
+            setAgentReady(true);
+            return;
+          }
+          if (status.status === 'error') {
+            throw new Error(status.error || 'agent_error');
+          }
+          if (status.status === 'creating') {
+            setAgentLoading(true, 'Still preparing chat…');
+          }
+        }
+
+        throw new Error('agent_timeout');
+      } catch (error) {
+        root.classList.add('is-agent-error');
+        const message = error instanceof Error && error.message === 'agent_timeout'
+          ? 'Chat took too long to start. Reload the page to try again.'
+          : 'Could not prepare chat. Reload the page to try again.';
+        setAgentLoading(true, message);
+        appendBubble('error', message);
+      }
+    };
+
+    const toggleEmpty = () => {
+      if (!emptyEl) return;
+      const hasMessages = messagesEl.querySelector('.word-chat-bubble');
+      emptyEl.hidden = !!hasMessages;
+    };
+
+    const scrollToBottom = () => {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    };
+
+    const escapeHtml = (value) => value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+    const renderWordChatMarkdown = (text) => {
+      if (!text) return '';
+
+      const codeBlocks = [];
+      let source = escapeHtml(text.trim());
+      source = source.replace(/```([\s\S]*?)```/g, (_, code) => {
+        const token = `@@CODEBLOCK${codeBlocks.length}@@`;
+        codeBlocks.push(`<pre class="word-chat-md-pre"><code>${code.replace(/^\n|\n$/g, '')}</code></pre>`);
+        return token;
+      });
+
+      source = source.replace(/`([^`\n]+)`/g, '<code class="word-chat-md-code">$1</code>');
+      source = source.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+      source = source.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+      source = source.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+      const blocks = source.split(/\n{2,}/);
+      const html = blocks.map((block) => {
+        const trimmed = block.trim();
+        if (!trimmed) return '';
+
+        if (/^@@CODEBLOCK\d+@@$/.test(trimmed)) {
+          return trimmed;
+        }
+
+        const headingMatch = trimmed.match(/^(#{1,3})\s+(.+)$/);
+        if (headingMatch) {
+          const level = headingMatch[1].length;
+          const tag = level === 1 ? 'h2' : (level === 2 ? 'h3' : 'h4');
+          return `<${tag} class="word-chat-md-heading">${headingMatch[2]}</${tag}>`;
+        }
+
+        const lines = trimmed.split('\n');
+        if (lines.every((line) => /^[-*]\s+/.test(line))) {
+          const items = lines
+            .map((line) => line.replace(/^[-*]\s+/, '').trim())
+            .filter(Boolean)
+            .map((item) => `<li>${item}</li>`)
+            .join('');
+          return `<ul class="word-chat-md-list">${items}</ul>`;
+        }
+
+        if (lines.every((line) => /^\d+\.\s+/.test(line))) {
+          const items = lines
+            .map((line) => line.replace(/^\d+\.\s+/, '').trim())
+            .filter(Boolean)
+            .map((item) => `<li>${item}</li>`)
+            .join('');
+          return `<ol class="word-chat-md-list">${items}</ol>`;
+        }
+
+        return `<p class="word-chat-md-p">${lines.join('<br>')}</p>`;
+      }).filter(Boolean).join('');
+
+      return codeBlocks.reduce(
+        (output, block, index) => output.replace(`@@CODEBLOCK${index}@@`, block),
+        `<div class="word-chat-md">${html}</div>`,
+      );
+    };
+
+    const setBubbleContent = (bubble, role, content, options = {}) => {
+      if (role === 'assistant' && !options.streaming) {
+        bubble.innerHTML = renderWordChatMarkdown(content);
+        bubble.classList.add('is-markdown');
+      } else {
+        bubble.textContent = content;
+        bubble.classList.remove('is-markdown');
+      }
+    };
+
+    const finalizeAssistantBubble = (bubble) => {
+      const text = bubble.textContent || '';
+      if (!text.trim()) return;
+      setBubbleContent(bubble, 'assistant', text);
+    };
+
+    const appendBubble = (role, content, options = {}) => {
+      const bubble = document.createElement('div');
+      bubble.className = `word-chat-bubble is-${role}`;
+      if (options.streaming) bubble.classList.add('is-streaming');
+      if (options.messageId) bubble.dataset.messageId = String(options.messageId);
+      setBubbleContent(bubble, role, content, options);
+      messagesEl.appendChild(bubble);
+      toggleEmpty();
+      scrollToBottom();
+      return bubble;
+    };
+
+    const renderHistory = (items) => {
+      messagesEl.querySelectorAll('.word-chat-bubble').forEach((node) => node.remove());
+      (items || []).forEach((item) => {
+        if (!item || !item.role || !item.content) return;
+        appendBubble(item.role === 'assistant' ? 'assistant' : 'user', item.content, {
+          messageId: item.id,
+        });
+      });
+      toggleEmpty();
+    };
+
+    const loadHistory = async () => {
+      try {
+        const res = await fetch(messagesUrl, {
+          credentials: 'same-origin',
+          headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+        if (!res.ok) return;
+        const payload = await res.json();
+        renderHistory(payload.data || []);
+      } catch {
+        // ignore load errors; user can still send
+      }
+    };
+
+    const closeStream = () => {
+      if (activeSource) {
+        activeSource.close();
+        activeSource = null;
+      }
+    };
+
+    const streamReply = (streamUrl, assistantBubble) => {
+      return new Promise((resolve) => {
+        closeStream();
+        const source = new EventSource(streamUrl);
+        activeSource = source;
+        let finished = false;
+
+        const finish = () => {
+          if (finished) return;
+          finished = true;
+          finalizeAssistantBubble(assistantBubble);
+          assistantBubble.classList.remove('is-streaming');
+          closeStream();
+          resolve();
+        };
+
+        source.addEventListener('assistant', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (typeof data.text === 'string') {
+              assistantBubble.textContent += data.text;
+              scrollToBottom();
+            }
+          } catch {
+            // ignore malformed chunks
+          }
+        });
+
+        source.addEventListener('result', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (typeof data.text === 'string') {
+              assistantBubble.textContent = data.text;
+              scrollToBottom();
+            }
+          } catch {
+            // ignore malformed chunks
+          }
+        });
+
+        source.addEventListener('saved', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            const saved = data.assistant_message;
+            if (saved && saved.content) {
+              setBubbleContent(assistantBubble, 'assistant', saved.content);
+            }
+            if (saved && saved.id) {
+              assistantBubble.dataset.messageId = String(saved.id);
+            }
+          } catch {
+            // ignore malformed payload
+          }
+          finish();
+        });
+
+        source.addEventListener('done', () => {
+          finish();
+        });
+
+        source.addEventListener('error', (event) => {
+          if (event.data) {
+            try {
+              const data = JSON.parse(event.data);
+              appendBubble('error', data.message || 'Word chat failed.');
+            } catch {
+              appendBubble('error', 'Word chat failed.');
+            }
+            assistantBubble.remove();
+            finish();
+            return;
+          }
+          finish();
+        });
+
+        source.onerror = () => {
+          if (!finished && assistantBubble.textContent.trim() === '') {
+            appendBubble('error', 'Could not connect to word chat stream.');
+            assistantBubble.remove();
+          }
+          finish();
+        };
+      });
+    };
+
+    const sendMessage = async (text) => {
+      const trimmed = text.trim();
+      if (!trimmed || streaming || !agentReady) return;
+
+      setBusy(true);
+      appendBubble('user', trimmed);
+      input.value = '';
+
+      const assistantBubble = appendBubble('assistant', '', { streaming: true });
+
+      try {
+        const res = await fetch(sendUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: jsonHeaders,
+          body: JSON.stringify({ text: trimmed }),
+        });
+
+        if (!res.ok) {
+          let message = 'Could not send message.';
+          try {
+            const payload = await res.json();
+            message = payload.message || payload.error || message;
+          } catch {
+            if (res.status === 503) {
+              message = 'Word chat timed out. Please try again in a moment.';
+            }
+          }
+          assistantBubble.remove();
+          appendBubble('error', message);
+          return;
+        }
+
+        const payload = await res.json();
+        const streamUrl = payload?.data?.stream_url;
+        if (!streamUrl) {
+          assistantBubble.remove();
+          appendBubble('error', 'Word chat did not return a stream URL.');
+          return;
+        }
+
+        await streamReply(streamUrl, assistantBubble);
+      } catch {
+        assistantBubble.remove();
+        appendBubble('error', 'Network error while sending message.');
+      } finally {
+        setBusy(false);
+        input.focus();
+      }
+    };
+
+    form?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      sendMessage(input?.value || '');
+    });
+
+    input?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        form?.requestSubmit();
+      }
+    });
+
+    input?.focus();
+    loadHistory();
+    waitForAgent();
+  }
+
+  initWordChat();
+
   function initYouTubeAdd() {
     const root = document.querySelector('[data-youtube-add]');
     if (!root) return;

@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="{{ asset('css/user.css') }}?v={{ filemtime(public_path('css/user.css')) }}">
     <script defer src="{{ asset('js/user-app.js') }}?v={{ filemtime(public_path('js/user-app.js')) }}"></script>
 </head>
-<body class="user-body {{ ($isFlcApp ?? false) ? 'flc-app' : '' }}{{ View::hasSection('hide_nav') ? ' user-no-nav' : '' }}{{ View::hasSection('hide_header') ? ' user-no-header' : '' }}{{ View::hasSection('game_screen') ? ' user-game' : '' }}{{ View::hasSection('game_bg') ? ' user-game-bg' : '' }}">
+<body class="user-body {{ ($isFlcApp ?? false) ? 'flc-app' : '' }}{{ View::hasSection('hide_nav') ? ' user-no-nav' : '' }}{{ View::hasSection('hide_header') ? ' user-no-header' : '' }}{{ View::hasSection('game_screen') ? ' user-game' : '' }}{{ View::hasSection('game_bg') ? ' user-game-bg' : '' }}{{ request()->routeIs('user.home.lookup') ? ' user-chat-page' : '' }}">
 <div class="user-shell">
     @unless (View::hasSection('hide_header'))
         @hasSection('header')
@@ -60,8 +60,8 @@
     @unless (View::hasSection('hide_nav'))
         <nav class="user-nav" aria-label="Main navigation">
             <a href="{{ route('user.home.lookup') }}" class="{{ request()->routeIs('user.home.lookup') ? 'active' : '' }}">
-                <span class="icon">📖</span>
-                Lookup
+                <span class="icon">💬</span>
+                Learn
             </a>
             <a href="{{ route('user.home.vocab') }}" class="{{ request()->routeIs('user.home.vocab*') ? 'active' : '' }}">
                 <span class="icon">🔖</span>

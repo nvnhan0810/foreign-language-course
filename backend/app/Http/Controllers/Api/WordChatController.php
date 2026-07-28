@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Flc\Shared\Application\CommandBus;
 use Flc\Shared\Application\QueryBus;
+use Flc\WordChat\Application\Command\EnsureWordChatAgent;
 use Flc\WordChat\Application\Command\ResetWordChatAgent;
 use Flc\WordChat\Application\Command\SendWordChatMessage;
+use Flc\WordChat\Application\Query\GetWordChatAgentStatus;
 use Flc\WordChat\Application\Query\ListWordChatMessages;
 use Flc\WordChat\Application\WordChatRunRepository;
 use Flc\WordChat\Application\WordChatStreamProxy;
@@ -37,6 +39,26 @@ class WordChatController extends Controller
         ));
 
         return response()->json(['data' => $items]);
+    }
+
+    public function agentStatus(Request $request): JsonResponse
+    {
+        $status = $this->queries->ask(new GetWordChatAgentStatus(
+            userId: (int) $request->user()->id,
+        ));
+
+        return response()->json(['data' => $status]);
+    }
+
+    public function ensureAgent(Request $request): JsonResponse
+    {
+        $result = $this->commands->dispatch(new EnsureWordChatAgent(
+            userId: (int) $request->user()->id,
+        ));
+
+        $code = ($result['ready'] ?? false) ? 200 : 202;
+
+        return response()->json(['data' => $result], $code);
     }
 
     public function store(Request $request): JsonResponse

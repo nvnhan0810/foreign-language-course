@@ -43,21 +43,15 @@ final class SendWordChatMessageHandler implements CommandHandler
         }
 
         $agent = $this->agents->findForUser($command->userId);
-        $prompt = $this->prompts->buildUserPrompt($text);
-
         if ($agent === null) {
-            $initialPrompt = $this->prompts->buildInitialAgentPrompt($text);
-            $cursorRun = $this->cursor->createAgent($initialPrompt);
-        } else {
-            $cursorRun = $this->cursor->followUp($agent['cursor_agent_id'], $prompt);
+            throw new ServiceUnavailableHttpException(null, 'Word chat is still preparing. Please wait a moment.');
         }
+
+        $prompt = $this->prompts->buildUserPrompt($text);
+        $cursorRun = $this->cursor->followUp($agent['cursor_agent_id'], $prompt);
 
         if ($cursorRun === null) {
-            throw new ServiceUnavailableHttpException(null, 'Could not start word chat run.');
-        }
-
-        if ($agent === null) {
-            $agent = $this->agents->saveAgent($command->userId, $cursorRun['agentId']);
+            throw new ServiceUnavailableHttpException(null, 'Word chat is temporarily unavailable. Please try again.');
         }
 
         $userMessage = $this->messages->save(new WordChatMessage(

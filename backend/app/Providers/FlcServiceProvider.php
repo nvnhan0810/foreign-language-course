@@ -117,19 +117,25 @@ use Flc\Vocabulary\Application\Query\ListUserVocabularies;
 use Flc\Vocabulary\Application\Repository\UserVocabularyRepository;
 use Flc\Vocabulary\Infrastructure\Persistence\EloquentUserVocabularyRepository;
 use Flc\WordChat\Application\Command\CompleteWordChatRun;
+use Flc\WordChat\Application\Command\CreateWordChatAgent;
+use Flc\WordChat\Application\Command\EnsureWordChatAgent;
 use Flc\WordChat\Application\Command\ResetWordChatAgent;
 use Flc\WordChat\Application\Command\SendWordChatMessage;
 use Flc\WordChat\Application\CursorWordChatGateway;
 use Flc\WordChat\Application\Handler\CompleteWordChatRunHandler;
+use Flc\WordChat\Application\Handler\CreateWordChatAgentHandler;
+use Flc\WordChat\Application\Handler\EnsureWordChatAgentHandler;
+use Flc\WordChat\Application\Handler\GetWordChatAgentStatusHandler;
 use Flc\WordChat\Application\Handler\ListWordChatMessagesHandler;
 use Flc\WordChat\Application\Handler\ResetWordChatAgentHandler;
 use Flc\WordChat\Application\Handler\SendWordChatMessageHandler;
+use Flc\WordChat\Application\Query\GetWordChatAgentStatus;
 use Flc\WordChat\Application\Query\ListWordChatMessages;
 use Flc\WordChat\Application\WordChatAgentRepository;
 use Flc\WordChat\Application\WordChatMessageRepository;
 use Flc\WordChat\Application\WordChatRunRepository;
 use Flc\WordChat\Application\WordChatStreamProxy;
-use Flc\WordChat\Infrastructure\External\CursorWordChatGateway as CursorWordChatGatewayImpl;
+use Flc\WordChat\Infrastructure\External\HttpCursorWordChatGateway as CursorWordChatGatewayImpl;
 use Flc\WordChat\Infrastructure\Persistence\EloquentWordChatAgentRepository;
 use Flc\WordChat\Infrastructure\Persistence\EloquentWordChatMessageRepository;
 use Flc\WordChat\Infrastructure\Persistence\EloquentWordChatRunRepository;
@@ -199,6 +205,8 @@ class FlcServiceProvider extends ServiceProvider
             SendWordChatMessage::class => SendWordChatMessageHandler::class,
             CompleteWordChatRun::class => CompleteWordChatRunHandler::class,
             ResetWordChatAgent::class => ResetWordChatAgentHandler::class,
+            EnsureWordChatAgent::class => EnsureWordChatAgentHandler::class,
+            CreateWordChatAgent::class => CreateWordChatAgentHandler::class,
         ];
     }
 
@@ -225,6 +233,7 @@ class FlcServiceProvider extends ServiceProvider
             GetListeningAssessmentQuestions::class => GetListeningAssessmentQuestionsHandler::class,
             GetListeningAttempts::class => GetListeningAttemptsHandler::class,
             ListWordChatMessages::class => ListWordChatMessagesHandler::class,
+            GetWordChatAgentStatus::class => GetWordChatAgentStatusHandler::class,
         ];
     }
 }

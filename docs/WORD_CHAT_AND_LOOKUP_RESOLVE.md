@@ -77,8 +77,10 @@ Cascade (dừng khi hit):
 ### API (Phase 1 — live)
 
 ```
+GET  /api/word-chat/agent             → { status: ready|creating|missing|error, ready: bool }
+POST /api/word-chat/agent/ensure      → 202 { status: creating } (queue job if needed)
 GET  /api/word-chat/messages?before=&limit=
-POST /api/word-chat/messages          → 202 { run_id, stream_url }
+POST /api/word-chat/messages          → 202 { run_id, stream_url } (requires ready agent)
 GET  /api/word-chat/stream/{runId}  → SSE proxy
 POST /api/word-chat/reset
 ```
@@ -109,9 +111,15 @@ POST /api/word-chat/reset
 | 1.5 | API + SSE proxy (`/api/word-chat/*`) | done |
 | 1.6 | Feature tests | done |
 
-### Phase 2 — Web chat UI
+### Phase 2 — Web chat UI ✅ done
 
-Chưa bắt đầu.
+| # | Task | Status |
+|---|------|--------|
+| 2.1 | Replace `/home/lookup` with chat layout (messages + composer) | done |
+| 2.2 | JS: history load, send, SSE stream, reset | done |
+| 2.3 | Sanctum stateful API for session cookie auth on `/api/word-chat/*` | done |
+| 2.4 | Nav label "Learn"; related word opens chat with `?q=` | done |
+| 2.5 | Agent pre-warm on page load (`GET/POST /api/word-chat/agent*`) + queue job | done |
 
 ### Phase 3 — Learning insights + quiz
 

@@ -44,6 +44,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->where('word', '.*');
 
     Route::prefix('word-chat')->group(function () {
+        Route::get('/agent', [WordChatController::class, 'agentStatus']);
+        Route::post('/agent/ensure', [WordChatController::class, 'ensureAgent']);
         Route::get('/messages', [WordChatController::class, 'index']);
         Route::post('/messages', [WordChatController::class, 'store']);
         Route::get('/stream/{runId}', [WordChatController::class, 'stream']);
