@@ -34,35 +34,13 @@ final class ResolveLookupWordHandler implements QueryHandler
             return null;
         }
 
-        $resolved = null;
-        $method = 'exact';
-
-        if ($this->wordExists($selected)) {
-            $resolved = $selected;
-            $method = 'exact';
-        } else {
-            foreach ($this->lemmas->candidates($selected) as $candidate) {
-                if ($this->wordExists($candidate)) {
-                    $resolved = $candidate;
-                    $method = 'lemma_rules';
-                    break;
-                }
-            }
-        }
-
-        if ($resolved === null && $this->datamuseEnabled()) {
-            $suggested = $this->spellSuggestions->suggest($selected);
-
-            if ($suggested !== null && $this->wordExists($suggested)) {
-                $resolved = $suggested;
-                $method = 'datamuse_spell';
-            }
-        }
+        $resolved = $this->resolveTargetWord($selected);
 
         if ($resolved === null) {
-            $resolved = $selected;
-            $method = 'exact';
+            return null;
         }
+
+        ['word' => $resolved, 'method' => $method] = $resolved;
 
         /** @var array<string, mixed>|null $dictionary */
         $dictionary = $this->queries->ask(new LookupWord($resolved));
@@ -85,6 +63,94 @@ final class ResolveLookupWordHandler implements QueryHandler
             'method' => $method,
             'dictionary' => $dictionary,
         ];
+    }
+
+    /**
+     * @return array{word: string, method: string}|null
+     */
+    private function resolveTargetWord(string $selected): ?array
+    {
+        if ($this->wordExists($selected)) {
+            $lemmaUpgrade = $this->findLemmaUpgrade($selected);
+
+            if ($lemmaUpgrade !== null) {
+                return ['word' => $lemmaUpgrade, 'method' => 'lemma_rules'];
+            }
+
+            return ['word' => $selected, 'method' => 'exact'];
+        }
+
+        foreach ($this->lemmas->candidates($selected) as $candidate) {
+            if ($this->wordExists($candidate)) {
+                return ['word' => $candidate, 'method' => 'lemma_rules'];
+            }
+        }
+
+        if ($this->datamuseEnabled()) {
+            $suggested = $this->spellSuggestions->suggest($selected);
+
+            if ($suggested !== null && $this->wordExists($suggested)) {
+                return ['word' => $suggested, 'method' => 'datamuse_spell'];
+            }
+        }
+
+        return ['word' => $selected, 'method' => 'exact'];
+    }
+
+    private function findLemmaUpgrade(string $selected): ?string
+    {
+        foreach ($this->lemmas->candidates($selected) as $lemma) {
+            if (! $this->shouldPreferLemmaForm($selected, $lemma)) {
+                continue;
+            }
+
+            if ($this->wordExists($lemma)) {
+                return $lemma;
+            }
+        }
+
+        return null;
+    }
+
+    private function shouldPreferLemmaForm(string $selected, string $lemma): bool
+    {
+        if ($selected === $lemma || strlen($lemma) < 4) {
+            return false;
+        }
+
+        if (! in_array($lemma, $this->lemmas->candidates($selected), true)) {
+            return false;
+        }
+
+        /** @var array<string, mixed>|null $selectedPayload */
+        $selectedPayload = $this->queries->ask(new LookupWord($selected));
+        /** @var array<string, mixed>|null $lemmaPayload */
+        $lemmaPayload = $this->queries->ask(new LookupWord($lemma));
+
+        if ($lemmaPayload === null) {
+            return false;
+        }
+
+        if ($selectedPayload === null) {
+            return true;
+        }
+
+        if ($this->hasPronunciation($selectedPayload)) {
+            return false;
+        }
+
+        return $this->hasPronunciation($lemmaPayload);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function hasPronunciation(array $payload): bool
+    {
+        $phonetic = trim((string) ($payload['phonetic'] ?? ''));
+        $audio = trim((string) ($payload['audio_url'] ?? ''));
+
+        return $phonetic !== '' || $audio !== '';
     }
 
     private function normalizeSelected(string $word): string

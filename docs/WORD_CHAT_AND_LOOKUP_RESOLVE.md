@@ -154,7 +154,7 @@ LOOKUP_RESOLVE_AI_FALLBACK=false
 | Date | Done |
 |------|------|
 | 2026-07-28 | Doc created from design discussion |
-| 2026-07-28 | **Phase 0 done** — `ResolveLookupWord` + lemma rules + Datamuse spell fallback; `GET /api/dictionary/resolve/{word}`; extension selection overlay dùng `resolveLookup`; tests added |
+| 2026-07-28 | **Phase 0 fix** — when both inflected + lemma exist in API (e.g. `outlets`/`outlet`), prefer lemma if selected lacks phonetic/audio but lemma has it |
 
 ### Phase 0 — files touched
 
