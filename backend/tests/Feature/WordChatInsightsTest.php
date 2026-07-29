@@ -10,6 +10,7 @@ use App\Models\WordChatRun;
 use App\Models\DictionaryEntry;
 use App\Models\DictionaryMeaning;
 use Flc\WordChat\Application\CursorWordChatGateway;
+use Flc\WordChat\Application\LearningInsightRepository;
 use Flc\WordChat\Application\WordChatInsightExtractor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -106,6 +107,69 @@ class WordChatInsightsTest extends TestCase
 
         $this->assertNotNull($assistant);
         $this->assertStringNotContainsString('```json', $assistant->content);
+    }
+
+    public function test_stream_still_saves_assistant_message_when_insight_persistence_fails(): void
+    {
+        $insights = \Mockery::mock(LearningInsightRepository::class);
+        $insights->shouldReceive('save')->andThrow(new \RuntimeException('insights unavailable'));
+        $this->app->instance(LearningInsightRepository::class, $insights);
+
+        $gateway = \Mockery::mock(CursorWordChatGateway::class);
+        $gateway->shouldReceive('openRunStream')
+            ->once()
+            ->andReturnUsing(function () {
+                $body = "event: assistant\ndata: {\"text\":\"MUD means a multiplayer dungeon game.\\n\\n```json\\n{\\\"insights\\\":[{\\\"word\\\":\\\"mud\\\",\\\"type\\\":\\\"meaning\\\",\\\"content\\\":\\\"Multi-User Dungeon\\\"}]}\\n```\"}\n\n"
+                    ."event: done\ndata: {}\n\n";
+
+                return new \Illuminate\Http\Client\Response(
+                    new \GuzzleHttp\Psr7\Response(200, ['Content-Type' => 'text/event-stream'], $body)
+                );
+            });
+        $this->app->instance(CursorWordChatGateway::class, $gateway);
+
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $agent = $user->wordChatAgents()->create([
+            'cursor_agent_id' => 'agent_1',
+            'status' => 'active',
+        ]);
+
+        $userMessage = WordChatMessage::query()->create([
+            'user_id' => $user->id,
+            'role' => 'user',
+            'content' => 'What does MUD mean here?',
+            'cursor_run_id' => 'run_2',
+        ]);
+
+        WordChatRun::query()->create([
+            'user_id' => $user->id,
+            'word_chat_agent_id' => $agent->id,
+            'cursor_agent_id' => 'agent_1',
+            'cursor_run_id' => 'run_2',
+            'user_message_id' => $userMessage->id,
+            'status' => 'streaming',
+        ]);
+
+        $response = $this->get('/api/word-chat/stream/run_2', [
+            'Accept' => 'text/event-stream',
+        ]);
+
+        $response->assertOk();
+        $this->assertStringContainsString('event: saved', $response->streamedContent());
+        $this->assertStringNotContainsString('event: insights', $response->streamedContent());
+
+        $this->assertDatabaseHas('word_chat_messages', [
+            'user_id' => $user->id,
+            'role' => 'assistant',
+            'content' => 'MUD means a multiplayer dungeon game.',
+        ]);
+
+        $this->assertDatabaseHas('word_chat_runs', [
+            'cursor_run_id' => 'run_2',
+            'status' => 'finished',
+        ]);
     }
 
     public function test_list_insights_endpoint(): void

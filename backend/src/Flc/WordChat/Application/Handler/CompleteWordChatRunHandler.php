@@ -11,6 +11,8 @@ use Flc\WordChat\Application\WordChatMessageRepository;
 use Flc\WordChat\Application\WordChatRunRepository;
 use Flc\WordChat\Domain\LearningInsight;
 use Flc\WordChat\Domain\WordChatMessage;
+use Flc\WordChat\Domain\WordChatRun;
+use Throwable;
 
 final class CompleteWordChatRunHandler implements CommandHandler
 {
@@ -59,34 +61,17 @@ final class CompleteWordChatRunHandler implements CommandHandler
             cursorRunId: $command->cursorRunId,
         ));
 
-        $savedInsights = [];
-        foreach ($extracted['insights'] as $insight) {
-            $savedInsights[] = $this->insights->save(new LearningInsight(
-                id: null,
-                userId: $insight->userId,
-                vocabularyId: $insight->vocabularyId,
-                word: $insight->word,
-                insightType: $insight->insightType,
-                question: $insight->question,
-                content: $insight->content,
-                sourceMessageId: (int) $assistant->id,
-                metadata: $insight->metadata,
-                quizEligible: $insight->quizEligible,
-                timesUsedInQuiz: $insight->timesUsedInQuiz,
-            ));
-        }
-
-        if ($savedInsights !== []) {
-            $this->messages->updateMetadata($command->userId, (int) $assistant->id, [
-                'insight_ids' => array_map(fn ($item) => $item->id, $savedInsights),
-            ]);
-        }
-
         $this->runs->complete(
             userId: $command->userId,
             cursorRunId: $command->cursorRunId,
             assistantContent: $content,
             assistantMessageId: (int) $assistant->id,
+        );
+
+        $savedInsights = $this->persistInsights(
+            userId: $command->userId,
+            assistantMessageId: (int) $assistant->id,
+            insights: $extracted['insights'],
         );
 
         $payload = $assistant->toApiArray();
@@ -98,8 +83,48 @@ final class CompleteWordChatRunHandler implements CommandHandler
         return $payload;
     }
 
+    /**
+     * @param  list<LearningInsight>  $insights
+     * @return list<LearningInsight>
+     */
+    private function persistInsights(int $userId, int $assistantMessageId, array $insights): array
+    {
+        if ($insights === []) {
+            return [];
+        }
+
+        try {
+            $savedInsights = [];
+            foreach ($insights as $insight) {
+                $savedInsights[] = $this->insights->save(new LearningInsight(
+                    id: null,
+                    userId: $insight->userId,
+                    vocabularyId: $insight->vocabularyId,
+                    word: $insight->word,
+                    insightType: $insight->insightType,
+                    question: $insight->question,
+                    content: $insight->content,
+                    sourceMessageId: $assistantMessageId,
+                    metadata: $insight->metadata,
+                    quizEligible: $insight->quizEligible,
+                    timesUsedInQuiz: $insight->timesUsedInQuiz,
+                ));
+            }
+
+            $this->messages->updateMetadata($userId, $assistantMessageId, [
+                'insight_ids' => array_map(fn ($item) => $item->id, $savedInsights),
+            ]);
+
+            return $savedInsights;
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return [];
+        }
+    }
+
     /** @return array<string, mixed>|null */
-    private function existingAssistantPayload(int $userId, \Flc\WordChat\Domain\WordChatRun $run): ?array
+    private function existingAssistantPayload(int $userId, WordChatRun $run): ?array
     {
         if ($run->assistantMessageId === null) {
             return null;
@@ -117,9 +142,13 @@ final class CompleteWordChatRunHandler implements CommandHandler
 
         $payload['insights'] = [];
         foreach ($insightIds as $insightId) {
-            $insight = $this->insights->findForUser($userId, (int) $insightId);
-            if ($insight !== null) {
-                $payload['insights'][] = $insight->toApiArray();
+            try {
+                $insight = $this->insights->findForUser($userId, (int) $insightId);
+                if ($insight !== null) {
+                    $payload['insights'][] = $insight->toApiArray();
+                }
+            } catch (Throwable $exception) {
+                report($exception);
             }
         }
 
