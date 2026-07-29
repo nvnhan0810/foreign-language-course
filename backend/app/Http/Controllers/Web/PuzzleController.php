@@ -6,6 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\GameRecord;
 use App\Models\User;
 use Flc\Puzzle\Application\Query\GetNextScramblePuzzle;
+use Flc\Puzzle\Application\Query\GetNextWordlePuzzle;
+use Flc\Puzzle\Application\Query\GetScrambleHint;
+use Flc\Puzzle\Domain\WordleGrader;
+use Flc\Puzzle\Domain\WordleKeyboardBuilder;
 use Flc\Quiz\Application\Command\RecordQuizAttempt;
 use Flc\Shared\Application\CommandBus;
 use Flc\Shared\Application\QueryBus;
@@ -33,6 +37,7 @@ class PuzzleController extends Controller
         }
 
         $this->clearScrambleSession();
+        $this->clearWordleSession();
 
         return view('user.puzzle.index');
     }
@@ -40,6 +45,7 @@ class PuzzleController extends Controller
     public function exit(Request $request): RedirectResponse
     {
         $this->clearScrambleSession();
+        $this->clearWordleSession();
 
         return redirect()->route('user.home.quiz');
     }
@@ -193,6 +199,244 @@ class PuzzleController extends Controller
         session($sessionUpdate);
 
         return redirect()->route('user.home.puzzle.scramble');
+    }
+
+    public function wordle(Request $request): View|RedirectResponse
+    {
+        if ($request->query('autostart') === '1' && ! session()->has('puzzle_wordle')) {
+            return $this->nextWordle($request);
+        }
+
+        $reveal = session('puzzle_wordle_reveal');
+        $startedAt = session('puzzle_wordle_started_at');
+        $puzzle = $this->ensureWordleKeyboard(session('puzzle_wordle'));
+
+        /** @var User $user */
+        $user = $request->user();
+        $celebrateRecord = session('puzzle_wordle_celebrate_record');
+        session()->forget('puzzle_wordle_celebrate_record');
+
+        return view('user.puzzle.wordle', [
+            'puzzle' => $puzzle,
+            'guesses' => session('puzzle_wordle_guesses', []),
+            'hint' => session('puzzle_wordle_hint'),
+            'hintAt' => session('puzzle_wordle_hint_at'),
+            'feedback' => session('puzzle_wordle_feedback'),
+            'wasCorrect' => session('puzzle_wordle_was_correct'),
+            'reveal' => is_array($reveal) ? $this->toViewModel($reveal) : null,
+            'startedAt' => is_numeric($startedAt) ? (int) $startedAt : null,
+            'elapsedSeconds' => session('puzzle_wordle_elapsed'),
+            'sessionCorrect' => (int) session('puzzle_wordle_session_correct', 0),
+            'bestCorrect' => GameRecord::bestCorrectFor($user->id, GameRecord::GAME_WORDLE),
+            'celebrateRecord' => $celebrateRecord,
+        ]);
+    }
+
+    public function nextWordle(Request $request): RedirectResponse
+    {
+        $puzzle = $this->queries->ask(new GetNextWordlePuzzle($request->user()->id));
+
+        if (! $puzzle) {
+            $this->clearWordleSession();
+
+            return redirect()
+                ->route('user.home.puzzle.wordle')
+                ->with('error', 'You need at least one saved 5-letter word to play Wordle. Add words in Vocabulary.');
+        }
+
+        $payload = [
+            'puzzle_wordle' => $puzzle,
+            'puzzle_wordle_guesses' => [],
+            'puzzle_wordle_hint' => null,
+            'puzzle_wordle_hint_at' => null,
+            'puzzle_wordle_feedback' => null,
+            'puzzle_wordle_was_correct' => null,
+            'puzzle_wordle_reveal' => null,
+            'puzzle_wordle_elapsed' => null,
+            'puzzle_wordle_celebrate_record' => null,
+        ];
+
+        if (! session()->has('puzzle_wordle_started_at')) {
+            $payload['puzzle_wordle_started_at'] = now()->timestamp;
+            $payload['puzzle_wordle_session_correct'] = 0;
+        }
+
+        session($payload);
+
+        return redirect()->route('user.home.puzzle.wordle');
+    }
+
+    public function hintWordle(Request $request): RedirectResponse
+    {
+        $puzzle = $this->ensureWordleKeyboard(session('puzzle_wordle'));
+
+        if (! is_array($puzzle)) {
+            return redirect()->route('user.home.puzzle.wordle');
+        }
+
+        if (session('puzzle_wordle_feedback') !== null) {
+            return redirect()->route('user.home.puzzle.wordle');
+        }
+
+        $hintAt = session('puzzle_wordle_hint_at');
+        if (is_numeric($hintAt) && (now()->timestamp - (int) $hintAt) < WordleGrader::HINT_COOLDOWN_SECONDS) {
+            return redirect()->route('user.home.puzzle.wordle');
+        }
+
+        $hint = $this->queries->ask(new GetScrambleHint(
+            userId: $request->user()->id,
+            vocabularyId: (int) ($puzzle['vocabulary_id'] ?? 0),
+        ));
+
+        session([
+            'puzzle_wordle_hint' => [
+                'definition' => $hint['definition'] ?? '',
+                'part_of_speech' => $hint['part_of_speech'] ?? null,
+            ],
+            'puzzle_wordle_hint_at' => now()->timestamp,
+        ]);
+
+        return redirect()->route('user.home.puzzle.wordle');
+    }
+
+    public function guessWordle(Request $request): RedirectResponse
+    {
+        $puzzle = $this->ensureWordleKeyboard(session('puzzle_wordle'));
+
+        if (! is_array($puzzle)) {
+            return redirect()->route('user.home.puzzle.wordle');
+        }
+
+        if (session('puzzle_wordle_feedback') !== null) {
+            return redirect()->route('user.home.puzzle.wordle');
+        }
+
+        $data = $request->validate([
+            'guess' => ['required', 'string', 'max:10'],
+        ]);
+
+        $guess = strtolower(trim($data['guess']));
+        $correctWord = strtolower(trim((string) ($puzzle['correct_word'] ?? '')));
+        $keyboard = is_array($puzzle['keyboard_letters'] ?? null) ? $puzzle['keyboard_letters'] : [];
+
+        if (! WordleGrader::isValidGuess($guess)) {
+            return redirect()
+                ->route('user.home.puzzle.wordle')
+                ->with('error', 'Enter a 5-letter word (a–z only).');
+        }
+
+        if (! WordleKeyboardBuilder::isGuessAllowed($guess, $keyboard)) {
+            return redirect()
+                ->route('user.home.puzzle.wordle')
+                ->with('error', 'Use only the letters on the keyboard.');
+        }
+
+        $maxGuesses = (int) ($puzzle['max_guesses'] ?? WordleGrader::MAX_GUESSES);
+        $guesses = session('puzzle_wordle_guesses', []);
+        if (! is_array($guesses)) {
+            $guesses = [];
+        }
+
+        if (count($guesses) >= $maxGuesses) {
+            return redirect()->route('user.home.puzzle.wordle');
+        }
+
+        $tiles = WordleGrader::grade($correctWord, $guess);
+        $guesses[] = [
+            'guess' => $guess,
+            'tiles' => $tiles,
+        ];
+
+        $won = $guess === $correctWord;
+        $lost = ! $won && count($guesses) >= $maxGuesses;
+        $sessionUpdate = [
+            'puzzle_wordle_guesses' => $guesses,
+        ];
+
+        if ($won || $lost) {
+            $vocabularyId = (int) ($puzzle['vocabulary_id'] ?? 0);
+
+            $this->commands->dispatch(new RecordQuizAttempt(
+                userId: $request->user()->id,
+                vocabularyId: $vocabularyId,
+                questionType: 'wordle',
+                correct: $won,
+            ));
+
+            $reveal = $this->queries->ask(new GetUserVocabulary(
+                userId: $request->user()->id,
+                vocabularyId: $vocabularyId,
+            ));
+
+            $startedAt = (int) session('puzzle_wordle_started_at', now()->timestamp);
+            $elapsed = max(0, now()->timestamp - $startedAt);
+
+            $sessionUpdate['puzzle_wordle_feedback'] = $won
+                ? 'You got it!'
+                : 'Out of guesses. Answer: '.$correctWord;
+            $sessionUpdate['puzzle_wordle_was_correct'] = $won;
+            $sessionUpdate['puzzle_wordle_reveal'] = is_array($reveal) ? $reveal : null;
+            $sessionUpdate['puzzle_wordle_elapsed'] = $elapsed;
+            $sessionUpdate['puzzle_wordle_celebrate_record'] = null;
+
+            if ($won) {
+                $sessionCorrect = (int) session('puzzle_wordle_session_correct', 0) + 1;
+                $sessionUpdate['puzzle_wordle_session_correct'] = $sessionCorrect;
+
+                $bump = GameRecord::bumpIfBetter($request->user()->id, GameRecord::GAME_WORDLE, $sessionCorrect);
+                if ($bump['is_new_record']) {
+                    $sessionUpdate['puzzle_wordle_celebrate_record'] = $sessionCorrect;
+                }
+            }
+        }
+
+        session($sessionUpdate);
+
+        return redirect()->route('user.home.puzzle.wordle');
+    }
+
+    private function clearWordleSession(): void
+    {
+        session()->forget([
+            'puzzle_wordle',
+            'puzzle_wordle_guesses',
+            'puzzle_wordle_hint',
+            'puzzle_wordle_hint_at',
+            'puzzle_wordle_feedback',
+            'puzzle_wordle_was_correct',
+            'puzzle_wordle_reveal',
+            'puzzle_wordle_started_at',
+            'puzzle_wordle_elapsed',
+            'puzzle_wordle_session_correct',
+            'puzzle_wordle_celebrate_record',
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $puzzle
+     * @return array<string, mixed>|null
+     */
+    private function ensureWordleKeyboard(?array $puzzle): ?array
+    {
+        if (! is_array($puzzle)) {
+            return null;
+        }
+
+        $correctWord = strtolower(trim((string) ($puzzle['correct_word'] ?? '')));
+        $keyboard = $puzzle['keyboard_letters'] ?? null;
+
+        if ($correctWord === '' || (is_array($keyboard) && $keyboard !== [])) {
+            return $puzzle;
+        }
+
+        $puzzle['keyboard_letters'] = WordleKeyboardBuilder::build(
+            $correctWord,
+            null,
+            (int) ($puzzle['vocabulary_id'] ?? 0),
+        );
+        session(['puzzle_wordle' => $puzzle]);
+
+        return $puzzle;
     }
 
     private function clearScrambleSession(): void
