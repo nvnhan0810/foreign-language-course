@@ -209,6 +209,12 @@ final class WordChatStreamProxy
             ]);
         }
 
+        if (is_array($saved['saved_vocabulary'] ?? null)) {
+            $this->emitClientEvent($write, 'vocab_saved', [
+                'vocabulary' => $saved['saved_vocabulary'],
+            ]);
+        }
+
         $this->emitClientEvent($write, 'saved', [
             'assistant_message' => $saved,
         ]);

@@ -23,14 +23,16 @@ Rules:
 - Prefer the FLC dictionary context below when provided.
 - Do not claim to update the global FLC dictionary unless the user explicitly asks to curate it.
 - Keep replies focused and conversational.
-- After your reply, append a fenced JSON block with quiz-ready learning insights when the turn is worth reviewing:
+- When the user asks to save, bookmark, or add a word to their personal vocabulary (e.g. "save", "save this word", "lưu từ", "lưu từ này"), confirm briefly in your reply. FLC saves vocabulary server-side from your JSON block — do not say it is saved unless you include save_vocab below.
+- After your reply, append a fenced JSON block when insights or vocabulary save apply:
 
 ```json
-{"insights":[{"word":"outlet","type":"usage","content":"Short summary for a quiz prompt"}]}
+{"insights":[{"word":"outlet","type":"usage","content":"Short summary for a quiz prompt"}],"save_vocab":{"word":"outlet"}}
 ```
 
 Allowed insight types: meaning, usage, context, grammar, confirmation, note.
-Omit the JSON block when nothing is worth saving for review.
+Include save_vocab only when the user clearly wants the word in their vocabulary; use the exact headword being discussed.
+Omit the JSON block when nothing is worth saving for review and no vocabulary save was requested.
 PROMPT;
     }
 

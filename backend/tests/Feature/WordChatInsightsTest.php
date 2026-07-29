@@ -30,6 +30,105 @@ class WordChatInsightsTest extends TestCase
         ]);
     }
 
+    public function test_insight_extractor_strips_json_block_and_parses_save_vocab(): void
+    {
+        $user = User::factory()->create();
+        $extractor = app(WordChatInsightExtractor::class);
+
+        $result = $extractor->extract(
+            userId: $user->id,
+            userQuestion: 'Save happy for me',
+            assistantReply: "Done — I've added it to your vocabulary.\n\n```json\n{\"insights\":[{\"word\":\"happy\",\"type\":\"meaning\",\"content\":\"Feeling joy.\"}],\"save_vocab\":{\"word\":\"happy\"}}\n```",
+            sourceMessageId: null,
+        );
+
+        $this->assertSame('happy', $result['save_vocab']);
+        $this->assertCount(1, $result['insights']);
+    }
+
+    public function test_stream_saves_vocabulary_when_user_requests_save(): void
+    {
+        $gateway = \Mockery::mock(CursorWordChatGateway::class);
+        $gateway->shouldReceive('openRunStream')
+            ->once()
+            ->andReturnUsing(function () {
+                $assistantText = "Saved happy to your vocabulary.\n\n```json\n"
+                    .json_encode([
+                        'insights' => [['word' => 'happy', 'type' => 'meaning', 'content' => 'Feeling joy.']],
+                        'save_vocab' => ['word' => 'happy'],
+                    ], JSON_UNESCAPED_UNICODE)
+                    ."\n```";
+                $body = 'event: assistant'
+                    ."\ndata: ".json_encode(['text' => $assistantText], JSON_UNESCAPED_UNICODE)
+                    ."\n\n"
+                    ."event: done\ndata: {}\n\n";
+
+                return new \Illuminate\Http\Client\Response(
+                    new \GuzzleHttp\Psr7\Response(200, ['Content-Type' => 'text/event-stream'], $body)
+                );
+            });
+        $this->app->instance(CursorWordChatGateway::class, $gateway);
+
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        DictionaryEntry::query()->create([
+            'word' => 'happy',
+            'source' => 'seed',
+            'is_curated' => false,
+            'save_count' => 0,
+        ]);
+        DictionaryMeaning::query()->create([
+            'dictionary_entry_id' => DictionaryEntry::query()->where('word', 'happy')->value('id'),
+            'definition' => 'Feeling joy.',
+            'position' => 0,
+        ]);
+
+        $agent = $user->wordChatAgents()->create([
+            'cursor_agent_id' => 'agent_1',
+            'status' => 'active',
+        ]);
+
+        $userMessage = WordChatMessage::query()->create([
+            'user_id' => $user->id,
+            'role' => 'user',
+            'content' => 'save this word',
+            'cursor_run_id' => 'run_save_1',
+        ]);
+
+        WordChatMessage::query()->create([
+            'user_id' => $user->id,
+            'role' => 'user',
+            'content' => 'happy',
+            'cursor_run_id' => 'run_lookup',
+        ]);
+
+        WordChatRun::query()->create([
+            'user_id' => $user->id,
+            'word_chat_agent_id' => $agent->id,
+            'cursor_agent_id' => 'agent_1',
+            'cursor_run_id' => 'run_save_1',
+            'user_message_id' => $userMessage->id,
+            'status' => 'streaming',
+        ]);
+
+        $response = $this->get('/api/word-chat/stream/run_save_1', [
+            'Accept' => 'text/event-stream',
+        ]);
+
+        $response->assertOk();
+        $this->assertStringContainsString('event: vocab_saved', $response->streamedContent());
+
+        $this->assertDatabaseHas('vocabularies', [
+            'user_id' => $user->id,
+        ]);
+
+        $this->assertDatabaseHas('vocabulary_learning_insights', [
+            'user_id' => $user->id,
+            'word' => 'happy',
+        ]);
+    }
+
     public function test_insight_extractor_strips_json_block_and_parses_items(): void
     {
         $user = User::factory()->create();

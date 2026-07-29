@@ -99,6 +99,8 @@
     const agentUrl = root.dataset.agentUrl || '/api/word-chat/agent';
     const agentEnsureUrl = root.dataset.agentEnsureUrl || '/api/word-chat/agent/ensure';
     const quizPlayBase = root.dataset.quizPlayUrl || '/home/quiz/play?autostart=1';
+    const vocabSaveUrl = root.dataset.vocabSaveUrl || '/api/vocabularies';
+    const vocabShowBase = root.dataset.vocabShowUrl || '/home/vocab';
     const agentLoadingEl = root.querySelector('[data-word-chat-agent-loading]');
     const agentLoadingTextEl = root.querySelector('[data-word-chat-agent-loading-text]');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -107,6 +109,24 @@
     let agentReady = false;
     let agentPollTimer = null;
     let activeSource = null;
+    const savedWords = new Set();
+
+    const enterSendsMessage = () => window.matchMedia('(pointer: fine)').matches;
+
+    const resetInputHeight = () => {
+      if (!input || input.tagName !== 'TEXTAREA') return;
+      input.style.height = 'auto';
+      input.style.height = `${Math.min(input.scrollHeight, 120)}px`;
+    };
+
+    const clearInput = () => {
+      if (!input) return;
+      input.value = '';
+      if (input.tagName === 'TEXTAREA') {
+        input.style.height = 'auto';
+        resetInputHeight();
+      }
+    };
 
     const jsonHeaders = {
       Accept: 'application/json',
@@ -310,6 +330,80 @@
       setBubbleContent(bubble, 'assistant', text);
     };
 
+    const renderVocabSavedNotice = (bubble, vocabulary) => {
+      if (!bubble || !vocabulary?.word) return;
+
+      const word = String(vocabulary.word).toLowerCase();
+      savedWords.add(word);
+
+      bubble.querySelector('.word-chat-vocab-saved')?.remove();
+
+      const notice = document.createElement('div');
+      notice.className = 'word-chat-vocab-saved';
+      const vocabId = vocabulary.id;
+      const link = vocabId
+        ? `<a href="${vocabShowBase}/${encodeURIComponent(String(vocabId))}">View in vocabulary</a>`
+        : '';
+      const label = vocabulary.created === false || vocabulary.already_saved
+        ? `"${escapeHtml(vocabulary.word)}" is already in your vocabulary.`
+        : `"${escapeHtml(vocabulary.word)}" saved to your vocabulary.`;
+      notice.innerHTML = `<span>${label}</span>${link ? ` ${link}` : ''}`;
+      bubble.appendChild(notice);
+
+      bubble.querySelectorAll('[data-vocab-save-word]').forEach((btn) => {
+        if (String(btn.dataset.vocabSaveWord || '').toLowerCase() === word) {
+          btn.textContent = 'Saved ✓';
+          btn.disabled = true;
+        }
+      });
+
+      scrollToBottom();
+    };
+
+    const saveVocabularyWord = async (word, button) => {
+      const normalized = String(word || '').trim().toLowerCase();
+      if (!normalized || savedWords.has(normalized)) return;
+
+      const originalLabel = button?.textContent || 'Save word';
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Saving…';
+      }
+
+      try {
+        const res = await fetch(vocabSaveUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: jsonHeaders,
+          body: JSON.stringify({ word: normalized }),
+        });
+        const payload = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(payload.message || 'Could not save word.');
+        }
+
+        savedWords.add(normalized);
+        if (button) {
+          button.textContent = 'Saved ✓';
+        }
+
+        const bubble = button?.closest('.word-chat-bubble');
+        if (payload.data) {
+          renderVocabSavedNotice(bubble, {
+            ...payload.data,
+            created: res.status === 201,
+          });
+        }
+      } catch (error) {
+        if (button) {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+        appendBubble('error', error instanceof Error ? error.message : 'Could not save word.');
+      }
+    };
+
     const renderInsightPanel = (bubble, items) => {
       if (!Array.isArray(items) || items.length === 0) return;
 
@@ -319,12 +413,15 @@
       panel.className = 'word-chat-insights';
       panel.innerHTML = items.map((item) => {
         const word = item.word || 'word';
+        const normalizedWord = String(word).toLowerCase();
         const type = item.insight_type || 'note';
         const content = item.content || '';
         const insightId = item.id;
         const quizHref = insightId
           ? `${quizPlayBase}&insight_id=${encodeURIComponent(String(insightId))}`
           : quizPlayBase;
+        const isSaved = savedWords.has(normalizedWord) || item.vocabulary_id;
+        const saveLabel = isSaved ? 'Saved ✓' : 'Save word';
 
         return `
           <div class="word-chat-insight">
@@ -333,12 +430,27 @@
               <span class="word-chat-insight-type">${escapeHtml(type)}</span>
             </div>
             <p class="word-chat-insight-content">${escapeHtml(content)}</p>
-            <a class="word-chat-insight-practice" href="${quizHref}">Practice in quiz</a>
+            <div class="word-chat-insight-actions">
+              <button
+                type="button"
+                class="word-chat-insight-save"
+                data-vocab-save-word="${escapeHtml(normalizedWord)}"
+                ${isSaved ? 'disabled' : ''}
+              >${saveLabel}</button>
+              <a class="word-chat-insight-practice" href="${quizHref}">Practice in quiz</a>
+            </div>
           </div>
         `;
       }).join('');
 
       bubble.appendChild(panel);
+
+      panel.querySelectorAll('[data-vocab-save-word]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          saveVocabularyWord(btn.dataset.vocabSaveWord, btn);
+        });
+      });
+
       scrollToBottom();
     };
 
@@ -438,6 +550,17 @@
           }
         });
 
+        source.addEventListener('vocab_saved', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.vocabulary) {
+              renderVocabSavedNotice(assistantBubble, data.vocabulary);
+            }
+          } catch {
+            // ignore malformed payload
+          }
+        });
+
         source.addEventListener('saved', (event) => {
           try {
             const data = JSON.parse(event.data);
@@ -450,6 +573,9 @@
             }
             if (saved && Array.isArray(saved.insights)) {
               renderInsightPanel(assistantBubble, saved.insights);
+            }
+            if (saved?.saved_vocabulary) {
+              renderVocabSavedNotice(assistantBubble, saved.saved_vocabulary);
             }
           } catch {
             // ignore malformed payload
@@ -492,7 +618,7 @@
 
       setBusy(true);
       appendBubble('user', trimmed);
-      input.value = '';
+      clearInput();
 
       const assistantBubble = appendBubble('assistant', '', { streaming: true });
 
@@ -542,13 +668,21 @@
       sendMessage(input?.value || '');
     });
 
+    input?.addEventListener('input', () => {
+      resetInputHeight();
+    });
+
     input?.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
+      if (event.key !== 'Enter' || event.isComposing) return;
+
+      if (enterSendsMessage()) {
+        if (event.shiftKey) return;
         event.preventDefault();
         form?.requestSubmit();
       }
     });
 
+    resetInputHeight();
     input?.focus();
     loadHistory();
     waitForAgent();
