@@ -18,6 +18,7 @@
     data-quiz-play-url="{{ route('user.home.quiz.play', ['autostart' => 1]) }}"
     data-vocab-save-url="{{ url('/api/vocabularies') }}"
     data-vocab-show-url="{{ url('/home/vocab') }}"
+    data-dictionary-pronounce-url="{{ url('/home/dictionary') }}"
 >
     <div class="word-chat-agent-loading" data-word-chat-agent-loading hidden>
         <div class="word-chat-agent-loading-card">

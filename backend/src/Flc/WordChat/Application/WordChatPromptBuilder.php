@@ -55,6 +55,36 @@ PROMPT;
 REMINDER;
     }
 
+    /**
+     * @return array{word: string, phonetic: ?string, audio_url: ?string}|null
+     */
+    public function resolveDictionaryForMessage(string $userText): ?array
+    {
+        $word = $this->extractLookupWord($userText);
+        if ($word === null) {
+            return null;
+        }
+
+        $resolved = $this->queries->ask(new ResolveLookupWord($word));
+        $dictionary = is_array($resolved['dictionary'] ?? null)
+            ? $resolved['dictionary']
+            : $this->queries->ask(new LookupWord($word));
+
+        if (! is_array($dictionary)) {
+            return null;
+        }
+
+        $resolvedWord = trim((string) ($dictionary['word'] ?? $word));
+        $phonetic = trim((string) ($dictionary['phonetic'] ?? ''));
+        $audioUrl = trim((string) ($dictionary['audio_url'] ?? ''));
+
+        return [
+            'word' => $resolvedWord !== '' ? $resolvedWord : $word,
+            'phonetic' => $phonetic !== '' ? $phonetic : null,
+            'audio_url' => $audioUrl !== '' ? $audioUrl : null,
+        ];
+    }
+
     public function buildUserPrompt(string $userText): string
     {
         $userText = trim($userText);
@@ -113,6 +143,10 @@ REMINDER;
 
     private function extractLookupWord(string $text): ?string
     {
+        if (preg_match('/\b(?:what\s+does|meaning\s+of|define|explain)\s+["\']?([a-z][a-z\'-]{1,48})["\']?\b/i', $text, $matches)) {
+            return Text::lower($matches[1]);
+        }
+
         if (preg_match('/["\']([a-z][a-z\'-]{1,48})["\']/i', $text, $matches)) {
             return Text::lower($matches[1]);
         }

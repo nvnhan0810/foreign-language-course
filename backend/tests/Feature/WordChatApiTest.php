@@ -107,18 +107,30 @@ class WordChatApiTest extends TestCase
 
         $this->createReadyAgent($user);
 
+        \App\Models\DictionaryEntry::query()->create([
+            'word' => 'happy',
+            'phonetic' => '/ˈhæpi/',
+            'audio_url' => 'https://example.com/happy.mp3',
+            'source' => 'seed',
+            'is_curated' => false,
+            'save_count' => 0,
+        ]);
+
         $response = $this->postJson('/api/word-chat/messages', [
-            'text' => 'What does happy mean?',
+            'text' => 'happy',
         ]);
 
         $response->assertAccepted()
             ->assertJsonPath('data.run_id', 'run_1')
-            ->assertJsonPath('data.stream_url', '/api/word-chat/stream/run_1');
+            ->assertJsonPath('data.stream_url', '/api/word-chat/stream/run_1')
+            ->assertJsonPath('data.lookup.word', 'happy')
+            ->assertJsonPath('data.lookup.phonetic', '/ˈhæpi/')
+            ->assertJsonPath('data.lookup.audio_url', 'https://example.com/happy.mp3');
 
         $this->assertDatabaseHas('word_chat_messages', [
             'user_id' => $user->id,
             'role' => 'user',
-            'content' => 'What does happy mean?',
+            'content' => 'happy',
             'cursor_run_id' => 'run_1',
         ]);
 

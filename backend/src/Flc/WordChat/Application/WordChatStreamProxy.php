@@ -13,6 +13,7 @@ final class WordChatStreamProxy
     public function __construct(
         private readonly CursorWordChatGateway $cursor,
         private readonly WordChatRunRepository $runs,
+        private readonly WordChatMessageRepository $messages,
         private readonly CommandBus $commands,
     ) {}
 
@@ -35,6 +36,8 @@ final class WordChatStreamProxy
 
     private function pipeStream(WordChatRun $run, ?string $lastEventId, callable $write): void
     {
+        $this->emitLookupForRun($run, $write);
+
         $response = $this->cursor->openRunStream($run->cursorAgentId, $run->cursorRunId, $lastEventId);
 
         if ($response === null) {
@@ -84,6 +87,8 @@ final class WordChatStreamProxy
         if ($text === '' || strtoupper($terminal['status']) !== 'FINISHED') {
             return false;
         }
+
+        $this->emitLookupForRun($run, $write);
 
         $this->emitClientEvent($write, 'result', [
             'runId' => $run->cursorRunId,
@@ -202,6 +207,13 @@ final class WordChatStreamProxy
      */
     private function emitSavedEvent(callable $write, array $saved): void
     {
+        $lookup = is_array($saved['metadata']['lookup'] ?? null) ? $saved['metadata']['lookup'] : null;
+        if ($lookup !== null) {
+            $this->emitClientEvent($write, 'lookup', [
+                'lookup' => $lookup,
+            ]);
+        }
+
         $insights = is_array($saved['insights'] ?? null) ? $saved['insights'] : [];
         if ($insights !== []) {
             $this->emitClientEvent($write, 'insights', [
@@ -227,5 +239,21 @@ final class WordChatStreamProxy
     {
         $write("event: {$event}\n");
         $write('data: '.json_encode($payload, JSON_UNESCAPED_UNICODE)."\n\n");
+    }
+
+    private function emitLookupForRun(WordChatRun $run, callable $write): void
+    {
+        $userMessage = $this->messages->findById($run->userId, $run->userMessageId);
+        $lookup = is_array($userMessage?->metadata['lookup'] ?? null)
+            ? $userMessage->metadata['lookup']
+            : null;
+
+        if ($lookup === null) {
+            return;
+        }
+
+        $this->emitClientEvent($write, 'lookup', [
+            'lookup' => $lookup,
+        ]);
     }
 }

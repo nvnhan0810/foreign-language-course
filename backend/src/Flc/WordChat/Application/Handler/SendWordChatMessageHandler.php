@@ -47,6 +47,7 @@ final class SendWordChatMessageHandler implements CommandHandler
             throw new ServiceUnavailableHttpException(null, 'Word chat is still preparing. Please wait a moment.');
         }
 
+        $lookup = $this->prompts->resolveDictionaryForMessage($text);
         $prompt = $this->prompts->buildFollowUpPrompt($text);
         $cursorRun = $this->cursor->followUp($agent['cursor_agent_id'], $prompt);
 
@@ -60,6 +61,7 @@ final class SendWordChatMessageHandler implements CommandHandler
             role: 'user',
             content: $text,
             cursorRunId: $cursorRun['runId'],
+            metadata: $lookup !== null ? ['lookup' => $lookup] : null,
         ));
 
         $run = $this->runs->save(new WordChatRun(
@@ -75,11 +77,17 @@ final class SendWordChatMessageHandler implements CommandHandler
 
         $this->agents->markLastRun($command->userId);
 
-        return [
+        $response = [
             'message_id' => $userMessage->id,
             'run_id' => $cursorRun['runId'],
             'stream_url' => '/api/word-chat/stream/'.$cursorRun['runId'],
             'word_chat_run_id' => $run->id,
         ];
+
+        if ($lookup !== null) {
+            $response['lookup'] = $lookup;
+        }
+
+        return $response;
     }
 }
