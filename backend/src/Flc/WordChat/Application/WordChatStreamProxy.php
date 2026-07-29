@@ -6,6 +6,7 @@ use Flc\Shared\Application\CommandBus;
 use Flc\WordChat\Application\Command\CompleteWordChatRun;
 use Flc\WordChat\Domain\WordChatRun;
 use Illuminate\Http\Client\Response;
+use Throwable;
 
 final class WordChatStreamProxy
 {
@@ -19,6 +20,20 @@ final class WordChatStreamProxy
      * Proxy Cursor SSE to output stream and persist assistant reply when finished.
      */
     public function pipe(WordChatRun $run, ?string $lastEventId, callable $write): void
+    {
+        try {
+            $this->pipeStream($run, $lastEventId, $write);
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->runs->markError($run->userId, $run->cursorRunId);
+            $this->emitClientEvent($write, 'error', [
+                'code' => 'stream_failed',
+                'message' => 'Word chat stream failed.',
+            ]);
+        }
+    }
+
+    private function pipeStream(WordChatRun $run, ?string $lastEventId, callable $write): void
     {
         $response = $this->cursor->openRunStream($run->cursorAgentId, $run->cursorRunId, $lastEventId);
 
@@ -45,14 +60,9 @@ final class WordChatStreamProxy
         }
 
         if ($assistantText !== '') {
-            $saved = $this->commands->dispatch(new CompleteWordChatRun(
-                userId: $run->userId,
-                cursorRunId: $run->cursorRunId,
-                assistantContent: $assistantText,
-            ));
-
-            if (is_array($saved)) {
-                $this->emitSavedEvent($write, $saved);
+            $saved = $this->persistAssistantReply($run, $assistantText, $write);
+            if ($saved === null) {
+                return;
             }
         } else {
             $this->runs->markError($run->userId, $run->cursorRunId);
@@ -81,19 +91,51 @@ final class WordChatStreamProxy
             'text' => $text,
         ]);
 
-        $saved = $this->commands->dispatch(new CompleteWordChatRun(
-            userId: $run->userId,
-            cursorRunId: $run->cursorRunId,
-            assistantContent: $text,
-        ));
-
-        if (is_array($saved)) {
-            $this->emitSavedEvent($write, $saved);
+        $saved = $this->persistAssistantReply($run, $text, $write);
+        if ($saved === null) {
+            return false;
         }
 
         $this->emitClientEvent($write, 'done', []);
 
         return true;
+    }
+
+    /**
+     * @return array<string, mixed>|null Saved assistant payload, or null after emitting SSE error.
+     */
+    private function persistAssistantReply(WordChatRun $run, string $assistantText, callable $write): ?array
+    {
+        try {
+            $saved = $this->commands->dispatch(new CompleteWordChatRun(
+                userId: $run->userId,
+                cursorRunId: $run->cursorRunId,
+                assistantContent: $assistantText,
+            ));
+
+            if (! is_array($saved)) {
+                $this->runs->markError($run->userId, $run->cursorRunId);
+                $this->emitClientEvent($write, 'error', [
+                    'code' => 'empty_reply',
+                    'message' => 'Word chat returned an empty reply.',
+                ]);
+
+                return null;
+            }
+
+            $this->emitSavedEvent($write, $saved);
+
+            return $saved;
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->runs->markError($run->userId, $run->cursorRunId);
+            $this->emitClientEvent($write, 'error', [
+                'code' => 'persist_failed',
+                'message' => 'Could not save word chat reply.',
+            ]);
+
+            return null;
+        }
     }
 
     private function relayStream(Response $response, callable $write, string &$assistantText): void
