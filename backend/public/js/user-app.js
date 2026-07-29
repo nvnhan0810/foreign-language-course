@@ -85,11 +85,12 @@
 
   initMediaDifficultyFilter();
 
-  function initWordChat() {
-    const root = document.querySelector('[data-word-chat]');
-    if (!root) return;
+  function mountWordChat(root) {
+    if (!root || root.dataset.wordChatMounted === '1') return;
+    root.dataset.wordChatMounted = '1';
 
     const messagesEl = root.querySelector('[data-word-chat-messages]');
+    const messagesInnerEl = root.querySelector('[data-word-chat-messages-inner]') || messagesEl;
     const emptyEl = root.querySelector('[data-word-chat-empty]');
     const form = root.querySelector('[data-word-chat-form]');
     const input = root.querySelector('[data-word-chat-input]');
@@ -240,7 +241,7 @@
 
     const toggleEmpty = () => {
       if (!emptyEl) return;
-      const hasMessages = messagesEl.querySelector('.word-chat-bubble');
+      const hasMessages = messagesInnerEl.querySelector('.word-chat-bubble');
       emptyEl.hidden = !!hasMessages;
     };
 
@@ -460,14 +461,14 @@
       if (options.streaming) bubble.classList.add('is-streaming');
       if (options.messageId) bubble.dataset.messageId = String(options.messageId);
       setBubbleContent(bubble, role, content, options);
-      messagesEl.appendChild(bubble);
+      messagesInnerEl.appendChild(bubble);
       toggleEmpty();
       scrollToBottom();
       return bubble;
     };
 
     const renderHistory = (items) => {
-      messagesEl.querySelectorAll('.word-chat-bubble').forEach((node) => node.remove());
+      messagesInnerEl.querySelectorAll('.word-chat-bubble').forEach((node) => node.remove());
       (items || []).forEach((item) => {
         if (!item || !item.role || !item.content) return;
         appendBubble(item.role === 'assistant' ? 'assistant' : 'user', item.content, {
@@ -682,13 +683,96 @@
       }
     });
 
-    resetInputHeight();
-    input?.focus();
-    loadHistory();
-    waitForAgent();
+    const isLazy = root.dataset.wordChatLazy === '1';
+    let started = false;
+
+    const ensureStarted = () => {
+      if (started) return;
+      started = true;
+      loadHistory();
+      waitForAgent();
+    };
+
+    root.ensureWordChatStarted = ensureStarted;
+    root.prefillWordChat = (text) => {
+      if (!input || !text) return;
+      input.value = String(text).trim();
+      resetInputHeight();
+    };
+
+    if (!isLazy) {
+      ensureStarted();
+      resetInputHeight();
+      input?.focus();
+    } else {
+      resetInputHeight();
+    }
   }
 
-  initWordChat();
+  function initWordChatInstances() {
+    document.querySelectorAll('[data-word-chat]').forEach((root) => {
+      mountWordChat(root);
+    });
+  }
+
+  function initMediaWordChatSidebar() {
+    const page = document.querySelector('[data-media-word-chat]');
+    if (!page) return;
+
+    const panel = page.querySelector('[data-media-word-chat-panel]');
+    const backdrop = page.querySelector('[data-media-word-chat-backdrop]');
+    const openButtons = page.querySelectorAll('[data-media-word-chat-open]');
+    const closeButton = page.querySelector('[data-media-word-chat-close]');
+    const chatRoot = panel?.querySelector('[data-word-chat]');
+    const transcriptText = page.querySelector('[data-transcript-text]');
+
+    if (!panel) return;
+
+    const getTranscriptSelection = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !transcriptText) return '';
+
+      const anchor = selection.anchorNode;
+      const focus = selection.focusNode;
+      if (!anchor || !focus) return '';
+      if (!transcriptText.contains(anchor) && !transcriptText.contains(focus)) return '';
+
+      return selection.toString().trim().replace(/\s+/g, ' ');
+    };
+
+    const setOpen = (open) => {
+      page.classList.toggle('is-chat-open', open);
+      panel.hidden = !open;
+      panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+      if (backdrop) backdrop.hidden = !open;
+      document.body.classList.toggle('media-word-chat-open', open);
+
+      if (open) {
+        chatRoot?.ensureWordChatStarted?.();
+        const selected = getTranscriptSelection();
+        if (selected) {
+          chatRoot?.prefillWordChat?.(selected);
+        }
+        chatRoot?.querySelector('[data-word-chat-input]')?.focus();
+      }
+    };
+
+    openButtons.forEach((button) => {
+      button.addEventListener('click', () => setOpen(true));
+    });
+
+    closeButton?.addEventListener('click', () => setOpen(false));
+    backdrop?.addEventListener('click', () => setOpen(false));
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && page.classList.contains('is-chat-open')) {
+        setOpen(false);
+      }
+    });
+  }
+
+  initWordChatInstances();
+  initMediaWordChatSidebar();
 
   function initYouTubeAdd() {
     const root = document.querySelector('[data-youtube-add]');

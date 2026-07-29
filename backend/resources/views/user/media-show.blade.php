@@ -6,32 +6,37 @@
 @section('back_url', route('user.home.media'))
 
 @section('content')
-    <p style="margin:0 0 16px">
-        <span class="difficulty-tag difficulty-tag--{{ $media->difficulty }}">{{ $media->difficultyLabel() }}</span>
-    </p>
+    <div class="media-show-page" data-media-word-chat>
+        <div class="media-show-main">
+            <div class="media-show-toolbar">
+                <span class="difficulty-tag difficulty-tag--{{ $media->difficulty }}">{{ $media->difficultyLabel() }}</span>
+                <button type="button" class="btn btn-sm btn-secondary media-word-chat-open-btn" data-media-word-chat-open>
+                    Ask word
+                </button>
+            </div>
 
-    @if ($media->type === 'youtube' && $media->source_id)
-        <div class="video-embed">
-            <iframe
-                src="https://www.youtube.com/embed/{{ $media->source_id }}?playsinline=1&rel=0"
-                title="{{ $media->title }}"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                referrerpolicy="strict-origin-when-cross-origin"
-                allowfullscreen
-                playsinline
-            ></iframe>
-        </div>
-    @elseif ($media->url)
-        <p style="margin:16px 0">
-            <a href="{{ $media->url }}" target="_blank" rel="noopener" class="btn">Open media</a>
-        </p>
-    @endif
+            @if ($media->type === 'youtube' && $media->source_id)
+                <div class="video-embed">
+                    <iframe
+                        src="https://www.youtube.com/embed/{{ $media->source_id }}?playsinline=1&rel=0"
+                        title="{{ $media->title }}"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen
+                        playsinline
+                    ></iframe>
+                </div>
+            @elseif ($media->url)
+                <p style="margin:16px 0">
+                    <a href="{{ $media->url }}" target="_blank" rel="noopener" class="btn">Open media</a>
+                </p>
+            @endif
 
-    @php
-        $transcriptEditing = $errors->has('transcript');
-        $hasTranscript = filled($media->transcript);
-    @endphp
-    <details class="transcript-collapse" @if ($transcriptEditing) open @endif data-transcript>
+            @php
+                $transcriptEditing = $errors->has('transcript');
+                $hasTranscript = filled($media->transcript);
+            @endphp
+            <details class="transcript-collapse" @if ($transcriptEditing) open @endif data-transcript>
         <summary class="transcript-summary">
             <span class="transcript-summary-label">Transcript</span>
             <span class="transcript-summary-actions">
@@ -124,4 +129,27 @@
             </div>
         @endforeach
     @endif
+        </div>
+
+        <div class="media-word-chat-backdrop" data-media-word-chat-backdrop hidden></div>
+        <aside
+            class="media-word-chat-sidebar"
+            data-media-word-chat-panel
+            hidden
+            aria-hidden="true"
+            aria-label="Word chat while listening"
+        >
+            <div class="media-word-chat-sidebar-head">
+                <h2 class="media-word-chat-sidebar-title">Learn</h2>
+                <button type="button" class="media-word-chat-close" data-media-word-chat-close aria-label="Close chat">×</button>
+            </div>
+            @include('user.partials.word-chat', [
+                'chatId' => 'media-word-chat',
+                'lazy' => true,
+                'variant' => 'sidebar',
+                'emptyTitle' => 'Ask while you listen',
+                'emptyHint' => 'Try: “What does <em>outlet</em> mean in this video?” Select text in the transcript, open chat, and it will be prefilled.',
+            ])
+        </aside>
+    </div>
 @endsection
