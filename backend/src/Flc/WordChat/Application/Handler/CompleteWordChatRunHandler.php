@@ -9,6 +9,7 @@ use Flc\WordChat\Application\LearningInsightRepository;
 use Flc\WordChat\Application\WordChatInsightExtractor;
 use Flc\WordChat\Application\WordChatMessageRepository;
 use Flc\WordChat\Application\WordChatRunRepository;
+use Flc\WordChat\Application\WordChatVocabularySaver;
 use Flc\WordChat\Domain\LearningInsight;
 use Flc\WordChat\Domain\WordChatMessage;
 use Flc\WordChat\Domain\WordChatRun;
@@ -21,6 +22,7 @@ final class CompleteWordChatRunHandler implements CommandHandler
         private readonly WordChatRunRepository $runs,
         private readonly WordChatInsightExtractor $insightExtractor,
         private readonly LearningInsightRepository $insights,
+        private readonly WordChatVocabularySaver $vocabularySaver,
     ) {}
 
     public function handle(Command $command): mixed
@@ -34,9 +36,11 @@ final class CompleteWordChatRunHandler implements CommandHandler
 
         $run = $existing ?? $this->runs->findByCursorRunForUser($command->userId, $command->cursorRunId);
         $userQuestion = '';
+        $userMessageId = null;
         if ($run !== null) {
             $userMessage = $this->messages->findById($command->userId, $run->userMessageId);
             $userQuestion = $userMessage?->content ?? '';
+            $userMessageId = $userMessage?->id;
         }
 
         $extracted = $this->insightExtractor->extract(
@@ -52,6 +56,21 @@ final class CompleteWordChatRunHandler implements CommandHandler
 
             return null;
         }
+
+        $insightWords = array_values(array_filter(array_map(
+            fn ($insight) => $insight->word,
+            $extracted['insights'],
+        )));
+
+        $savedVocabulary = $this->vocabularySaver->maybeSave(
+            userId: $command->userId,
+            userQuestion: $userQuestion,
+            saveWordFromAgent: $extracted['save_vocab'],
+            insightWords: $insightWords,
+            beforeMessageId: $userMessageId,
+        );
+
+        $insightsToPersist = $this->attachSavedVocabulary($extracted['insights'], $savedVocabulary);
 
         $assistant = $this->messages->save(new WordChatMessage(
             id: null,
@@ -71,7 +90,7 @@ final class CompleteWordChatRunHandler implements CommandHandler
         $savedInsights = $this->persistInsights(
             userId: $command->userId,
             assistantMessageId: (int) $assistant->id,
-            insights: $extracted['insights'],
+            insights: $insightsToPersist,
         );
 
         $payload = $assistant->toApiArray();
@@ -79,8 +98,49 @@ final class CompleteWordChatRunHandler implements CommandHandler
             fn ($insight) => $insight->toApiArray(),
             $savedInsights,
         );
+        if ($savedVocabulary !== null) {
+            $payload['saved_vocabulary'] = $savedVocabulary;
+        }
 
         return $payload;
+    }
+
+    /**
+     * @param  list<LearningInsight>  $insights
+     * @param  array<string, mixed>|null  $savedVocabulary
+     * @return list<LearningInsight>
+     */
+    private function attachSavedVocabulary(array $insights, ?array $savedVocabulary): array
+    {
+        if ($savedVocabulary === null) {
+            return $insights;
+        }
+
+        $vocabularyId = (int) ($savedVocabulary['id'] ?? 0);
+        $savedWord = strtolower(trim((string) ($savedVocabulary['word'] ?? '')));
+        if ($vocabularyId <= 0 || $savedWord === '') {
+            return $insights;
+        }
+
+        return array_map(function (LearningInsight $insight) use ($vocabularyId, $savedWord) {
+            if ($insight->vocabularyId !== null || strtolower($insight->word) !== $savedWord) {
+                return $insight;
+            }
+
+            return new LearningInsight(
+                id: $insight->id,
+                userId: $insight->userId,
+                vocabularyId: $vocabularyId,
+                word: $insight->word,
+                insightType: $insight->insightType,
+                question: $insight->question,
+                content: $insight->content,
+                sourceMessageId: $insight->sourceMessageId,
+                metadata: $insight->metadata,
+                quizEligible: $insight->quizEligible,
+                timesUsedInQuiz: $insight->timesUsedInQuiz,
+            );
+        }, $insights);
     }
 
     /**

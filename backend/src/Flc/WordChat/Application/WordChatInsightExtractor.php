@@ -17,7 +17,7 @@ final class WordChatInsightExtractor
     ) {}
 
     /**
-     * @return array{content: string, insights: list<LearningInsight>}
+     * @return array{content: string, insights: list<LearningInsight>, save_vocab: ?string}
      */
     public function extract(
         int $userId,
@@ -25,7 +25,7 @@ final class WordChatInsightExtractor
         string $assistantReply,
         ?int $sourceMessageId,
     ): array {
-        [$cleanContent, $parsedItems] = $this->parseJsonBlock($assistantReply);
+        [$cleanContent, $parsedItems, $saveVocab] = $this->parseJsonBlock($assistantReply);
         $insights = [];
 
         foreach ($parsedItems as $item) {
@@ -49,23 +49,50 @@ final class WordChatInsightExtractor
         return [
             'content' => $cleanContent,
             'insights' => $insights,
+            'save_vocab' => $saveVocab,
         ];
     }
 
     /**
-     * @return array{0: string, 1: list<mixed>}
+     * @return array{0: string, 1: list<mixed>, 2: ?string}
      */
     private function parseJsonBlock(string $text): array
     {
         if (preg_match('/```json\s*(\{[\s\S]*?\})\s*```/i', $text, $matches) !== 1) {
-            return [trim($text), []];
+            return [trim($text), [], null];
         }
 
         $decoded = json_decode($matches[1], true);
         $items = is_array($decoded['insights'] ?? null) ? $decoded['insights'] : [];
+        $saveVocab = $this->parseSaveVocab($decoded);
         $clean = trim(str_replace($matches[0], '', $text));
 
-        return [$clean !== '' ? $clean : trim($text), $items];
+        return [$clean !== '' ? $clean : trim($text), $items, $saveVocab];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $decoded
+     */
+    private function parseSaveVocab(?array $decoded): ?string
+    {
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        $saveVocab = $decoded['save_vocab'] ?? null;
+        if (is_string($saveVocab)) {
+            $word = Text::lower(trim($saveVocab));
+
+            return $word !== '' ? $word : null;
+        }
+
+        if (is_array($saveVocab)) {
+            $word = Text::lower(trim((string) ($saveVocab['word'] ?? '')));
+
+            return $word !== '' ? $word : null;
+        }
+
+        return null;
     }
 
     /**
