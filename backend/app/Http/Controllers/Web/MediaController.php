@@ -96,7 +96,7 @@ class MediaController extends Controller
         ]);
     }
 
-    public function updateTranscript(Request $request, MediaItem $mediaItem): RedirectResponse
+    public function updateTranscript(Request $request, MediaItem $mediaItem): RedirectResponse|JsonResponse
     {
         if ($mediaItem->user_id !== $request->user()->id) {
             abort(403);
@@ -106,9 +106,23 @@ class MediaController extends Controller
             'transcript' => ['nullable', 'string', 'max:100000'],
         ]);
 
+        $transcript = isset($validated['transcript']) ? trim((string) $validated['transcript']) : null;
+        if ($transcript === '') {
+            $transcript = null;
+        }
+
         $mediaItem->update([
-            'transcript' => $validated['transcript'] ?? null,
+            'transcript' => $transcript,
         ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'data' => [
+                    'transcript' => $mediaItem->transcript,
+                ],
+                'message' => 'Transcript saved.',
+            ]);
+        }
 
         return redirect()
             ->route('user.home.media.show', $mediaItem)

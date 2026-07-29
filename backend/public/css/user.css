@@ -483,11 +483,11 @@ a {
   overflow: hidden;
 }
 
-.transcript-collapse > summary {
+.transcript-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
   padding: 14px 16px;
   font-size: 16px;
   font-weight: 600;
@@ -499,9 +499,49 @@ a {
   display: none;
 }
 
+.transcript-summary-label {
+  flex-shrink: 0;
+}
+
+.transcript-summary-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.transcript-save-status {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.transcript-save-status.is-error {
+  color: var(--danger-text, #b91c1c);
+}
+
+.transcript-toolbar-view,
+.transcript-toolbar-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transcript-toolbar-view[hidden],
+.transcript-toolbar-edit[hidden] {
+  display: none !important;
+}
+
+.transcript-summary-actions .btn {
+  margin: 0;
+}
+
 .transcript-collapse-icon {
   color: var(--muted);
   transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
 .transcript-collapse[open] .transcript-collapse-icon {
@@ -513,28 +553,70 @@ a {
   border-top: 1px solid var(--border);
 }
 
+.transcript-scroll-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 140px;
+  height: clamp(160px, 34vh, 420px);
+  max-height: min(70vh, 640px);
+  resize: vertical;
+  overflow: hidden;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg) 65%, var(--card));
+}
+
+.transcript-view,
+.transcript-form {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.transcript-view[hidden],
+.transcript-form[hidden] {
+  display: none !important;
+}
+
+.transcript-text,
+.transcript-empty {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 12px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .transcript-text {
   white-space: pre-wrap;
   line-height: 1.6;
-  margin: 12px 0;
+  font-size: 15px;
 }
 
 .transcript-textarea {
+  flex: 1;
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  min-height: 0;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 0;
   font-size: 15px;
   font-family: inherit;
   line-height: 1.6;
-  background: var(--card);
-  resize: vertical;
-  margin: 12px 0;
+  background: transparent;
+  resize: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .transcript-textarea:focus {
-  outline: 2px solid var(--primary);
-  border-color: transparent;
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--primary);
 }
 
 .transcript-form-actions {
