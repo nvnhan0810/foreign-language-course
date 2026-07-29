@@ -1478,6 +1478,97 @@
     window.setInterval(tick, 250);
   }
 
+  const scrambleBoard = document.querySelector('[data-scramble-board]');
+  if (scrambleBoard && scrambleBoard.getAttribute('data-resolved') !== '1') {
+    const wordLength = Number(scrambleBoard.getAttribute('data-word-length') || 0);
+    const slots = [...scrambleBoard.querySelectorAll('[data-scramble-slot]')];
+    const keys = [...document.querySelectorAll('[data-scramble-key]')];
+    const form = document.querySelector('[data-scramble-form]');
+    const hiddenInput = form?.querySelector('[data-scramble-input]');
+    const submitBtn = document.querySelector('[data-scramble-submit]');
+    const clearBtn = document.querySelector('[data-scramble-clear]');
+    const placement = Array(wordLength).fill(null);
+
+    const keyById = (id) => keys.find((key) => Number(key.getAttribute('data-key-id')) === id);
+
+    const buildAnswer = () => placement
+      .map((id) => {
+        if (id === null) return '';
+        return keyById(id)?.getAttribute('data-letter') || '';
+      })
+      .join('');
+
+    const syncUI = () => {
+      slots.forEach((slot, index) => {
+        const keyId = placement[index];
+        const key = keyId !== null ? keyById(keyId) : null;
+        const letter = key?.getAttribute('data-letter') || '';
+        slot.textContent = letter ? letter.toUpperCase() : '';
+        slot.classList.toggle('is-filled', keyId !== null);
+      });
+
+      keys.forEach((key) => {
+        const id = Number(key.getAttribute('data-key-id'));
+        const used = placement.includes(id);
+        key.classList.toggle('is-hidden', used);
+        key.disabled = used;
+      });
+
+      const complete = placement.every((id) => id !== null);
+      if (hiddenInput) {
+        hiddenInput.value = complete ? buildAnswer() : '';
+      }
+      if (submitBtn) {
+        submitBtn.disabled = !complete;
+      }
+    };
+
+    const placeKey = (keyId) => {
+      const emptyIndex = placement.indexOf(null);
+      if (emptyIndex === -1) return;
+      const key = keyById(keyId);
+      if (!key || key.disabled) return;
+      key.classList.remove('is-picking');
+      void key.offsetWidth;
+      key.classList.add('is-picking');
+      placement[emptyIndex] = keyId;
+      syncUI();
+    };
+
+    const clearSlot = (index) => {
+      if (placement[index] === null) return;
+      placement[index] = null;
+      syncUI();
+    };
+
+    keys.forEach((key) => {
+      key.addEventListener('click', () => {
+        placeKey(Number(key.getAttribute('data-key-id')));
+      });
+    });
+
+    slots.forEach((slot, index) => {
+      slot.addEventListener('click', () => {
+        clearSlot(index);
+      });
+    });
+
+    clearBtn?.addEventListener('click', () => {
+      for (let i = 0; i < placement.length; i += 1) {
+        placement[i] = null;
+      }
+      syncUI();
+    });
+
+    submitBtn?.addEventListener('click', () => {
+      if (submitBtn.disabled || !form || !hiddenInput) return;
+      hiddenInput.value = buildAnswer();
+      form.submit();
+    });
+
+    syncUI();
+  }
+
   const wordleBoard = document.querySelector('[data-wordle-board]');
   if (wordleBoard && wordleBoard.getAttribute('data-resolved') !== '1') {
     const wordLength = Number(wordleBoard.getAttribute('data-word-length') || 5);

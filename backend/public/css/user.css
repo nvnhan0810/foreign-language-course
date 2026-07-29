@@ -2003,6 +2003,206 @@ a {
   margin: 0;
 }
 
+/* Scramble letter bank */
+.scramble-screen.is-playing,
+.scramble-screen.is-resolved {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scramble-screen .puzzle-screen-footer {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  flex: 0 0 auto;
+  z-index: 1;
+}
+
+.scramble-screen .puzzle-screen-scroll {
+  align-items: center;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.scramble-screen.is-playing .puzzle-screen-scroll,
+.scramble-screen.is-resolved .puzzle-screen-scroll {
+  padding-bottom: 8px;
+}
+
+@media (max-width: 520px) {
+  .scramble-screen .puzzle-screen-scroll {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+.scramble-build {
+  width: min(100%, 420px);
+  margin: 0 auto;
+}
+
+.scramble-build-label {
+  margin: 0 0 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.scramble-answer-board {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  min-height: 46px;
+}
+
+.scramble-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: inherit;
+  font-size: 18px;
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.12s ease, background 0.15s ease;
+}
+
+.scramble-slot.is-filled {
+  border-color: var(--primary);
+  animation: scramble-slot-pop 0.16s ease;
+}
+
+.scramble-slot:empty {
+  cursor: default;
+}
+
+.scramble-hint-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 360px);
+  margin: 12px auto 0;
+}
+
+.scramble-hint-card {
+  width: 100%;
+  margin: 0;
+}
+
+.scramble-hint-card .puzzle-hint-text {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.scramble-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+.scramble-answer-form {
+  display: none;
+}
+
+.scramble-keyboard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(100%, 360px);
+  margin: 0 auto;
+}
+
+.scramble-keyboard-letters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.scramble-keyboard-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.scramble-key.is-hidden {
+  display: none;
+}
+
+.scramble-key.is-picking {
+  animation: scramble-key-lift 0.18s ease;
+}
+
+.scramble-submit-btn:not(:disabled) {
+  background: var(--primary);
+  color: #fff;
+}
+
+.scramble-submit-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@keyframes scramble-slot-pop {
+  0% { transform: scale(0.88); }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+@keyframes scramble-key-lift {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-8px); opacity: 0.35; }
+}
+
+@media (max-width: 520px) {
+  .scramble-slot {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+    border-radius: 6px;
+  }
+
+  .scramble-hint-zone {
+    margin-top: 8px;
+  }
+
+  .scramble-keyboard .wordle-keyboard-hint {
+    display: none;
+  }
+
+  .scramble-keyboard .wordle-key {
+    min-width: 34px;
+    height: 38px;
+    font-size: 13px;
+  }
+
+  .scramble-keyboard-actions .wordle-key.is-wide {
+    min-width: 88px;
+    height: 38px;
+    font-size: 12px;
+  }
+}
+
 /* Wordle */
 .wordle-screen.is-playing,
 .wordle-screen.is-resolved {
