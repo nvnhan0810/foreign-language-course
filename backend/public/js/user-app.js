@@ -1152,7 +1152,7 @@
   document.querySelectorAll('.flc-form-submit').forEach((form) => {
     form.addEventListener('submit', () => {
       const submit = form.querySelector('[type="submit"]');
-      if (submit && !submit.disabled) {
+      if (submit && !submit.disabled && !submit.classList.contains('wordle-help-btn')) {
         submit.disabled = true;
         submit.dataset.originalText = submit.textContent;
         submit.textContent = 'Đang xử lý...';
@@ -1476,6 +1476,168 @@
     };
     tick();
     window.setInterval(tick, 250);
+  }
+
+  const wordleBoard = document.querySelector('[data-wordle-board]');
+  if (wordleBoard && wordleBoard.getAttribute('data-resolved') !== '1') {
+    const wordLength = Number(wordleBoard.getAttribute('data-word-length') || 5);
+    const form = document.querySelector('[data-wordle-form]');
+    const hiddenInput = form?.querySelector('[data-wordle-input]');
+    const activeRow = wordleBoard.querySelector('.wordle-row.is-active');
+    const tiles = activeRow ? [...activeRow.querySelectorAll('[data-wordle-tile]')] : [];
+    let buffer = '';
+
+    let letterLimits = {};
+    try {
+      const rawLetters = wordleBoard.getAttribute('data-wordle-letters');
+      if (rawLetters) {
+        letterLimits = JSON.parse(rawLetters);
+      }
+    } catch (_error) {
+      letterLimits = {};
+    }
+
+    const allowedLetters = new Set(Object.keys(letterLimits));
+
+    const countInBuffer = (char) => buffer.split('').filter((c) => c === char).length;
+
+    const canAddLetter = (char) => countInBuffer(char) < Number(letterLimits[char] || 0);
+
+    const updateKeyAvailability = () => {
+      document.querySelectorAll('[data-wordle-key-max]').forEach((button) => {
+        const key = button.getAttribute('data-wordle-key') || '';
+        const maxUses = Number(button.getAttribute('data-wordle-key-max') || 0);
+        const used = countInBuffer(key);
+        const exhausted = used >= maxUses;
+        button.classList.toggle('is-exhausted', exhausted);
+        button.disabled = exhausted;
+        const countEl = button.querySelector('[data-wordle-key-count]');
+        if (countEl) {
+          countEl.textContent = String(Math.max(0, maxUses - used));
+        }
+      });
+    };
+
+    const renderBuffer = () => {
+      tiles.forEach((tile, index) => {
+        tile.textContent = (buffer[index] || '').toUpperCase();
+      });
+      updateKeyAvailability();
+    };
+
+    const submitGuess = () => {
+      if (!form || !hiddenInput) return;
+      if (buffer.length !== wordLength) return;
+      hiddenInput.value = buffer;
+      form.submit();
+    };
+
+    const pressKey = (key) => {
+      if (!activeRow) return;
+      if (key === 'backspace') {
+        buffer = buffer.slice(0, -1);
+        renderBuffer();
+        return;
+      }
+      if (key === 'enter') {
+        submitGuess();
+        return;
+      }
+      if (!/^[a-z]$/.test(key)) return;
+      if (buffer.length >= wordLength) return;
+      if (allowedLetters.size > 0 && !allowedLetters.has(key)) return;
+      if (!canAddLetter(key)) return;
+      buffer += key;
+      renderBuffer();
+    };
+
+    document.querySelectorAll('[data-wordle-key]').forEach((button) => {
+      button.addEventListener('click', () => {
+        pressKey(button.getAttribute('data-wordle-key') || '');
+      });
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (!activeRow || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        pressKey('enter');
+        return;
+      }
+      if (event.key === 'Backspace') {
+        event.preventDefault();
+        pressKey('backspace');
+        return;
+      }
+      if (/^[a-zA-Z]$/.test(event.key)) {
+        event.preventDefault();
+        pressKey(event.key.toLowerCase());
+      }
+    });
+
+    updateKeyAvailability();
+  }
+
+  const wordleHelpZone = document.querySelector('[data-wordle-help]');
+  if (wordleHelpZone) {
+    const hintAtSec = Number(wordleHelpZone.getAttribute('data-hint-at') || 0);
+    const visibleMs = Number(wordleHelpZone.getAttribute('data-hint-visible-ms') || 10000);
+    const cooldownMs = Number(wordleHelpZone.getAttribute('data-hint-cooldown-ms') || 20000);
+    const hintCard = document.querySelector('[data-wordle-hint-card]');
+    const helpForm = wordleHelpZone.querySelector('[data-wordle-help-form]');
+    const helpWait = wordleHelpZone.querySelector('[data-wordle-help-wait]');
+    const countdownEl = wordleHelpZone.querySelector('[data-wordle-help-countdown]');
+
+    const hideHintCard = () => {
+      if (!hintCard || hintCard.hasAttribute('hidden')) return;
+      hintCard.classList.add('is-leaving');
+      window.setTimeout(() => {
+        hintCard.hidden = true;
+        hintCard.setAttribute('hidden', '');
+        hintCard.classList.remove('is-leaving');
+      }, 280);
+    };
+
+    const syncHelp = () => {
+      if (!hintAtSec) {
+        helpForm?.removeAttribute('hidden');
+        helpWait?.setAttribute('hidden', '');
+        return;
+      }
+
+      const elapsed = Date.now() - hintAtSec * 1000;
+
+      if (elapsed < visibleMs) {
+        hintCard?.removeAttribute('hidden');
+        hintCard?.classList.remove('is-leaving');
+        helpForm?.setAttribute('hidden', '');
+        helpWait?.removeAttribute('hidden');
+      } else {
+        hideHintCard();
+        if (elapsed < cooldownMs) {
+          helpForm?.setAttribute('hidden', '');
+          helpWait?.removeAttribute('hidden');
+        } else {
+          helpForm?.removeAttribute('hidden');
+          helpWait?.setAttribute('hidden', '');
+        }
+      }
+
+      if (countdownEl && elapsed < cooldownMs) {
+        countdownEl.textContent = String(Math.max(1, Math.ceil((cooldownMs - elapsed) / 1000)));
+      }
+    };
+
+    syncHelp();
+    const helpTimerId = window.setInterval(() => {
+      syncHelp();
+      if (!hintAtSec || Date.now() - hintAtSec * 1000 >= cooldownMs) {
+        window.clearInterval(helpTimerId);
+      }
+    }, 250);
   }
 
   if (document.body.classList.contains('flc-app')) {
