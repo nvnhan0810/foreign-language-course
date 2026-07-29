@@ -27,44 +27,63 @@
         </p>
     @endif
 
-    @php($transcriptEditing = $errors->has('transcript'))
-    <details class="transcript-collapse" @if ($transcriptEditing) open @endif>
-        <summary>
-            <span>Transcript</span>
-            <span class="transcript-collapse-icon" aria-hidden="true">▾</span>
-        </summary>
-        <div class="transcript-collapse-body" data-transcript>
-            <div class="transcript-view" data-transcript-view @if ($transcriptEditing) hidden @endif>
-                @if (filled($media->transcript))
-                    <p class="transcript-text">{{ $media->transcript }}</p>
-                @else
-                    <p class="muted">No transcript yet.</p>
-                @endif
-                <button type="button" class="btn btn-sm btn-secondary" data-transcript-edit>
-                    {{ filled($media->transcript) ? 'Edit transcript' : 'Add transcript' }}
-                </button>
-            </div>
-
-            <form
-                method="POST"
-                action="{{ route('user.home.media.transcript', $media) }}"
-                class="transcript-form"
-                data-transcript-form
-                @unless ($transcriptEditing) hidden @endunless
-            >
-                @csrf
-                @method('PUT')
-                <textarea
-                    name="transcript"
-                    class="transcript-textarea"
-                    rows="10"
-                    placeholder="Enter the video or audio transcript..."
-                >{{ old('transcript', $media->transcript) }}</textarea>
-                <div class="transcript-form-actions">
-                    <button type="submit" class="btn btn-sm">Save</button>
+    @php
+        $transcriptEditing = $errors->has('transcript');
+        $hasTranscript = filled($media->transcript);
+    @endphp
+    <details class="transcript-collapse" @if ($transcriptEditing) open @endif data-transcript>
+        <summary class="transcript-summary">
+            <span class="transcript-summary-label">Transcript</span>
+            <span class="transcript-summary-actions">
+                <span class="transcript-save-status" data-transcript-status hidden aria-live="polite"></span>
+                <span class="transcript-toolbar-view" data-transcript-toolbar-view @if ($transcriptEditing) hidden @endif>
+                    <button type="button" class="btn btn-sm btn-secondary" data-transcript-edit>
+                        {{ $hasTranscript ? 'Edit transcript' : 'Add transcript' }}
+                    </button>
+                </span>
+                <span class="transcript-toolbar-edit" data-transcript-toolbar-edit @unless ($transcriptEditing) hidden @endunless>
+                    <button
+                        type="submit"
+                        form="media-transcript-form"
+                        class="btn btn-sm"
+                        data-transcript-save
+                    >Save</button>
                     <button type="button" class="btn btn-sm btn-secondary" data-transcript-cancel>Cancel</button>
+                </span>
+                <span class="transcript-collapse-icon" aria-hidden="true">▾</span>
+            </span>
+        </summary>
+        <div class="transcript-collapse-body">
+            <div class="transcript-scroll-panel" data-transcript-panel>
+                <div class="transcript-view" data-transcript-view @if ($transcriptEditing) hidden @endif>
+                    @if ($hasTranscript)
+                        <div class="transcript-text" data-transcript-text>{{ $media->transcript }}</div>
+                    @else
+                        <p class="muted transcript-empty" data-transcript-empty>No transcript yet.</p>
+                    @endif
                 </div>
-            </form>
+
+                <form
+                    id="media-transcript-form"
+                    method="POST"
+                    action="{{ route('user.home.media.transcript', $media) }}"
+                    class="transcript-form"
+                    data-transcript-form
+                    @unless ($transcriptEditing) hidden @endunless
+                >
+                    @csrf
+                    @method('PUT')
+                    <textarea
+                        name="transcript"
+                        class="transcript-textarea"
+                        placeholder="Enter the video or audio transcript..."
+                        spellcheck="false"
+                    >{{ old('transcript', $media->transcript) }}</textarea>
+                </form>
+            </div>
+            @if ($errors->has('transcript'))
+                <p class="alert alert-error" style="margin-top:12px">{{ $errors->first('transcript') }}</p>
+            @endif
         </div>
     </details>
 

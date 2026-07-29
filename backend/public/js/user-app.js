@@ -835,25 +835,145 @@
     });
   });
 
-  document.querySelectorAll('[data-transcript]').forEach((container) => {
-    const view = container.querySelector('[data-transcript-view]');
-    const form = container.querySelector('[data-transcript-form]');
-    const editBtn = container.querySelector('[data-transcript-edit]');
-    const cancelBtn = container.querySelector('[data-transcript-cancel]');
+  document.querySelectorAll('[data-transcript]').forEach((root) => {
+    const view = root.querySelector('[data-transcript-view]');
+    const form = root.querySelector('[data-transcript-form]');
+    const editBtn = root.querySelector('[data-transcript-edit]');
+    const cancelBtn = root.querySelector('[data-transcript-cancel]');
+    const saveBtn = root.querySelector('[data-transcript-save]');
+    const toolbarView = root.querySelector('[data-transcript-toolbar-view]');
+    const toolbarEdit = root.querySelector('[data-transcript-toolbar-edit]');
+    const statusEl = root.querySelector('[data-transcript-status]');
+    const textarea = form?.querySelector('textarea');
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     if (!view || !form) return;
+
+    const setStatus = (message, isError = false) => {
+      if (!statusEl) return;
+      if (!message) {
+        statusEl.hidden = true;
+        statusEl.textContent = '';
+        statusEl.classList.remove('is-error');
+        return;
+      }
+      statusEl.hidden = false;
+      statusEl.textContent = message;
+      statusEl.classList.toggle('is-error', isError);
+    };
+
+    const updateViewContent = (transcript) => {
+      const trimmed = (transcript || '').trim();
+      let textEl = view.querySelector('[data-transcript-text]');
+      let emptyEl = view.querySelector('[data-transcript-empty]');
+
+      if (trimmed) {
+        if (!textEl) {
+          textEl = document.createElement('div');
+          textEl.className = 'transcript-text';
+          textEl.dataset.transcriptText = '';
+          view.replaceChildren(textEl);
+          emptyEl = null;
+        }
+        textEl.textContent = trimmed;
+        if (emptyEl) emptyEl.remove();
+      } else {
+        if (!emptyEl) {
+          emptyEl = document.createElement('p');
+          emptyEl.className = 'muted transcript-empty';
+          emptyEl.dataset.transcriptEmpty = '';
+          emptyEl.textContent = 'No transcript yet.';
+          view.replaceChildren(emptyEl);
+          textEl = null;
+        }
+        if (textEl) textEl.remove();
+      }
+
+      if (editBtn) {
+        editBtn.textContent = trimmed ? 'Edit transcript' : 'Add transcript';
+      }
+    };
 
     const showForm = () => {
       view.hidden = true;
       form.hidden = false;
-      form.querySelector('textarea')?.focus();
+      if (toolbarView) toolbarView.hidden = true;
+      if (toolbarEdit) toolbarEdit.hidden = false;
+      setStatus('');
+      textarea?.focus();
     };
+
     const showView = () => {
       form.hidden = true;
       view.hidden = false;
+      if (toolbarView) toolbarView.hidden = false;
+      if (toolbarEdit) toolbarEdit.hidden = true;
+      setStatus('');
     };
 
-    editBtn?.addEventListener('click', showForm);
-    cancelBtn?.addEventListener('click', showView);
+    editBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!root.open) root.open = true;
+      showForm();
+    });
+
+    cancelBtn?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      showView();
+    });
+
+    saveBtn?.addEventListener('click', (event) => {
+      event.stopPropagation();
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      if (!textarea || saveBtn?.disabled) return;
+
+      const originalLabel = saveBtn?.textContent || 'Save';
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+      }
+      setStatus('');
+
+      try {
+        const body = new FormData(form);
+        const res = await fetch(form.action, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': csrf,
+          },
+          body,
+        });
+
+        const payload = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          const message = payload.message || payload.errors?.transcript?.[0] || 'Could not save transcript.';
+          setStatus(message, true);
+          return;
+        }
+
+        const transcript = payload.data?.transcript ?? textarea.value;
+        textarea.value = transcript || '';
+        updateViewContent(transcript);
+        showView();
+        setStatus(payload.message || 'Transcript saved.');
+        window.setTimeout(() => setStatus(''), 2500);
+      } catch {
+        setStatus('Could not save transcript.', true);
+      } finally {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = originalLabel;
+        }
+      }
+    });
   });
 
   document.querySelectorAll('.choice-card input').forEach((input) => {
