@@ -728,6 +728,9 @@
 
     if (!panel) return;
 
+    const desktopQuery = window.matchMedia('(min-width: 960px)');
+    const isDesktopLayout = () => desktopQuery.matches;
+
     const getTranscriptSelection = () => {
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || !transcriptText) return '';
@@ -740,20 +743,37 @@
       return selection.toString().trim().replace(/\s+/g, ' ');
     };
 
-    const setOpen = (open) => {
-      page.classList.toggle('is-chat-open', open);
-      panel.hidden = !open;
-      panel.setAttribute('aria-hidden', open ? 'false' : 'true');
-      if (backdrop) backdrop.hidden = !open;
-      document.body.classList.toggle('media-word-chat-open', open);
+    const setOpen = (open, options = {}) => {
+      const desktop = isDesktopLayout();
+      const shouldOpen = desktop ? true : open;
 
-      if (open) {
+      page.classList.toggle('is-chat-open', shouldOpen);
+      page.classList.toggle('is-desktop-sidebar', desktop);
+      panel.hidden = !shouldOpen;
+      panel.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
+      if (backdrop) backdrop.hidden = !shouldOpen || desktop;
+      document.body.classList.toggle('media-word-chat-open', shouldOpen && !desktop);
+
+      if (shouldOpen) {
         chatRoot?.ensureWordChatStarted?.();
         const selected = getTranscriptSelection();
         if (selected) {
           chatRoot?.prefillWordChat?.(selected);
         }
-        chatRoot?.querySelector('[data-word-chat-input]')?.focus();
+        if (!desktop && options.focus !== false) {
+          chatRoot?.querySelector('[data-word-chat-input]')?.focus();
+        }
+      }
+    };
+
+    const syncLayout = () => {
+      if (isDesktopLayout()) {
+        setOpen(true, { focus: false });
+        return;
+      }
+
+      if (!page.classList.contains('is-chat-open')) {
+        setOpen(false, { focus: false });
       }
     };
 
@@ -761,14 +781,25 @@
       button.addEventListener('click', () => setOpen(true));
     });
 
-    closeButton?.addEventListener('click', () => setOpen(false));
-    backdrop?.addEventListener('click', () => setOpen(false));
-
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && page.classList.contains('is-chat-open')) {
+    closeButton?.addEventListener('click', () => {
+      if (!isDesktopLayout()) {
         setOpen(false);
       }
     });
+    backdrop?.addEventListener('click', () => {
+      if (!isDesktopLayout()) {
+        setOpen(false);
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && page.classList.contains('is-chat-open') && !isDesktopLayout()) {
+        setOpen(false);
+      }
+    });
+
+    desktopQuery.addEventListener('change', syncLayout);
+    syncLayout();
   }
 
   initWordChatInstances();

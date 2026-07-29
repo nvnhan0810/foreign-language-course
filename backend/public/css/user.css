@@ -2689,6 +2689,22 @@ a {
   margin: 0;
 }
 
+@media (min-width: 960px) {
+  .media-show-page.is-desktop-sidebar .media-word-chat-open-btn,
+  .media-show-page.is-desktop-sidebar .media-word-chat-backdrop,
+  .media-show-page.is-desktop-sidebar .media-word-chat-close {
+    display: none !important;
+  }
+
+  .media-show-page.is-desktop-sidebar .media-word-chat-sidebar {
+    display: flex !important;
+  }
+
+  .media-show-page.is-desktop-sidebar .media-show-toolbar {
+    justify-content: flex-start;
+  }
+}
+
 .media-word-chat-backdrop {
   position: fixed;
   inset: 0;
@@ -2751,8 +2767,10 @@ body.media-word-chat-open {
   overflow: hidden;
 }
 
-.media-show-page.is-chat-open .media-word-chat-open-btn {
-  display: none;
+@media (min-width: 960px) {
+  body.media-word-chat-open {
+    overflow: auto;
+  }
 }
 
 .sr-only {
