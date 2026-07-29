@@ -36,4 +36,10 @@ return [
 
     'cursor_warmup_run_wait_seconds' => (int) env('WORD_CHAT_WARMUP_RUN_WAIT_SECONDS', 180),
 
+    /*
+    | Bump when Word Chat system rules change. Active agents with an older version
+    | are archived and recreated on the next ensure call.
+    */
+    'prompt_version' => (int) env('WORD_CHAT_PROMPT_VERSION', 2),
+
 ];

@@ -27,6 +27,13 @@ final class GetWordChatAgentStatusHandler implements QueryHandler
         }
 
         if ($record['status'] === 'active' && $record['cursor_agent_id'] !== null) {
+            if ($this->agents->needsPromptRefresh($record)) {
+                return [
+                    'status' => 'missing',
+                    'ready' => false,
+                ];
+            }
+
             return [
                 'status' => 'ready',
                 'ready' => true,

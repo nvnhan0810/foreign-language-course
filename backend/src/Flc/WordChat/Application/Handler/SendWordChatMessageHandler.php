@@ -47,7 +47,7 @@ final class SendWordChatMessageHandler implements CommandHandler
             throw new ServiceUnavailableHttpException(null, 'Word chat is still preparing. Please wait a moment.');
         }
 
-        $prompt = $this->prompts->buildUserPrompt($text);
+        $prompt = $this->prompts->buildFollowUpPrompt($text);
         $cursorRun = $this->cursor->followUp($agent['cursor_agent_id'], $prompt);
 
         if ($cursorRun === null) {

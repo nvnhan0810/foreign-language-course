@@ -28,10 +28,15 @@ final class EnsureWordChatAgentHandler implements CommandHandler
         $record = $this->agents->findRecordForUser($command->userId);
 
         if ($record !== null && $record['status'] === 'active' && $record['cursor_agent_id'] !== null) {
-            return [
-                'status' => 'ready',
-                'ready' => true,
-            ];
+            if (! $this->agents->needsPromptRefresh($record)) {
+                return [
+                    'status' => 'ready',
+                    'ready' => true,
+                ];
+            }
+
+            $this->cursor->archiveAgent($record['cursor_agent_id']);
+            $this->agents->archiveForUser($command->userId);
         }
 
         if ($record !== null && $record['status'] === 'creating' && ! $this->isStale($record)) {

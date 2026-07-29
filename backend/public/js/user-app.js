@@ -201,12 +201,10 @@
           return;
         }
 
-        if (status.status === 'missing' || status.status === 'error') {
-          status = await ensureAgent();
-          if (status.ready) {
-            setAgentReady(true);
-            return;
-          }
+        status = await ensureAgent();
+        if (status.ready) {
+          setAgentReady(true);
+          return;
         }
 
         const deadline = Date.now() + 300000;

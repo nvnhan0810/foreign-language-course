@@ -7,9 +7,14 @@ interface WordChatAgentRepository
     public function findForUser(int $userId): ?array;
 
     /**
-     * @return array{id: int, cursor_agent_id: string|null, status: string, error_message: string|null, updated_at: string|null}|null
+     * @return array{id: int, cursor_agent_id: string|null, status: string, prompt_version: int, error_message: string|null, updated_at: string|null}|null
      */
     public function findRecordForUser(int $userId): ?array;
+
+    /**
+     * @param  array{prompt_version?: int}  $record
+     */
+    public function needsPromptRefresh(array $record): bool;
 
     public function saveAgent(int $userId, string $cursorAgentId, string $status = 'active'): array;
 
