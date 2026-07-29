@@ -23,6 +23,16 @@ class WordChatApiTest extends TestCase
         config([
             'listening.cursor_api_key' => 'test-key',
             'listening.cursor_api_base' => 'https://api.cursor.com',
+            'word_chat.prompt_version' => 2,
+        ]);
+    }
+
+    private function createReadyAgent(User $user, string $cursorAgentId = 'agent_1'): void
+    {
+        $user->wordChatAgents()->create([
+            'cursor_agent_id' => $cursorAgentId,
+            'status' => 'active',
+            'prompt_version' => 2,
         ]);
     }
 
@@ -62,10 +72,7 @@ class WordChatApiTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $user->wordChatAgents()->create([
-            'cursor_agent_id' => 'agent_1',
-            'status' => 'active',
-        ]);
+        $this->createReadyAgent($user);
 
         $this->getJson('/api/word-chat/agent')
             ->assertOk()
@@ -90,7 +97,7 @@ class WordChatApiTest extends TestCase
         $gateway->shouldReceive('isConfigured')->andReturn(true);
         $gateway->shouldReceive('followUp')
             ->once()
-            ->with('agent_1', \Mockery::type('string'))
+            ->with('agent_1', \Mockery::on(fn (string $prompt) => str_contains($prompt, '[FLC Word Chat rules for this turn]')))
             ->andReturn(['agentId' => 'agent_1', 'runId' => 'run_1']);
         $gateway->shouldReceive('createAgent')->never();
         $this->app->instance(CursorWordChatGateway::class, $gateway);
@@ -98,10 +105,7 @@ class WordChatApiTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $user->wordChatAgents()->create([
-            'cursor_agent_id' => 'agent_1',
-            'status' => 'active',
-        ]);
+        $this->createReadyAgent($user);
 
         $response = $this->postJson('/api/word-chat/messages', [
             'text' => 'What does happy mean?',
@@ -138,10 +142,7 @@ class WordChatApiTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $user->wordChatAgents()->create([
-            'cursor_agent_id' => 'agent_1',
-            'status' => 'active',
-        ]);
+        $this->createReadyAgent($user);
 
         $this->postJson('/api/word-chat/messages', [
             'text' => 'Give me an example sentence.',
@@ -171,6 +172,7 @@ class WordChatApiTest extends TestCase
         $agent = $user->wordChatAgents()->create([
             'cursor_agent_id' => 'agent_1',
             'status' => 'active',
+            'prompt_version' => 2,
         ]);
 
         $userMessage = WordChatMessage::query()->create([
@@ -229,6 +231,7 @@ class WordChatApiTest extends TestCase
         $agent = $user->wordChatAgents()->create([
             'cursor_agent_id' => 'agent_1',
             'status' => 'active',
+            'prompt_version' => 2,
         ]);
 
         $userMessage = WordChatMessage::query()->create([
@@ -287,10 +290,7 @@ class WordChatApiTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $user->wordChatAgents()->create([
-            'cursor_agent_id' => 'agent_1',
-            'status' => 'active',
-        ]);
+        $this->createReadyAgent($user);
 
         $this->postJson('/api/word-chat/reset')
             ->assertOk()
@@ -300,5 +300,41 @@ class WordChatApiTest extends TestCase
             'user_id' => $user->id,
             'status' => 'archived',
         ]);
+    }
+
+    public function test_ensure_agent_recreates_when_prompt_version_is_stale(): void
+    {
+        Queue::fake();
+
+        $gateway = \Mockery::mock(CursorWordChatGateway::class);
+        $gateway->shouldReceive('isConfigured')->andReturn(true);
+        $gateway->shouldReceive('archiveAgent')->once()->with('agent_old');
+        $this->app->instance(CursorWordChatGateway::class, $gateway);
+
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $user->wordChatAgents()->create([
+            'cursor_agent_id' => 'agent_old',
+            'status' => 'active',
+            'prompt_version' => 1,
+        ]);
+
+        $this->getJson('/api/word-chat/agent')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'missing')
+            ->assertJsonPath('data.ready', false);
+
+        $this->postJson('/api/word-chat/agent/ensure')
+            ->assertAccepted()
+            ->assertJsonPath('data.status', 'creating')
+            ->assertJsonPath('data.ready', false);
+
+        $this->assertDatabaseHas('word_chat_agents', [
+            'user_id' => $user->id,
+            'status' => 'creating',
+        ]);
+
+        Queue::assertPushed(EnsureWordChatAgentJob::class, fn (EnsureWordChatAgentJob $job) => $job->userId === $user->id);
     }
 }

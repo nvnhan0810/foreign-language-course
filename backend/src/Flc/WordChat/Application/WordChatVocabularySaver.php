@@ -68,7 +68,7 @@ final class WordChatVocabularySaver
         }
 
         return (bool) preg_match(
-            '/\b(save(?:\s+this|\s+it|\s+the\s+word|\s+word)?|bookmark|add(?:\s+to)?\s+(?:my\s+)?vocab(?:ulary)?|lưu(?:\s+từ|\s+lại|\s+giúp|\s+hộ|\s+cho\s+tôi)?|cho\s+vào\s+từ\s+vựng|ghi\s+nhớ(?:\s+từ)?)\b/u',
+            '/\b(save(?:\s+this|\s+it|\s+the\s+word|\s+word)?|bookmark|add(?:\s+to)?\s+(?:my\s+)?(?:vocab(?:ulary)?|list)|(?:to|for)\s+(?:my|your)\s+(?:vocab(?:ulary)?|list)|lưu(?:\s+từ|\s+lại|\s+giúp|\s+hộ|\s+cho\s+tôi)?|cho\s+vào\s+từ\s+vựng|ghi\s+nhớ(?:\s+từ)?)\b/u',
             $lower,
         ) || (bool) preg_match('/\b(lưu\s+từ\s+này|save\s+this\s+word)\b/u', $lower);
     }

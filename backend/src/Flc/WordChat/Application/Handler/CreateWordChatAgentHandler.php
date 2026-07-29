@@ -30,7 +30,14 @@ final class CreateWordChatAgentHandler implements CommandHandler
         $record = $this->agents->findRecordForUser($command->userId);
 
         if ($record !== null && $record['status'] === 'active' && $record['cursor_agent_id'] !== null) {
-            return ['created' => true, 'status' => 'ready'];
+            if (! $this->agents->needsPromptRefresh($record)) {
+                return ['created' => true, 'status' => 'ready'];
+            }
+
+            $this->cursor->archiveAgent($record['cursor_agent_id']);
+            $this->agents->archiveForUser($command->userId);
+            $this->agents->markCreating($command->userId);
+            $record = $this->agents->findRecordForUser($command->userId);
         }
 
         if ($record === null || $record['status'] !== 'creating') {

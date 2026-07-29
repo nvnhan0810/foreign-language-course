@@ -27,6 +27,16 @@ class WordChatInsightsTest extends TestCase
         config([
             'listening.cursor_api_key' => 'test-key',
             'listening.cursor_api_base' => 'https://api.cursor.com',
+            'word_chat.prompt_version' => 2,
+        ]);
+    }
+
+    private function createReadyAgent(User $user, string $cursorAgentId = 'agent_1'): \App\Models\WordChatAgent
+    {
+        return $user->wordChatAgents()->create([
+            'cursor_agent_id' => $cursorAgentId,
+            'status' => 'active',
+            'prompt_version' => 2,
         ]);
     }
 
@@ -84,10 +94,7 @@ class WordChatInsightsTest extends TestCase
             'position' => 0,
         ]);
 
-        $agent = $user->wordChatAgents()->create([
-            'cursor_agent_id' => 'agent_1',
-            'status' => 'active',
-        ]);
+        $agent = $this->createReadyAgent($user);
 
         $userMessage = WordChatMessage::query()->create([
             'user_id' => $user->id,
@@ -165,10 +172,7 @@ class WordChatInsightsTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $agent = $user->wordChatAgents()->create([
-            'cursor_agent_id' => 'agent_1',
-            'status' => 'active',
-        ]);
+        $agent = $this->createReadyAgent($user);
 
         $userMessage = WordChatMessage::query()->create([
             'user_id' => $user->id,
@@ -230,10 +234,7 @@ class WordChatInsightsTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $agent = $user->wordChatAgents()->create([
-            'cursor_agent_id' => 'agent_1',
-            'status' => 'active',
-        ]);
+        $agent = $this->createReadyAgent($user);
 
         $userMessage = WordChatMessage::query()->create([
             'user_id' => $user->id,

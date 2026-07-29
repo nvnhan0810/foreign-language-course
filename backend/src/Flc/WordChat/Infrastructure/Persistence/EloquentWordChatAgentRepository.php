@@ -19,10 +19,21 @@ final class EloquentWordChatAgentRepository implements WordChatAgentRepository
             return null;
         }
 
-        return [
+        $record = [
             'id' => (int) $model->id,
             'cursor_agent_id' => (string) $model->cursor_agent_id,
             'status' => (string) $model->status,
+            'prompt_version' => (int) ($model->prompt_version ?? 1),
+        ];
+
+        if ($this->needsPromptRefresh($record)) {
+            return null;
+        }
+
+        return [
+            'id' => $record['id'],
+            'cursor_agent_id' => $record['cursor_agent_id'],
+            'status' => $record['status'],
         ];
     }
 
@@ -40,9 +51,18 @@ final class EloquentWordChatAgentRepository implements WordChatAgentRepository
             'id' => (int) $model->id,
             'cursor_agent_id' => $model->cursor_agent_id !== null ? (string) $model->cursor_agent_id : null,
             'status' => (string) $model->status,
+            'prompt_version' => (int) ($model->prompt_version ?? 1),
             'error_message' => $model->error_message !== null ? (string) $model->error_message : null,
             'updated_at' => $model->updated_at?->toIso8601String(),
         ];
+    }
+
+    public function needsPromptRefresh(array $record): bool
+    {
+        $current = max(1, (int) config('word_chat.prompt_version', 1));
+        $stored = (int) ($record['prompt_version'] ?? 1);
+
+        return $stored < $current;
     }
 
     public function saveAgent(int $userId, string $cursorAgentId, string $status = 'active'): array
@@ -82,6 +102,7 @@ final class EloquentWordChatAgentRepository implements WordChatAgentRepository
             ->update([
                 'cursor_agent_id' => $cursorAgentId,
                 'status' => 'active',
+                'prompt_version' => max(1, (int) config('word_chat.prompt_version', 1)),
                 'error_message' => null,
             ]);
     }
