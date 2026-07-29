@@ -14,7 +14,7 @@
                     <span>S</span><span>C</span><span>R</span><span>A</span><span>M</span>
                 </div>
                 <h2 class="puzzle-game-idle-title">Scramble</h2>
-                <p class="puzzle-game-idle-sub">Unscramble letters. Beat the clock.</p>
+                <p class="puzzle-game-idle-sub">Tap letters to build the word. Beat the clock.</p>
                 <form action="{{ route('user.home.puzzle.scramble.next') }}" method="POST" class="flc-form-submit">
                     @csrf
                     <button type="submit" class="btn puzzle-btn-play">▶ Play</button>
@@ -41,7 +41,7 @@
 
         @include('user.partials.game-record-celebrate', ['celebrateRecord' => $celebrateRecord ?? null])
 
-        <div class="puzzle-screen {{ $answered ? 'is-resolved' : 'is-playing' }} {{ $wasCorrect === true ? 'is-win' : '' }} {{ $wasCorrect === false ? 'is-lose' : '' }}">
+        <div class="puzzle-screen scramble-screen {{ $answered ? 'is-resolved' : 'is-playing' }} {{ $wasCorrect === true ? 'is-win' : '' }} {{ $wasCorrect === false ? 'is-lose' : '' }}">
             <div class="puzzle-topbar puzzle-topbar-score">
                 <a href="{{ route('user.home.puzzle') }}" class="puzzle-close" aria-label="Back to modes" data-puzzle-exit data-confirm="Leave this round?">✕</a>
                 <div class="puzzle-timer-pill">
@@ -63,41 +63,54 @@
             </div>
 
             <div class="puzzle-screen-scroll">
-                <div class="puzzle-arena">
-                    <p class="puzzle-arena-prompt">Unscramble</p>
-                    <div class="puzzle-letter-row" aria-label="Scrambled letters">
-                        @foreach ($letters as $index => $letter)
-                            <span class="puzzle-letter-chip" style="--i: {{ $index }}">{{ strtoupper($letter) }}</span>
-                        @endforeach
-                    </div>
-                </div>
-
                 @if (! $answered)
                     <div
-                        class="puzzle-hint-countdown"
-                        data-puzzle-hint-countdown
-                        data-help-delay-ms="15000"
-                        @if ($wordStartedAt) data-word-started-at="{{ $wordStartedAt }}" @endif
-                        @if ($hintUsed) hidden @endif
-                        aria-live="polite"
+                        class="scramble-build"
+                        data-scramble-board
+                        data-word-length="{{ $wordLength }}"
+                        data-resolved="0"
                     >
-                        <span class="puzzle-hint-countdown-label">Hint in</span>
-                        <span class="puzzle-hint-countdown-value" data-puzzle-hint-countdown-value>15</span>
-                        <span class="puzzle-hint-countdown-unit">s</span>
+                        <p class="scramble-build-label">Your word</p>
+                        <div class="scramble-answer-board" aria-label="Build your answer">
+                            @for ($col = 0; $col < $wordLength; $col++)
+                                <button
+                                    type="button"
+                                    class="scramble-slot"
+                                    data-scramble-slot
+                                    data-col="{{ $col }}"
+                                    aria-label="Letter slot {{ $col + 1 }}"
+                                ></button>
+                            @endfor
+                        </div>
                     </div>
-                    <div
-                        class="puzzle-hint-card"
-                        data-puzzle-auto-hint
-                        data-help-delay-ms="15000"
-                        @if ($wordStartedAt) data-word-started-at="{{ $wordStartedAt }}" @endif
-                        @if ($hintUsed) data-puzzle-hint-ready @endif
-                        @unless ($hintUsed) hidden @endunless
-                    >
-                        <div class="puzzle-hint-label">Hint</div>
-                        @if (!empty($hintPos))
-                            <p class="puzzle-hint-pos">{{ $hintPos }}</p>
-                        @endif
-                        <p class="puzzle-hint-text">{{ $hintDefinition }}</p>
+
+                    <div class="scramble-hint-zone">
+                        <div
+                            class="puzzle-hint-countdown"
+                            data-puzzle-hint-countdown
+                            data-help-delay-ms="15000"
+                            @if ($wordStartedAt) data-word-started-at="{{ $wordStartedAt }}" @endif
+                            @if ($hintUsed) hidden @endif
+                            aria-live="polite"
+                        >
+                            <span class="puzzle-hint-countdown-label">Hint in</span>
+                            <span class="puzzle-hint-countdown-value" data-puzzle-hint-countdown-value>15</span>
+                            <span class="puzzle-hint-countdown-unit">s</span>
+                        </div>
+                        <div
+                            class="puzzle-hint-card scramble-hint-card"
+                            data-puzzle-auto-hint
+                            data-help-delay-ms="15000"
+                            @if ($wordStartedAt) data-word-started-at="{{ $wordStartedAt }}" @endif
+                            @if ($hintUsed) data-puzzle-hint-ready @endif
+                            @unless ($hintUsed) hidden @endunless
+                        >
+                            <div class="puzzle-hint-label">Hint</div>
+                            @if (!empty($hintPos))
+                                <p class="puzzle-hint-pos">{{ $hintPos }}</p>
+                            @endif
+                            <p class="puzzle-hint-text">{{ $hintDefinition }}</p>
+                        </div>
                     </div>
                 @endif
 
@@ -143,26 +156,36 @@
                 @endif
             </div>
 
-            <div class="puzzle-screen-footer">
+            <div class="puzzle-screen-footer scramble-footer">
                 @if (! $answered)
-                    <form action="{{ route('user.home.puzzle.scramble.answer') }}" method="POST" class="flc-form-submit puzzle-answer-form">
+                    <form
+                        action="{{ route('user.home.puzzle.scramble.answer') }}"
+                        method="POST"
+                        class="scramble-answer-form"
+                        data-scramble-form
+                    >
                         @csrf
-                        <input
-                            id="scramble-answer"
-                            type="text"
-                            name="answer"
-                            class="puzzle-answer-input"
-                            autocomplete="off"
-                            autocapitalize="off"
-                            spellcheck="false"
-                            maxlength="40"
-                            required
-                            autofocus
-                            placeholder="Your guess"
-                            aria-label="Your guess"
-                        >
-                        <button type="submit" class="btn btn-block puzzle-btn-submit">Submit</button>
+                        <input type="hidden" name="answer" value="" data-scramble-input maxlength="40">
                     </form>
+
+                    <div class="scramble-keyboard wordle-keyboard-compact" data-scramble-keyboard aria-label="Letter bank">
+                        <p class="wordle-keyboard-hint">Tap letters to fill the word above</p>
+                        <div class="scramble-keyboard-letters">
+                            @foreach ($letters as $index => $letter)
+                                <button
+                                    type="button"
+                                    class="wordle-key scramble-key"
+                                    data-scramble-key
+                                    data-key-id="{{ $index }}"
+                                    data-letter="{{ strtolower($letter) }}"
+                                >{{ strtoupper($letter) }}</button>
+                            @endforeach
+                        </div>
+                        <div class="scramble-keyboard-actions">
+                            <button type="button" class="wordle-key is-wide scramble-clear-btn" data-scramble-clear>Clear</button>
+                            <button type="button" class="wordle-key is-wide scramble-submit-btn" data-scramble-submit disabled>Submit</button>
+                        </div>
+                    </div>
                 @else
                     <form action="{{ route('user.home.puzzle.scramble.next') }}" method="POST" class="flc-form-submit puzzle-next-form">
                         @csrf

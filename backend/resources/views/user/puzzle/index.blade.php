@@ -27,7 +27,7 @@
                     </span>
                     <span class="puzzle-mode-info">
                         <span class="puzzle-mode-title">Scramble</span>
-                        <span class="puzzle-mode-desc">Unscramble letters vs. the clock</span>
+                        <span class="puzzle-mode-desc">Tap letters to build the word</span>
                     </span>
                 </a>
 
