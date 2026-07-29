@@ -33,10 +33,17 @@ final class EloquentWordChatMessageRepository implements WordChatMessageReposito
 
     public function updateMetadata(int $userId, int $id, array $metadata): void
     {
-        WordChatMessageModel::query()
+        $model = WordChatMessageModel::query()
             ->where('user_id', $userId)
             ->whereKey($id)
-            ->update(['metadata' => $metadata]);
+            ->first();
+
+        if ($model === null) {
+            return;
+        }
+
+        $existing = is_array($model->metadata) ? $model->metadata : [];
+        $model->update(['metadata' => array_merge($existing, $metadata)]);
     }
 
     public function listForUser(int $userId, ?int $beforeId = null, int $limit = 50): array

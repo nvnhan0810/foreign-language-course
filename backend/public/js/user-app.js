@@ -102,6 +102,7 @@
     const quizPlayBase = root.dataset.quizPlayUrl || '/home/quiz/play?autostart=1';
     const vocabSaveUrl = root.dataset.vocabSaveUrl || '/api/vocabularies';
     const vocabShowBase = root.dataset.vocabShowUrl || '/home/vocab';
+    const dictionaryPronounceBase = (root.dataset.dictionaryPronounceUrl || '/home/dictionary').replace(/\/$/, '');
     const agentLoadingEl = root.querySelector('[data-word-chat-agent-loading]');
     const agentLoadingTextEl = root.querySelector('[data-word-chat-agent-loading-text]');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -313,18 +314,68 @@
       );
     };
 
+    const pronounceUrlForWord = (word) => {
+      const normalized = String(word || '').trim();
+      if (!normalized) return '';
+      return `${dictionaryPronounceBase}/${encodeURIComponent(normalized)}/pronounce`;
+    };
+
+    const renderWordLookupHeader = (bubble, lookup) => {
+      if (!bubble || !lookup?.word) return;
+
+      bubble.querySelector('.word-chat-lookup')?.remove();
+
+      const word = String(lookup.word);
+      const phonetic = lookup.phonetic ? String(lookup.phonetic) : '';
+      const audioUrl = lookup.audio_url ? String(lookup.audio_url) : '';
+      const pronounceUrl = pronounceUrlForWord(word);
+
+      const header = document.createElement('div');
+      header.className = 'word-chat-lookup';
+      header.innerHTML = `
+        <div class="word-chat-lookup-head">
+          <span class="word-chat-lookup-word">${escapeHtml(word)}</span>
+          <button
+            type="button"
+            class="btn-icon flc-pronounce word-chat-lookup-pronounce"
+            data-pronounce-url="${escapeHtml(pronounceUrl)}"
+            ${audioUrl ? `data-audio="${escapeHtml(audioUrl)}"` : ''}
+            data-word="${escapeHtml(word)}"
+            title="Play pronunciation"
+            aria-label="Play pronunciation"
+          >🔊</button>
+        </div>
+        ${phonetic ? `<p class="word-chat-lookup-phonetic">${escapeHtml(phonetic)}</p>` : ''}
+      `;
+
+      bubble.insertBefore(header, bubble.firstChild);
+    };
+
+    const ensureBubbleBody = (bubble) => {
+      let body = bubble.querySelector('.word-chat-bubble-body');
+      if (!body) {
+        body = document.createElement('div');
+        body.className = 'word-chat-bubble-body';
+        bubble.appendChild(body);
+      }
+
+      return body;
+    };
+
     const setBubbleContent = (bubble, role, content, options = {}) => {
+      const body = ensureBubbleBody(bubble);
       if (role === 'assistant' && !options.streaming) {
-        bubble.innerHTML = renderWordChatMarkdown(content);
+        body.innerHTML = renderWordChatMarkdown(content);
         bubble.classList.add('is-markdown');
       } else {
-        bubble.textContent = content;
+        body.textContent = content;
         bubble.classList.remove('is-markdown');
       }
     };
 
     const finalizeAssistantBubble = (bubble) => {
-      const text = bubble.textContent || '';
+      const body = bubble.querySelector('.word-chat-bubble-body');
+      const text = body?.textContent || '';
       if (!text.trim()) return;
       setBubbleContent(bubble, 'assistant', text);
     };
@@ -459,6 +510,9 @@
       if (options.streaming) bubble.classList.add('is-streaming');
       if (options.messageId) bubble.dataset.messageId = String(options.messageId);
       setBubbleContent(bubble, role, content, options);
+      if (role === 'assistant' && options.lookup) {
+        renderWordLookupHeader(bubble, options.lookup);
+      }
       messagesInnerEl.appendChild(bubble);
       toggleEmpty();
       scrollToBottom();
@@ -471,6 +525,7 @@
         if (!item || !item.role || !item.content) return;
         appendBubble(item.role === 'assistant' ? 'assistant' : 'user', item.content, {
           messageId: item.id,
+          lookup: item.role === 'assistant' ? item.metadata?.lookup : null,
         });
       });
       toggleEmpty();
@@ -520,7 +575,8 @@
           try {
             const data = JSON.parse(event.data);
             if (typeof data.text === 'string') {
-              assistantBubble.textContent += data.text;
+              const body = ensureBubbleBody(assistantBubble);
+              body.textContent += data.text;
               scrollToBottom();
             }
           } catch {
@@ -532,11 +588,24 @@
           try {
             const data = JSON.parse(event.data);
             if (typeof data.text === 'string') {
-              assistantBubble.textContent = data.text;
+              const body = ensureBubbleBody(assistantBubble);
+              body.textContent = data.text;
               scrollToBottom();
             }
           } catch {
             // ignore malformed chunks
+          }
+        });
+
+        source.addEventListener('lookup', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.lookup) {
+              renderWordLookupHeader(assistantBubble, data.lookup);
+              scrollToBottom();
+            }
+          } catch {
+            // ignore malformed payload
           }
         });
 
@@ -573,6 +642,9 @@
             if (saved && Array.isArray(saved.insights)) {
               renderInsightPanel(assistantBubble, saved.insights);
             }
+            if (saved?.metadata?.lookup) {
+              renderWordLookupHeader(assistantBubble, saved.metadata.lookup);
+            }
             if (saved?.saved_vocabulary) {
               renderVocabSavedNotice(assistantBubble, saved.saved_vocabulary);
             }
@@ -602,7 +674,8 @@
         });
 
         source.onerror = () => {
-          if (!finished && assistantBubble.textContent.trim() === '') {
+          const body = assistantBubble.querySelector('.word-chat-bubble-body');
+          if (!finished && (body?.textContent.trim() || '') === '') {
             appendBubble('error', 'Could not connect to word chat stream.');
             assistantBubble.remove();
           }
@@ -646,10 +719,15 @@
 
         const payload = await res.json();
         const streamUrl = payload?.data?.stream_url;
+        const lookup = payload?.data?.lookup || null;
         if (!streamUrl) {
           assistantBubble.remove();
           appendBubble('error', 'Word chat did not return a stream URL.');
           return;
+        }
+
+        if (lookup) {
+          renderWordLookupHeader(assistantBubble, lookup);
         }
 
         await streamReply(streamUrl, assistantBubble);

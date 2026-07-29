@@ -72,12 +72,17 @@ final class CompleteWordChatRunHandler implements CommandHandler
 
         $insightsToPersist = $this->attachSavedVocabulary($extracted['insights'], $savedVocabulary);
 
+        $lookup = is_array($userMessage?->metadata['lookup'] ?? null)
+            ? $userMessage->metadata['lookup']
+            : null;
+
         $assistant = $this->messages->save(new WordChatMessage(
             id: null,
             userId: $command->userId,
             role: 'assistant',
             content: $content,
             cursorRunId: $command->cursorRunId,
+            metadata: $lookup !== null ? ['lookup' => $lookup] : null,
         ));
 
         $this->runs->complete(
@@ -100,6 +105,9 @@ final class CompleteWordChatRunHandler implements CommandHandler
         );
         if ($savedVocabulary !== null) {
             $payload['saved_vocabulary'] = $savedVocabulary;
+        }
+        if ($lookup !== null) {
+            $payload['metadata'] = ['lookup' => $lookup];
         }
 
         return $payload;

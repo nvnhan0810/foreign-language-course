@@ -2372,6 +2372,39 @@ a {
   border-bottom-left-radius: 4px;
 }
 
+.word-chat-lookup {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.word-chat-lookup-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.word-chat-lookup-word {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.word-chat-lookup-phonetic {
+  margin: 4px 0 0;
+  font-style: italic;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.word-chat-lookup-pronounce {
+  flex-shrink: 0;
+}
+
+.word-chat-bubble-body {
+  min-width: 0;
+}
+
 .word-chat-bubble.is-markdown {
   white-space: normal;
 }
