@@ -68,6 +68,7 @@ final class CompleteWordChatRunHandler implements CommandHandler
             saveVocabFromAgent: $extracted['save_vocab'],
             insightWords: $insightWords,
             beforeMessageId: $userMessageId,
+            assistantReply: $command->assistantContent,
         );
 
         $insightsToPersist = $this->attachSavedVocabulary($extracted['insights'], $savedVocabulary);

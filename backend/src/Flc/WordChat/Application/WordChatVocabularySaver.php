@@ -14,6 +14,7 @@ final class WordChatVocabularySaver
     public function __construct(
         private readonly CommandBus $commands,
         private readonly WordChatMessageRepository $messages,
+        private readonly WordChatExampleExtractor $exampleExtractor,
     ) {}
 
     /**
@@ -26,6 +27,7 @@ final class WordChatVocabularySaver
         ?WordChatSaveVocabRequest $saveVocabFromAgent,
         array $insightWords = [],
         ?int $beforeMessageId = null,
+        ?string $assistantReply = null,
     ): ?array {
         $word = $saveVocabFromAgent?->word;
 
@@ -37,16 +39,25 @@ final class WordChatVocabularySaver
             return null;
         }
 
+        $saveRequest = $this->resolveSaveRequest(
+            saveVocabFromAgent: $saveVocabFromAgent,
+            word: $word,
+            userQuestion: $userQuestion,
+            userId: $userId,
+            beforeMessageId: $beforeMessageId,
+            assistantReply: $assistantReply,
+        );
+
         try {
             /** @var array{vocabulary: UserVocabulary, created: bool, backfilled: bool, content_updated?: bool}|null $result */
             $result = $this->commands->dispatch(new SaveUserVocabulary(
                 userId: $userId,
-                word: $word,
-                phonetic: $saveVocabFromAgent?->phonetic,
-                meanings: ($saveVocabFromAgent?->meanings ?? []) !== [] ? $saveVocabFromAgent->meanings : null,
-                examples: ($saveVocabFromAgent?->examples ?? []) !== [] ? $saveVocabFromAgent->examples : null,
-                synonyms: ($saveVocabFromAgent?->synonyms ?? []) !== [] ? $saveVocabFromAgent->synonyms : null,
-                antonyms: ($saveVocabFromAgent?->antonyms ?? []) !== [] ? $saveVocabFromAgent->antonyms : null,
+                word: $saveRequest->word,
+                phonetic: $saveRequest->phonetic,
+                meanings: $saveRequest->meanings !== [] ? $saveRequest->meanings : null,
+                examples: $saveRequest->examples !== [] ? $saveRequest->examples : null,
+                synonyms: $saveRequest->synonyms !== [] ? $saveRequest->synonyms : null,
+                antonyms: $saveRequest->antonyms !== [] ? $saveRequest->antonyms : null,
             ));
 
             if (! is_array($result)) {
@@ -90,9 +101,73 @@ final class WordChatVocabularySaver
         }
 
         return (bool) preg_match(
-            '/\b(update|add|save|append|put).*(example|examples|sentence|sentences|câu\s+ví\s+dụ|ví\s+dụ)|\b(example|examples|sentence|sentences|câu\s+ví\s+dụ|ví\s+dụ).*(update|add|save|vocab(?:ulary)?|từ\s+vựng)|\b(cập\s+nhật|thêm).*(ví\s+dụ|câu\s+ví\s+dụ|example|examples)\b/u',
+            '/\b(update|add|save|append|put).*(example|examples|sentence|sentences|câu\s+ví\s+dụ|ví\s+dụ)|\b(example|examples|sentence|sentences|câu\s+ví\s+dụ|ví\s+dụ).*(update|add|save|vocab(?:ulary)?|từ\s+vựng)|\b(cập\s+nhật|thêm).*(ví\s+dụ|câu\s+ví\s+dụ|example|examples)|\bsave\s+these\s+examples?\b/u',
             $lower,
         );
+    }
+
+    private function resolveSaveRequest(
+        ?WordChatSaveVocabRequest $saveVocabFromAgent,
+        string $word,
+        string $userQuestion,
+        int $userId,
+        ?int $beforeMessageId,
+        ?string $assistantReply,
+    ): WordChatSaveVocabRequest {
+        $request = $saveVocabFromAgent ?? new WordChatSaveVocabRequest(word: $word);
+        if ($request->word !== $word) {
+            $request = new WordChatSaveVocabRequest(
+                word: $word,
+                phonetic: $request->phonetic,
+                meanings: $request->meanings,
+                examples: $request->examples,
+                synonyms: $request->synonyms,
+                antonyms: $request->antonyms,
+            );
+        }
+
+        if ($request->hasContentUpdate() || ! $this->userRequestsExampleUpdate($userQuestion)) {
+            return $request;
+        }
+
+        $examples = $this->exampleExtractor->extractFromTexts(
+            $userQuestion,
+            (string) $assistantReply,
+            ...$this->recentAssistantTexts($userId, $beforeMessageId),
+        );
+
+        if ($examples === []) {
+            return $request;
+        }
+
+        return new WordChatSaveVocabRequest(
+            word: $request->word,
+            phonetic: $request->phonetic,
+            meanings: $request->meanings,
+            examples: $examples,
+            synonyms: $request->synonyms,
+            antonyms: $request->antonyms,
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function recentAssistantTexts(int $userId, ?int $beforeMessageId): array
+    {
+        $texts = [];
+        foreach ($this->messages->listForUser($userId, $beforeMessageId, 12) as $message) {
+            if ($message->role !== 'assistant') {
+                continue;
+            }
+
+            $content = trim($message->content);
+            if ($content !== '') {
+                $texts[] = $content;
+            }
+        }
+
+        return array_reverse($texts);
     }
 
     /**
@@ -158,6 +233,10 @@ final class WordChatVocabularySaver
     private function extractQuotedWord(string $text): ?string
     {
         if (preg_match('/["\']([a-z][a-z\'-]{1,48})["\']/i', $text, $matches) === 1) {
+            return Text::lower($matches[1]);
+        }
+
+        if (preg_match('/\bto\s+["\']([a-z][a-z\'-]{1,48})["\']\s+vocab/i', $text, $matches) === 1) {
             return Text::lower($matches[1]);
         }
 
