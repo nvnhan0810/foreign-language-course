@@ -47,9 +47,6 @@
             $elapsedSinceHint = $hintAtTs !== null ? max(0, time() - $hintAtTs) : null;
             $showHint = $hintUsed && $elapsedSinceHint !== null && $elapsedSinceHint < $hintVisibleSec;
             $canHelp = $hintAtTs === null || ($elapsedSinceHint !== null && $elapsedSinceHint >= $hintCooldownSec);
-            $helpCooldownRemainingSec = (! $canHelp && $elapsedSinceHint !== null)
-                ? max(0, $hintCooldownSec - $elapsedSinceHint)
-                : 0;
             $keyStates = [];
             foreach ($guessRows as $row) {
                 foreach (($row['tiles'] ?? []) as $tile) {
@@ -82,37 +79,10 @@
                         @endif
                     >{{ $formatTime($liveElapsed) }}</span>
                 </div>
-                <div
-                    class="wordle-topbar-actions"
-                    @if (! $answered)
-                        data-wordle-help
-                        data-hint-at="{{ $hintAtTs ?? 0 }}"
-                        data-hint-visible-ms="{{ $hintVisibleSec * 1000 }}"
-                        data-hint-cooldown-ms="{{ $hintCooldownSec * 1000 }}"
-                    @endif
-                >
-                    @if (! $answered)
-                        <form
-                            action="{{ route('user.home.puzzle.wordle.hint') }}"
-                            method="POST"
-                            class="wordle-help-form"
-                            data-wordle-help-form
-                            @unless ($canHelp) hidden @endunless
-                        >
-                            @csrf
-                            <button type="submit" class="wordle-help-btn" aria-label="Hint">?</button>
-                        </form>
-
-                        <div class="wordle-help-wait" data-wordle-help-wait @if ($canHelp) hidden @endif>
-                            <button type="button" class="wordle-help-btn is-cooldown" disabled aria-label="Hint on cooldown">?</button>
-                            <span class="wordle-help-countdown" data-wordle-help-countdown>{{ $helpCooldownRemainingSec }}</span>
-                        </div>
-                    @endif
-                    <div class="game-score-pill" title="Wins this run / personal best">
-                        <span class="game-score-current">✓ {{ $sessionCorrect }}</span>
-                        <span class="game-score-sep">·</span>
-                        <span class="game-score-best">Best {{ $bestCorrect }}</span>
-                    </div>
+                <div class="game-score-pill" title="Wins this run / personal best">
+                    <span class="game-score-current">✓ {{ $sessionCorrect }}</span>
+                    <span class="game-score-sep">·</span>
+                    <span class="game-score-best">Best {{ $bestCorrect }}</span>
                 </div>
             </div>
 
@@ -149,6 +119,32 @@
                         </div>
                     @endfor
                 </div>
+
+                @if (! $answered)
+                    <div
+                        class="wordle-help-zone"
+                        data-wordle-help
+                        data-hint-at="{{ $hintAtTs ?? 0 }}"
+                        data-hint-visible-ms="{{ $hintVisibleSec * 1000 }}"
+                        data-hint-cooldown-ms="{{ $hintCooldownSec * 1000 }}"
+                    >
+                        <form
+                            action="{{ route('user.home.puzzle.wordle.hint') }}"
+                            method="POST"
+                            class="wordle-help-form"
+                            data-wordle-help-form
+                        >
+                            @csrf
+                            <button
+                                type="submit"
+                                class="wordle-help-btn {{ $canHelp ? '' : 'is-cooldown' }}"
+                                data-wordle-help-btn
+                                aria-label="Show meaning"
+                                @unless ($canHelp) disabled @endunless
+                            ><span aria-hidden="true">?</span></button>
+                        </form>
+                    </div>
+                @endif
 
                 @if (! $answered && $hintUsed)
                     <div

@@ -2410,19 +2410,9 @@ a {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  margin: 10px auto 0;
-  width: min(100%, 360px);
-}
-
-.wordle-topbar-actions {
-  justify-self: end;
-  display: inline-flex;
-  align-items: center;
   gap: 8px;
-}
-
-.wordle-topbar .game-score-pill {
+  margin: 8px auto 0;
+  width: min(100%, 360px);
   flex-shrink: 0;
 }
 
@@ -2430,20 +2420,6 @@ a {
   display: flex;
   justify-content: center;
   margin: 0;
-}
-
-.wordle-help-wait {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.wordle-help-countdown {
-  min-width: 1.5em;
-  font-size: 14px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.72;
 }
 
 .wordle-help-btn.is-cooldown {
@@ -2468,6 +2444,13 @@ a {
   cursor: pointer;
   backdrop-filter: blur(8px);
   transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.wordle-help-btn span {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .wordle-help-btn:active {
@@ -2544,7 +2527,7 @@ a {
   .wordle-help-zone {
     width: 100%;
     gap: 4px;
-    margin-top: 4px;
+    margin-top: 6px;
   }
 
   .wordle-hint-card {
@@ -2557,13 +2540,12 @@ a {
     line-height: 1.35;
   }
 
-  .wordle-topbar-actions {
-    gap: 6px;
-  }
-
   .wordle-help-btn {
     width: 34px;
     height: 34px;
+  }
+
+  .wordle-help-btn span {
     font-size: 16px;
   }
 
