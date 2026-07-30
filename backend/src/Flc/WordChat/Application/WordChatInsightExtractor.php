@@ -5,6 +5,7 @@ namespace Flc\WordChat\Application;
 use Flc\Shared\Application\QueryBus;
 use Flc\Shared\Support\Text;
 use Flc\Vocabulary\Application\Query\FindUserVocabularyByWord;
+use Flc\WordChat\Application\WordChatSaveVocabRequest;
 use Flc\WordChat\Domain\LearningInsight;
 
 final class WordChatInsightExtractor
@@ -17,7 +18,7 @@ final class WordChatInsightExtractor
     ) {}
 
     /**
-     * @return array{content: string, insights: list<LearningInsight>, save_vocab: ?string}
+     * @return array{content: string, insights: list<LearningInsight>, save_vocab: ?WordChatSaveVocabRequest}
      */
     public function extract(
         int $userId,
@@ -54,7 +55,7 @@ final class WordChatInsightExtractor
     }
 
     /**
-     * @return array{0: string, 1: list<mixed>, 2: ?string}
+     * @return array{0: string, 1: list<mixed>, 2: ?WordChatSaveVocabRequest}
      */
     private function parseJsonBlock(string $text): array
     {
@@ -64,35 +65,10 @@ final class WordChatInsightExtractor
 
         $decoded = json_decode($matches[1], true);
         $items = is_array($decoded['insights'] ?? null) ? $decoded['insights'] : [];
-        $saveVocab = $this->parseSaveVocab($decoded);
+        $saveVocab = WordChatSaveVocabRequest::fromPayload($decoded['save_vocab'] ?? null);
         $clean = trim(str_replace($matches[0], '', $text));
 
         return [$clean !== '' ? $clean : trim($text), $items, $saveVocab];
-    }
-
-    /**
-     * @param  array<string, mixed>|null  $decoded
-     */
-    private function parseSaveVocab(?array $decoded): ?string
-    {
-        if (! is_array($decoded)) {
-            return null;
-        }
-
-        $saveVocab = $decoded['save_vocab'] ?? null;
-        if (is_string($saveVocab)) {
-            $word = Text::lower(trim($saveVocab));
-
-            return $word !== '' ? $word : null;
-        }
-
-        if (is_array($saveVocab)) {
-            $word = Text::lower(trim((string) ($saveVocab['word'] ?? '')));
-
-            return $word !== '' ? $word : null;
-        }
-
-        return null;
     }
 
     /**

@@ -9,6 +9,7 @@ use App\Models\WordChatMessage;
 use App\Models\WordChatRun;
 use App\Models\DictionaryEntry;
 use App\Models\DictionaryMeaning;
+use App\Models\DictionaryExample;
 use Flc\WordChat\Application\CursorWordChatGateway;
 use Flc\WordChat\Application\LearningInsightRepository;
 use Flc\WordChat\Application\WordChatInsightExtractor;
@@ -52,8 +53,62 @@ class WordChatInsightsTest extends TestCase
             sourceMessageId: null,
         );
 
-        $this->assertSame('happy', $result['save_vocab']);
+        $this->assertSame('happy', $result['save_vocab']?->word);
+        $this->assertSame([], $result['save_vocab']?->examples ?? []);
         $this->assertCount(1, $result['insights']);
+    }
+
+    public function test_insight_extractor_parses_save_vocab_examples(): void
+    {
+        $user = User::factory()->create();
+        $extractor = app(WordChatInsightExtractor::class);
+
+        $result = $extractor->extract(
+            userId: $user->id,
+            userQuestion: 'Save these examples for penal',
+            assistantReply: "Saved.\n\n```json\n{\"save_vocab\":{\"word\":\"penal\",\"examples\":[\"A penal offence can lead to imprisonment.\",\"Penal laws set out crimes and penalties.\"]}}\n```",
+            sourceMessageId: null,
+        );
+
+        $this->assertSame('penal', $result['save_vocab']?->word);
+        $this->assertSame([
+            'A penal offence can lead to imprisonment.',
+            'Penal laws set out crimes and penalties.',
+        ], $result['save_vocab']?->examples ?? []);
+    }
+
+    public function test_insight_extractor_parses_full_save_vocab_payload(): void
+    {
+        $user = User::factory()->create();
+        $extractor = app(WordChatInsightExtractor::class);
+
+        $result = $extractor->extract(
+            userId: $user->id,
+            userQuestion: 'Save penal with full details',
+            assistantReply: "Saved.\n\n```json\n".json_encode([
+                'save_vocab' => [
+                    'word' => 'penal',
+                    'phonetic' => '/ˈpiːnəl/',
+                    'meanings' => [[
+                        'part_of_speech' => 'adjective',
+                        'definition' => 'Relating to punishment by law',
+                        'examples' => ['A penal offence can lead to imprisonment.'],
+                        'synonyms' => ['punitive'],
+                        'antonyms' => ['lenient'],
+                    ]],
+                    'synonyms' => ['legal'],
+                    'antonyms' => [],
+                ],
+            ], JSON_UNESCAPED_UNICODE)."\n```",
+            sourceMessageId: null,
+        );
+
+        $save = $result['save_vocab'];
+        $this->assertSame('penal', $save?->word);
+        $this->assertSame('/ˈpiːnəl/', $save?->phonetic);
+        $this->assertSame('adjective', $save?->meanings[0]['part_of_speech'] ?? null);
+        $this->assertSame(['punitive'], $save?->meanings[0]['synonyms'] ?? null);
+        $this->assertSame(['legal'], $save?->synonyms);
     }
 
     public function test_stream_saves_vocabulary_when_user_requests_save(): void
@@ -331,5 +386,93 @@ class WordChatInsightsTest extends TestCase
             ->assertJsonPath('data.question_type', 'insight_to_word')
             ->assertJsonPath('data.insight_id', $insight->id)
             ->assertJsonPath('data.correct_answer', 'alpha');
+    }
+
+    public function test_stream_updates_existing_vocabulary_examples_from_save_vocab(): void
+    {
+        $gateway = \Mockery::mock(CursorWordChatGateway::class);
+        $gateway->shouldReceive('openRunStream')
+            ->once()
+            ->andReturnUsing(function () {
+                $assistantText = "Saved the examples to penal.\n\n```json\n"
+                    .json_encode([
+                        'save_vocab' => [
+                            'word' => 'penal',
+                            'examples' => [
+                                'A penal offence can lead to imprisonment.',
+                                'Penal laws set out crimes and penalties.',
+                            ],
+                        ],
+                    ], JSON_UNESCAPED_UNICODE)
+                    ."\n```";
+                $body = 'event: assistant'
+                    ."\ndata: ".json_encode(['text' => $assistantText], JSON_UNESCAPED_UNICODE)
+                    ."\n\n"
+                    ."event: done\ndata: {}\n\n";
+
+                return new \Illuminate\Http\Client\Response(
+                    new \GuzzleHttp\Psr7\Response(200, ['Content-Type' => 'text/event-stream'], $body)
+                );
+            });
+        $this->app->instance(CursorWordChatGateway::class, $gateway);
+
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $entry = DictionaryEntry::query()->create([
+            'word' => 'penal',
+            'source' => 'user_save',
+            'is_curated' => false,
+            'save_count' => 1,
+        ]);
+        $meaning = DictionaryMeaning::query()->create([
+            'dictionary_entry_id' => $entry->id,
+            'definition' => 'Relating to punishment.',
+            'position' => 0,
+        ]);
+        DictionaryExample::query()->create([
+            'dictionary_meaning_id' => $meaning->id,
+            'example' => 'Old example.',
+            'position' => 0,
+        ]);
+        Vocabulary::query()->create([
+            'user_id' => $user->id,
+            'dictionary_entry_id' => $entry->id,
+        ]);
+
+        $agent = $this->createReadyAgent($user);
+
+        $userMessage = WordChatMessage::query()->create([
+            'user_id' => $user->id,
+            'role' => 'user',
+            'content' => 'Can you update penal in vocabulary with these examples?',
+            'cursor_run_id' => 'run_update_examples',
+        ]);
+
+        WordChatRun::query()->create([
+            'user_id' => $user->id,
+            'word_chat_agent_id' => $agent->id,
+            'cursor_agent_id' => 'agent_1',
+            'cursor_run_id' => 'run_update_examples',
+            'user_message_id' => $userMessage->id,
+            'status' => 'streaming',
+        ]);
+
+        $response = $this->get('/api/word-chat/stream/run_update_examples', [
+            'Accept' => 'text/event-stream',
+        ]);
+
+        $response->assertOk();
+        $this->assertStringContainsString('event: vocab_saved', $response->streamedContent());
+
+        $this->assertDatabaseHas('dictionary_examples', [
+            'example' => 'A penal offence can lead to imprisonment.',
+        ]);
+        $this->assertDatabaseHas('dictionary_examples', [
+            'example' => 'Penal laws set out crimes and penalties.',
+        ]);
+        $this->assertDatabaseHas('dictionary_examples', [
+            'example' => 'Old example.',
+        ]);
     }
 }
