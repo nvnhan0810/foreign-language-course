@@ -10,7 +10,7 @@ if [[ ! -x "$strip" ]]; then
   exit 1
 fi
 
-pr_url="$(gh pr create "$@" --json url -q .url)"
+pr_url="$(gh pr create "$@")"
 pr_number="$(gh pr view "$pr_url" --json number -q .number)"
 body="$(gh pr view "$pr_number" --json body -q .body)"
 clean="$(printf '%s\n' "$body" | "$strip")"
