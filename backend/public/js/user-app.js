@@ -1678,9 +1678,14 @@
     const visibleMs = Number(wordleHelpZone.getAttribute('data-hint-visible-ms') || 10000);
     const cooldownMs = Number(wordleHelpZone.getAttribute('data-hint-cooldown-ms') || 20000);
     const hintCard = document.querySelector('[data-wordle-hint-card]');
-    const helpForm = wordleHelpZone.querySelector('[data-wordle-help-form]');
-    const helpWait = wordleHelpZone.querySelector('[data-wordle-help-wait]');
-    const countdownEl = wordleHelpZone.querySelector('[data-wordle-help-countdown]');
+    const helpButton = wordleHelpZone.querySelector('[data-wordle-help-btn]');
+
+    const setHelpAvailable = (available) => {
+      if (!helpButton) return;
+      helpButton.disabled = !available;
+      helpButton.classList.toggle('is-cooldown', !available);
+      helpButton.setAttribute('aria-label', available ? 'Show meaning' : 'Help on cooldown');
+    };
 
     const hideHintCard = () => {
       if (!hintCard || hintCard.hasAttribute('hidden')) return;
@@ -1694,8 +1699,7 @@
 
     const syncHelp = () => {
       if (!hintAtSec) {
-        helpForm?.removeAttribute('hidden');
-        helpWait?.setAttribute('hidden', '');
+        setHelpAvailable(true);
         return;
       }
 
@@ -1704,21 +1708,10 @@
       if (elapsed < visibleMs) {
         hintCard?.removeAttribute('hidden');
         hintCard?.classList.remove('is-leaving');
-        helpForm?.setAttribute('hidden', '');
-        helpWait?.removeAttribute('hidden');
+        setHelpAvailable(false);
       } else {
         hideHintCard();
-        if (elapsed < cooldownMs) {
-          helpForm?.setAttribute('hidden', '');
-          helpWait?.removeAttribute('hidden');
-        } else {
-          helpForm?.removeAttribute('hidden');
-          helpWait?.setAttribute('hidden', '');
-        }
-      }
-
-      if (countdownEl && elapsed < cooldownMs) {
-        countdownEl.textContent = String(Math.max(1, Math.ceil((cooldownMs - elapsed) / 1000)));
+        setHelpAvailable(elapsed >= cooldownMs);
       }
     };
 
