@@ -17,6 +17,29 @@
     $relatedWordUrl = function (string $related) use ($preferDetail) {
         return route('user.home.word.open', ['word' => $related, 'detail' => $preferDetail ? 1 : 0]);
     };
+    $moreExamples = collect(is_array($extraExamples ?? null) ? $extraExamples : [])
+        ->map(function ($example) {
+            if (is_object($example)) {
+                return trim((string) ($example->example ?? ''));
+            }
+            if (is_array($example)) {
+                return trim((string) ($example['example'] ?? ''));
+            }
+
+            return is_string($example) ? trim($example) : '';
+        })
+        ->filter(fn (string $text) => $text !== '');
+    foreach ($meanings as $meaning) {
+        $meaningExamples = collect(is_array($meaning['examples'] ?? null) ? $meaning['examples'] : [])
+            ->filter(fn ($text) => is_string($text) && trim($text) !== '')
+            ->map(fn (string $text) => trim($text))
+            ->values();
+        if ($meaningExamples->isEmpty() && ! empty($meaning['example']) && is_string($meaning['example'])) {
+            $meaningExamples = collect([trim($meaning['example'])]);
+        }
+        $moreExamples = $moreExamples->merge($meaningExamples->slice(1));
+    }
+    $moreExamples = $moreExamples->unique()->values();
 @endphp
 
 <div class="dict-entry" data-dict-entry>
@@ -95,10 +118,10 @@
         @endif
     @endif
 
-    @if (!empty($extraExamples) && count($extraExamples) > 0)
+    @if ($moreExamples->isNotEmpty())
         <h3 style="font-size:15px;margin:20px 0 10px">More examples</h3>
-        @foreach ($extraExamples as $example)
-            <p class="muted" style="font-style:italic;margin:0 0 8px">"{{ is_object($example) ? $example->example : $example }}"</p>
+        @foreach ($moreExamples as $example)
+            <p class="muted" style="font-style:italic;margin:0 0 8px">"{{ $example }}"</p>
         @endforeach
     @endif
 </div>

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\DictionaryEntry;
+use App\Models\DictionaryExample;
 use App\Models\DictionaryMeaning;
 use App\Models\User;
 use App\Models\Vocabulary;
@@ -148,5 +149,49 @@ class VocabularyApiTest extends TestCase
             ->assertJsonPath('data.id', $vocab->id)
             ->assertJsonPath('data.meanings.0.synonyms.0', 'joyful')
             ->assertJsonPath('data.meanings.0.antonyms.0', 'sad');
+    }
+
+    public function test_vocabulary_show_returns_additional_examples_beyond_the_first(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $entry = DictionaryEntry::query()->create([
+            'word' => 'penal',
+            'phonetic' => '/ˈpiːnəl/',
+            'source' => 'user_save',
+            'is_curated' => false,
+            'save_count' => 1,
+        ]);
+        $meaning = DictionaryMeaning::query()->create([
+            'dictionary_entry_id' => $entry->id,
+            'part_of_speech' => 'adjective',
+            'definition' => 'Of or relating to punishment, especially under criminal law',
+            'position' => 0,
+        ]);
+        foreach ([
+            'A penal offence can lead to imprisonment.',
+            'Penal laws set out crimes and penalties.',
+            'The country\'s penal code lists crimes and their punishments.',
+        ] as $index => $example) {
+            DictionaryExample::query()->create([
+                'dictionary_meaning_id' => $meaning->id,
+                'example' => $example,
+                'position' => $index,
+            ]);
+        }
+
+        $vocab = Vocabulary::query()->create([
+            'user_id' => $user->id,
+            'dictionary_entry_id' => $entry->id,
+        ]);
+
+        $response = $this->getJson('/api/vocabularies/'.$vocab->id);
+        $response->assertOk()
+            ->assertJsonPath('data.meanings.0.example', 'A penal offence can lead to imprisonment.')
+            ->assertJsonCount(3, 'data.meanings.0.examples')
+            ->assertJsonCount(2, 'data.examples')
+            ->assertJsonPath('data.examples.0.example', 'Penal laws set out crimes and penalties.')
+            ->assertJsonPath('data.examples.1.example', 'The country\'s penal code lists crimes and their punishments.');
     }
 }

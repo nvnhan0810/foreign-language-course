@@ -137,8 +137,12 @@ final class EloquentUserVocabularyRepository implements UserVocabularyRepository
         $client = $domain->toClientPayload();
         $examples = [];
         foreach ($client['meanings'] as $meaning) {
-            $example = $meaning['example'] ?? null;
-            if (is_string($example) && $example !== '') {
+            $meaningExamples = DictionaryEntry::stringList($meaning['examples'] ?? []);
+            if ($meaningExamples === [] && is_string($meaning['example'] ?? null) && trim($meaning['example']) !== '') {
+                $meaningExamples = [trim($meaning['example'])];
+            }
+
+            foreach (array_slice($meaningExamples, 1) as $example) {
                 $examples[] = [
                     'example' => $example,
                     'definition_ref' => $meaning['definition'] ?? null,
