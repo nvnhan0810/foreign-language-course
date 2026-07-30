@@ -37,14 +37,21 @@ final class SaveUserVocabularyHandler implements CommandHandler
 
         $existing = $this->vocabularies->findByUserAndWord($command->userId, $word);
         if ($existing !== null) {
+            if ($this->hasContentUpdate($command)) {
+                return $this->updateExistingFromChat($existing, $command);
+            }
+
             return $this->backfillExistingBookmark($existing, $command);
         }
 
         /** @var array<string, mixed>|null $lookup */
         $lookup = $this->queries->ask(new LookupWord($word));
-        $rawMeanings = $command->meanings ?? $lookup['meanings'] ?? [];
+        $rawMeanings = $this->commandMeanings($command) ?? $lookup['meanings'] ?? [];
         $meanings = $this->meaningsForVocabulary(is_array($rawMeanings) ? $rawMeanings : []);
         $meanings = $this->ensureRelatedWords($meanings, is_array($lookup) ? $lookup : null);
+        if ($this->hasExamples($command)) {
+            $meanings = DictionaryEntry::mergeExamplesIntoMeanings($meanings, $command->examples ?? []);
+        }
 
         $this->upsertDictionary($word, $command, $lookup, $meanings);
         $entryId = $this->dictionaryEntryId($word);
@@ -62,6 +69,97 @@ final class SaveUserVocabularyHandler implements CommandHandler
         ));
 
         return ['vocabulary' => $vocabulary, 'created' => true, 'backfilled' => false];
+    }
+
+    /**
+     * @return array{vocabulary: UserVocabulary, created: false, backfilled: bool, content_updated?: bool}
+     */
+    private function updateExistingFromChat(UserVocabulary $existing, SaveUserVocabulary $command): array
+    {
+        $entryModel = DictionaryEntryModel::query()->where('word', $existing->word)->first();
+        if ($entryModel === null || $entryModel->is_curated) {
+            return ['vocabulary' => $existing, 'created' => false, 'backfilled' => false];
+        }
+
+        $meanings = DictionaryEntry::normalizeMeanings($existing->meanings);
+        $commandMeanings = $this->commandMeanings($command);
+        if ($commandMeanings !== null) {
+            $meanings = DictionaryEntry::mergeMeaningsFromChat($meanings, $commandMeanings);
+        }
+        if ($this->hasExamples($command)) {
+            $meanings = DictionaryEntry::mergeExamplesIntoMeanings($meanings, $command->examples ?? []);
+        }
+
+        $entrySynonyms = $this->mergeEntryTerms(
+            $this->collectRelated($meanings, 'synonyms'),
+            $this->stringList($command->synonyms),
+        );
+        $entryAntonyms = $this->mergeEntryTerms(
+            $this->collectRelated($meanings, 'antonyms'),
+            $this->stringList($command->antonyms),
+        );
+
+        $entry = new DictionaryEntry(
+            word: $existing->word,
+            phonetic: $command->phonetic ?? $existing->phonetic ?? $entryModel->phonetic,
+            audioUrl: $entryModel->audio_url,
+            source: $entryModel->source ?: 'user_save',
+            isCurated: false,
+            saveCount: max(1, (int) $entryModel->save_count),
+            meanings: $meanings,
+            synonyms: $entrySynonyms,
+            antonyms: $entryAntonyms,
+        );
+        $this->entries->save($entry);
+
+        $vocabulary = $this->vocabularies->findForUser($existing->userId, (int) $existing->id) ?? $existing;
+
+        return [
+            'vocabulary' => $vocabulary,
+            'created' => false,
+            'backfilled' => false,
+            'content_updated' => true,
+        ];
+    }
+
+    private function hasContentUpdate(SaveUserVocabulary $command): bool
+    {
+        return $this->hasExamples($command)
+            || $this->commandMeanings($command) !== null
+            || $command->phonetic !== null
+            || $this->stringList($command->synonyms) !== []
+            || $this->stringList($command->antonyms) !== [];
+    }
+
+    /**
+     * @return list<array<string, mixed>>|null
+     */
+    private function commandMeanings(SaveUserVocabulary $command): ?array
+    {
+        if (! is_array($command->meanings) || $command->meanings === []) {
+            return null;
+        }
+
+        return DictionaryEntry::normalizeMeanings($command->meanings);
+    }
+
+    private function hasExamples(SaveUserVocabulary $command): bool
+    {
+        return is_array($command->examples) && $command->examples !== [];
+    }
+
+    /**
+     * @param  list<string>  $left
+     * @param  list<string>  $right
+     * @return list<string>
+     */
+    private function mergeEntryTerms(array $left, array $right): array
+    {
+        if ($right === []) {
+            return $left;
+        }
+
+        return array_values(array_unique([...$left, ...$right]));
     }
 
     /**
@@ -148,17 +246,47 @@ final class SaveUserVocabularyHandler implements CommandHandler
             'source' => 'user_save',
         ];
         $payload['meanings'] = $meanings;
-        $payload['synonyms'] = $this->stringList($payload['synonyms'] ?? []) !== []
-            ? $this->stringList($payload['synonyms'] ?? [])
-            : $this->collectRelated($meanings, 'synonyms');
-        $payload['antonyms'] = $this->stringList($payload['antonyms'] ?? []) !== []
-            ? $this->stringList($payload['antonyms'] ?? [])
-            : $this->collectRelated($meanings, 'antonyms');
+        $payload['synonyms'] = $this->entrySynonyms($command, $meanings, $payload);
+        $payload['antonyms'] = $this->entryAntonyms($command, $meanings, $payload);
         if ($command->phonetic) {
             $payload['phonetic'] = $command->phonetic;
         }
 
         $this->commands->dispatch(new UpsertDictionaryOnSave($word, $payload));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $meanings
+     * @param  array<string, mixed>  $payload
+     * @return list<string>
+     */
+    private function entrySynonyms(SaveUserVocabulary $command, array $meanings, array $payload): array
+    {
+        $fromCommand = $this->stringList($command->synonyms);
+        if ($fromCommand !== []) {
+            return $fromCommand;
+        }
+
+        return $this->stringList($payload['synonyms'] ?? []) !== []
+            ? $this->stringList($payload['synonyms'] ?? [])
+            : $this->collectRelated($meanings, 'synonyms');
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $meanings
+     * @param  array<string, mixed>  $payload
+     * @return list<string>
+     */
+    private function entryAntonyms(SaveUserVocabulary $command, array $meanings, array $payload): array
+    {
+        $fromCommand = $this->stringList($command->antonyms);
+        if ($fromCommand !== []) {
+            return $fromCommand;
+        }
+
+        return $this->stringList($payload['antonyms'] ?? []) !== []
+            ? $this->stringList($payload['antonyms'] ?? [])
+            : $this->collectRelated($meanings, 'antonyms');
     }
 
     private function dictionaryEntryId(string $word): ?int

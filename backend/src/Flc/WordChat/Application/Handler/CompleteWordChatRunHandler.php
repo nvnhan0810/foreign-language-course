@@ -65,7 +65,7 @@ final class CompleteWordChatRunHandler implements CommandHandler
         $savedVocabulary = $this->vocabularySaver->maybeSave(
             userId: $command->userId,
             userQuestion: $userQuestion,
-            saveWordFromAgent: $extracted['save_vocab'],
+            saveVocabFromAgent: $extracted['save_vocab'],
             insightWords: $insightWords,
             beforeMessageId: $userMessageId,
         );

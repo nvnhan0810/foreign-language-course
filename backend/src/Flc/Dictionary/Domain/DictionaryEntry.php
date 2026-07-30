@@ -78,6 +78,104 @@ final class DictionaryEntry
     }
 
     /**
+     * @param  list<array<string, mixed>>  $meanings
+     * @param  list<string>  $newExamples
+     * @return list<array<string, mixed>>
+     */
+    public static function mergeExamplesIntoMeanings(array $meanings, array $newExamples): array
+    {
+        $newExamples = self::stringList($newExamples);
+        if ($newExamples === []) {
+            return $meanings;
+        }
+
+        if ($meanings === []) {
+            return [[
+                'part_of_speech' => null,
+                'definition' => 'Saved from Word Chat.',
+                'examples' => $newExamples,
+                'synonyms' => [],
+                'antonyms' => [],
+            ]];
+        }
+
+        $meanings = self::normalizeMeanings($meanings);
+        $primary = $meanings[0];
+        $existing = self::stringList($primary['examples'] ?? []);
+        $merged = array_values(array_unique([...$existing, ...$newExamples]));
+        $meanings[0] = [
+            ...$primary,
+            'examples' => $merged,
+        ];
+
+        return $meanings;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $existing
+     * @param  list<array<string, mixed>>  $incoming
+     * @return list<array<string, mixed>>
+     */
+    public static function mergeMeaningsFromChat(array $existing, array $incoming): array
+    {
+        $existing = self::normalizeMeanings($existing);
+        $incoming = self::normalizeMeanings($incoming);
+
+        if ($incoming === []) {
+            return $existing;
+        }
+
+        if ($existing === []) {
+            return $incoming;
+        }
+
+        $merged = $existing;
+        $indexByDefinition = [];
+        foreach ($merged as $index => $meaning) {
+            $indexByDefinition[self::definitionKey((string) ($meaning['definition'] ?? ''))] = $index;
+        }
+
+        foreach ($incoming as $meaning) {
+            $definitionKey = self::definitionKey((string) ($meaning['definition'] ?? ''));
+            if ($definitionKey === '') {
+                continue;
+            }
+
+            if (! isset($indexByDefinition[$definitionKey])) {
+                $merged[] = $meaning;
+                $indexByDefinition[$definitionKey] = count($merged) - 1;
+
+                continue;
+            }
+
+            $index = $indexByDefinition[$definitionKey];
+            $merged[$index] = [
+                'part_of_speech' => $merged[$index]['part_of_speech'] ?? $meaning['part_of_speech'] ?? null,
+                'definition' => $merged[$index]['definition'] ?? $meaning['definition'] ?? '',
+                'examples' => array_values(array_unique([
+                    ...self::stringList($merged[$index]['examples'] ?? []),
+                    ...self::stringList($meaning['examples'] ?? []),
+                ])),
+                'synonyms' => array_values(array_unique([
+                    ...self::stringList($merged[$index]['synonyms'] ?? []),
+                    ...self::stringList($meaning['synonyms'] ?? []),
+                ])),
+                'antonyms' => array_values(array_unique([
+                    ...self::stringList($merged[$index]['antonyms'] ?? []),
+                    ...self::stringList($meaning['antonyms'] ?? []),
+                ])),
+            ];
+        }
+
+        return self::normalizeMeanings($merged);
+    }
+
+    private static function definitionKey(string $definition): string
+    {
+        return Text::lower(trim($definition));
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     public function curate(array $data): void
