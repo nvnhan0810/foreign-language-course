@@ -475,4 +475,227 @@ class WordChatInsightsTest extends TestCase
             'example' => 'Old example.',
         ]);
     }
+
+    public function test_stream_backfills_examples_from_previous_assistant_message_when_json_omits_them(): void
+    {
+        $gateway = \Mockery::mock(CursorWordChatGateway::class);
+        $gateway->shouldReceive('openRunStream')
+            ->once()
+            ->andReturnUsing(function () {
+                $assistantText = "Saved those examples to your penal vocabulary.\n\n```json\n"
+                    .json_encode(['save_vocab' => ['word' => 'penal']], JSON_UNESCAPED_UNICODE)
+                    ."\n```";
+                $body = 'event: assistant'
+                    ."\ndata: ".json_encode(['text' => $assistantText], JSON_UNESCAPED_UNICODE)
+                    ."\n\n"
+                    ."event: done\ndata: {}\n\n";
+
+                return new \Illuminate\Http\Client\Response(
+                    new \GuzzleHttp\Psr7\Response(200, ['Content-Type' => 'text/event-stream'], $body)
+                );
+            });
+        $this->app->instance(CursorWordChatGateway::class, $gateway);
+
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $entry = DictionaryEntry::query()->create([
+            'word' => 'penal',
+            'source' => 'user_save',
+            'is_curated' => false,
+            'save_count' => 1,
+        ]);
+        $meaning = DictionaryMeaning::query()->create([
+            'dictionary_entry_id' => $entry->id,
+            'definition' => 'Relating to punishment.',
+            'position' => 0,
+        ]);
+        DictionaryExample::query()->create([
+            'dictionary_meaning_id' => $meaning->id,
+            'example' => 'Old example.',
+            'position' => 0,
+        ]);
+        Vocabulary::query()->create([
+            'user_id' => $user->id,
+            'dictionary_entry_id' => $entry->id,
+        ]);
+
+        $agent = $this->createReadyAgent($user);
+
+        WordChatMessage::query()->create([
+            'user_id' => $user->id,
+            'role' => 'assistant',
+            'content' => <<<'TEXT'
+More examples:
+
+Penal code — The country's penal code lists crimes and their punishments.
+Penal colony — In the past, some countries sent prisoners to a penal colony.
+TEXT,
+            'cursor_run_id' => 'run_examples',
+        ]);
+
+        $userMessage = WordChatMessage::query()->create([
+            'user_id' => $user->id,
+            'role' => 'user',
+            'content' => 'save these examples to "penal" vocabulary',
+            'cursor_run_id' => 'run_save_examples_fallback',
+        ]);
+
+        WordChatRun::query()->create([
+            'user_id' => $user->id,
+            'word_chat_agent_id' => $agent->id,
+            'cursor_agent_id' => 'agent_1',
+            'cursor_run_id' => 'run_save_examples_fallback',
+            'user_message_id' => $userMessage->id,
+            'status' => 'streaming',
+        ]);
+
+        $response = $this->get('/api/word-chat/stream/run_save_examples_fallback', [
+            'Accept' => 'text/event-stream',
+        ]);
+
+        $response->assertOk();
+        $streamed = $response->streamedContent();
+        $this->assertStringContainsString('event: saved', $streamed, $streamed);
+        $this->assertStringContainsString('"content_updated":true', $streamed, $streamed);
+
+        $this->assertDatabaseHas('dictionary_examples', [
+            'example' => 'Penal code — The country\'s penal code lists crimes and their punishments.',
+        ]);
+        $this->assertDatabaseHas('dictionary_examples', [
+            'example' => 'Penal colony — In the past, some countries sent prisoners to a penal colony.',
+        ]);
+    }
+
+    public function test_complete_word_chat_run_backfills_examples_from_previous_assistant_message(): void
+    {
+        $user = User::factory()->create();
+
+        $entry = DictionaryEntry::query()->create([
+            'word' => 'penal',
+            'source' => 'user_save',
+            'is_curated' => false,
+            'save_count' => 1,
+        ]);
+        $meaning = DictionaryMeaning::query()->create([
+            'dictionary_entry_id' => $entry->id,
+            'definition' => 'Relating to punishment.',
+            'position' => 0,
+        ]);
+        DictionaryExample::query()->create([
+            'dictionary_meaning_id' => $meaning->id,
+            'example' => 'Old example.',
+            'position' => 0,
+        ]);
+        Vocabulary::query()->create([
+            'user_id' => $user->id,
+            'dictionary_entry_id' => $entry->id,
+        ]);
+
+        $agent = $this->createReadyAgent($user);
+
+        WordChatMessage::query()->create([
+            'user_id' => $user->id,
+            'role' => 'assistant',
+            'content' => <<<'TEXT'
+More examples:
+
+Penal code — The country's penal code lists crimes and their punishments.
+Penal colony — In the past, some countries sent prisoners to a penal colony.
+TEXT,
+            'cursor_run_id' => 'run_examples',
+        ]);
+
+        $userMessage = WordChatMessage::query()->create([
+            'user_id' => $user->id,
+            'role' => 'user',
+            'content' => 'save these examples to "penal" vocabulary',
+            'cursor_run_id' => 'run_save_examples_fallback',
+        ]);
+
+        WordChatRun::query()->create([
+            'user_id' => $user->id,
+            'word_chat_agent_id' => $agent->id,
+            'cursor_agent_id' => 'agent_1',
+            'cursor_run_id' => 'run_save_examples_fallback',
+            'user_message_id' => $userMessage->id,
+            'status' => 'streaming',
+        ]);
+
+        $assistantText = "Saved those examples to your penal vocabulary.\n\n```json\n"
+            .json_encode(['save_vocab' => ['word' => 'penal']], JSON_UNESCAPED_UNICODE)
+            ."\n```";
+
+        $result = app(\Flc\Shared\Application\CommandBus::class)->dispatch(
+            new \Flc\WordChat\Application\Command\CompleteWordChatRun(
+                userId: $user->id,
+                cursorRunId: 'run_save_examples_fallback',
+                assistantContent: $assistantText,
+            ),
+        );
+
+        $this->assertIsArray($result);
+        $this->assertTrue($result['saved_vocabulary']['content_updated'] ?? false);
+        $this->assertDatabaseHas('dictionary_examples', [
+            'example' => 'Penal code — The country\'s penal code lists crimes and their punishments.',
+        ]);
+    }
+
+    public function test_vocabulary_saver_backfills_examples_from_previous_assistant_message(): void
+    {
+        $user = User::factory()->create();
+
+        $entry = DictionaryEntry::query()->create([
+            'word' => 'penal',
+            'source' => 'user_save',
+            'is_curated' => false,
+            'save_count' => 1,
+        ]);
+        $meaning = DictionaryMeaning::query()->create([
+            'dictionary_entry_id' => $entry->id,
+            'definition' => 'Relating to punishment.',
+            'position' => 0,
+        ]);
+        DictionaryExample::query()->create([
+            'dictionary_meaning_id' => $meaning->id,
+            'example' => 'Old example.',
+            'position' => 0,
+        ]);
+        Vocabulary::query()->create([
+            'user_id' => $user->id,
+            'dictionary_entry_id' => $entry->id,
+        ]);
+
+        WordChatMessage::query()->create([
+            'user_id' => $user->id,
+            'role' => 'assistant',
+            'content' => <<<'TEXT'
+More examples:
+
+Penal code — The country's penal code lists crimes and their punishments.
+Penal colony — In the past, some countries sent prisoners to a penal colony.
+TEXT,
+        ]);
+
+        $userMessage = WordChatMessage::query()->create([
+            'user_id' => $user->id,
+            'role' => 'user',
+            'content' => 'save these examples to "penal" vocabulary',
+        ]);
+
+        $saver = app(\Flc\WordChat\Application\WordChatVocabularySaver::class);
+        $result = $saver->maybeSave(
+            userId: $user->id,
+            userQuestion: $userMessage->content,
+            saveVocabFromAgent: \Flc\WordChat\Application\WordChatSaveVocabRequest::fromPayload(['word' => 'penal']),
+            beforeMessageId: $userMessage->id,
+            assistantReply: 'Saved those examples to your penal vocabulary.',
+        );
+
+        $this->assertNotNull($result);
+        $this->assertTrue($result['content_updated'] ?? false);
+        $this->assertDatabaseHas('dictionary_examples', [
+            'example' => 'Penal code — The country\'s penal code lists crimes and their punishments.',
+        ]);
+    }
 }
