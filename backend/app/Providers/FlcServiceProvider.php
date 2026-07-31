@@ -84,9 +84,11 @@ use Flc\Notification\Application\Repository\VocabQuizReminderRepository;
 use Flc\Notification\Infrastructure\External\FcmPushNotifier;
 use Flc\Notification\Infrastructure\Persistence\EloquentUserNotificationPreferenceRepository;
 use Flc\Notification\Infrastructure\Persistence\EloquentVocabQuizReminderRepository;
+use Flc\Puzzle\Application\Handler\GetNextHangmanPuzzleHandler;
 use Flc\Puzzle\Application\Handler\GetNextScramblePuzzleHandler;
 use Flc\Puzzle\Application\Handler\GetNextWordlePuzzleHandler;
 use Flc\Puzzle\Application\Handler\GetScrambleHintHandler;
+use Flc\Puzzle\Application\Query\GetNextHangmanPuzzle;
 use Flc\Puzzle\Application\Query\GetNextScramblePuzzle;
 use Flc\Puzzle\Application\Query\GetNextWordlePuzzle;
 use Flc\Puzzle\Application\Query\GetScrambleHint;
@@ -235,6 +237,7 @@ class FlcServiceProvider extends ServiceProvider
             GetAllowedEmail::class => GetAllowedEmailHandler::class,
             CountActiveAllowedEmails::class => CountActiveAllowedEmailsHandler::class,
             GetNextQuizQuestion::class => GetNextQuizQuestionHandler::class,
+            GetNextHangmanPuzzle::class => GetNextHangmanPuzzleHandler::class,
             GetNextScramblePuzzle::class => GetNextScramblePuzzleHandler::class,
             GetNextWordlePuzzle::class => GetNextWordlePuzzleHandler::class,
             GetScrambleHint::class => GetScrambleHintHandler::class,

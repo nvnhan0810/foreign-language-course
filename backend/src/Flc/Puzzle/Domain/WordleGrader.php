@@ -10,6 +10,7 @@ final class WordleGrader
 
     public const HINT_VISIBLE_SECONDS = 10;
 
+    /** Seconds from hint reveal until the help button can show the meaning again (includes visible window). */
     public const HINT_COOLDOWN_SECONDS = 20;
 
     /**

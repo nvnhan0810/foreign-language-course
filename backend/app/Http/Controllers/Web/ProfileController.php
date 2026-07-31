@@ -8,11 +8,12 @@ use App\Models\QuizAttempt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class ProfileController extends Controller
 {
-    public function show(Request $request): View
+    public function show(Request $request): Response
     {
         $user = $request->user();
 
@@ -33,14 +34,23 @@ class ProfileController extends Controller
             $vocabPercent
         );
 
-        return view('user.profile', [
-            'user' => $user,
+        return Inertia::render('Profile/Show', [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
             'stats' => [
                 'vocabulary_count' => $vocabularyCount,
                 'media_count' => $mediaCount,
                 'average_score_percent' => $averageScorePercent,
             ],
-            'history' => $this->buildHistory($user->id),
+            'history' => collect($this->buildHistory($user->id))->map(function (array $item) {
+                return [
+                    ...$item,
+                    'completed_at' => $item['completed_at']?->toIso8601String(),
+                ];
+            })->all(),
         ]);
     }
 

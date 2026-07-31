@@ -466,9 +466,9 @@
         const normalizedWord = String(word).toLowerCase();
         const type = item.insight_type || 'note';
         const content = item.content || '';
-        const insightId = item.id;
-        const quizHref = insightId
-          ? `${quizPlayBase}&insight_id=${encodeURIComponent(String(insightId))}`
+        const vocabularyId = item.vocabulary_id;
+        const quizHref = vocabularyId
+          ? `${quizPlayBase}&vocabulary_id=${encodeURIComponent(String(vocabularyId))}`
           : quizPlayBase;
         const isSaved = savedWords.has(normalizedWord) || item.vocabulary_id;
         const saveLabel = isSaved ? 'Saved ✓' : 'Save word';
@@ -1756,5 +1756,39 @@
         celebrate.classList.remove('is-open', 'is-leaving');
       }, 420);
     }, 2200);
+  }
+
+  const hangmanBoard = document.querySelector('[data-hangman-board]');
+  if (hangmanBoard && hangmanBoard.getAttribute('data-resolved') !== '1') {
+    const form = document.querySelector('[data-hangman-form]');
+    const hiddenInput = form?.querySelector('[data-hangman-input]');
+    let submitting = false;
+
+    const submitLetter = (letter) => {
+      if (submitting || !form || !hiddenInput) return;
+      const normalized = String(letter || '').toLowerCase();
+      if (!/^[a-z]$/.test(normalized)) return;
+      const button = document.querySelector(`[data-hangman-key="${normalized}"]`);
+      if (button?.disabled) return;
+      submitting = true;
+      hiddenInput.value = normalized;
+      form.requestSubmit();
+    };
+
+    document.querySelectorAll('[data-hangman-key]').forEach((button) => {
+      button.addEventListener('click', () => {
+        submitLetter(button.getAttribute('data-hangman-key') || '');
+      });
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) return;
+      }
+      submitLetter(event.key);
+    });
   }
 })();

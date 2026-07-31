@@ -12,7 +12,8 @@ use Flc\Vocabulary\Application\Query\ListUserVocabularies;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class VocabularyController extends Controller
 {
@@ -21,22 +22,27 @@ class VocabularyController extends Controller
         private readonly QueryBus $queries,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $items = collect($this->queries->ask(new ListUserVocabularies($request->user()->id)))
-            ->map(fn (array $item) => $this->toViewModel($item));
+            ->values()
+            ->all();
 
-        return view('user.vocab', ['items' => $items]);
+        return Inertia::render('Vocab/Index', [
+            'items' => $items,
+        ]);
     }
 
-    public function show(Request $request, Vocabulary $vocabulary): View
+    public function show(Request $request, Vocabulary $vocabulary): Response
     {
         $vocab = $this->queries->ask(new GetUserVocabulary($request->user()->id, $vocabulary->id));
         if ($vocab === null) {
             abort(403);
         }
 
-        return view('user.vocab-show', ['vocab' => $this->toViewModel($vocab)]);
+        return Inertia::render('Vocab/Show', [
+            'vocab' => $vocab,
+        ]);
     }
 
     public function destroy(Request $request, Vocabulary $vocabulary): RedirectResponse

@@ -12,7 +12,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MediaController extends Controller
@@ -22,14 +23,28 @@ class MediaController extends Controller
         private readonly YouTubePreviewService $youtubePreview,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $items = $request->user()
             ->mediaItems()
             ->orderBy('next_listen_at')
-            ->get();
+            ->get()
+            ->map(fn (MediaItem $item) => [
+                'id' => $item->id,
+                'title' => $item->title,
+                'type' => $item->type,
+                'frequency' => $item->frequency,
+                'difficulty' => $item->difficulty,
+                'difficulty_label' => $item->difficultyLabel(),
+                'analysis_status' => $item->analysis_status,
+                'source_id' => $item->source_id,
+            ])
+            ->values()
+            ->all();
 
-        return view('user.media', ['items' => $items]);
+        return Inertia::render('Media/Index', [
+            'items' => $items,
+        ]);
     }
 
     public function previewYouTube(Request $request): JsonResponse
@@ -84,15 +99,30 @@ class MediaController extends Controller
             ->with('success', 'YouTube media saved. Analysis and question bank are being generated.');
     }
 
-    public function show(Request $request, MediaItem $mediaItem): View
+    public function show(Request $request, MediaItem $mediaItem): Response
     {
         if ($mediaItem->user_id !== $request->user()->id) {
             abort(403);
         }
 
-        return view('user.media-show', [
-            'media' => $mediaItem,
-            'sessionOptions' => $this->queries->ask(new GetListeningSessionOptions($mediaItem->id)),
+        $options = $this->queries->ask(new GetListeningSessionOptions($mediaItem->id));
+
+        return Inertia::render('Media/Show', [
+            'item' => [
+                'id' => $mediaItem->id,
+                'title' => $mediaItem->title,
+                'type' => $mediaItem->type,
+                'source_id' => $mediaItem->source_id,
+                'url' => $mediaItem->url,
+                'frequency' => $mediaItem->frequency,
+                'difficulty' => $mediaItem->difficulty,
+                'difficulty_label' => $mediaItem->difficultyLabel(),
+                'transcript' => $mediaItem->transcript,
+                'analysis_status' => $mediaItem->analysis_status,
+                'question_bank_status' => $mediaItem->question_bank_status,
+                'question_bank_count' => $mediaItem->question_bank_count,
+            ],
+            'listeningOptions' => is_array($options) ? $options : [],
         ]);
     }
 

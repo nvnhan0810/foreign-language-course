@@ -42,10 +42,10 @@
                     </span>
                 </a>
 
-                <a href="{{ route('user.home.puzzle', ['mode' => 'hangman']) }}" class="puzzle-mode-card puzzle-mode-soon">
+                <a href="{{ route('user.home.puzzle.hangman', ['autostart' => 1]) }}" class="puzzle-mode-card puzzle-mode-live">
                     <span class="puzzle-mode-thumb">
                         <img src="{{ asset('images/puzzle/hangman.svg') }}" alt="Hangman" loading="lazy">
-                        <span class="puzzle-mode-tag">Soon</span>
+                        <span class="puzzle-mode-tag puzzle-mode-tag-play">Play</span>
                     </span>
                     <span class="puzzle-mode-info">
                         <span class="puzzle-mode-title">Hangman</span>
