@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\GameRecord;
 use App\Models\User;
+use Flc\Puzzle\Application\Query\GetNextHangmanPuzzle;
 use Flc\Puzzle\Application\Query\GetNextScramblePuzzle;
 use Flc\Puzzle\Application\Query\GetNextWordlePuzzle;
 use Flc\Puzzle\Application\Query\GetScrambleHint;
+use Flc\Puzzle\Domain\HangmanGrader;
 use Flc\Puzzle\Domain\WordleGrader;
 use Flc\Puzzle\Domain\WordleKeyboardBuilder;
 use Flc\Quiz\Application\Command\RecordQuizAttempt;
@@ -17,7 +19,8 @@ use Flc\Vocabulary\Application\Query\GetUserVocabulary;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class PuzzleController extends Controller
 {
@@ -26,11 +29,11 @@ class PuzzleController extends Controller
         private readonly CommandBus $commands,
     ) {}
 
-    public function index(Request $request): View|RedirectResponse
+    public function index(Request $request): Response|RedirectResponse
     {
         $mode = $request->query('mode');
 
-        if (is_string($mode) && $mode !== '' && $mode !== 'scramble') {
+        if (is_string($mode) && $mode !== '' && ! in_array($mode, ['scramble', 'wordle', 'hangman'], true)) {
             return redirect()
                 ->route('user.home.puzzle')
                 ->with('error', 'Coming soon.');
@@ -38,19 +41,21 @@ class PuzzleController extends Controller
 
         $this->clearScrambleSession();
         $this->clearWordleSession();
+        $this->clearHangmanSession();
 
-        return view('user.puzzle.index');
+        return Inertia::render('Puzzle/Index');
     }
 
     public function exit(Request $request): RedirectResponse
     {
         $this->clearScrambleSession();
         $this->clearWordleSession();
+        $this->clearHangmanSession();
 
         return redirect()->route('user.home.quiz');
     }
 
-    public function scramble(Request $request): View|RedirectResponse
+    public function scramble(Request $request): Response|RedirectResponse
     {
         if ($request->query('autostart') === '1' && ! session()->has('puzzle_scramble')) {
             return $this->nextScramble($request);
@@ -71,12 +76,17 @@ class PuzzleController extends Controller
         $celebrateRecord = session('puzzle_scramble_celebrate_record');
         session()->forget('puzzle_scramble_celebrate_record');
 
-        return view('user.puzzle.scramble', [
-            'puzzle' => session('puzzle_scramble'),
+        $puzzle = session('puzzle_scramble');
+        if (is_array($puzzle)) {
+            unset($puzzle['correct_word']);
+        }
+
+        return Inertia::render('Puzzle/Scramble', [
+            'puzzle' => $puzzle,
             'hint' => session('puzzle_scramble_hint'),
             'feedback' => session('puzzle_scramble_feedback'),
             'wasCorrect' => session('puzzle_scramble_was_correct'),
-            'reveal' => is_array($reveal) ? $this->toViewModel($reveal) : null,
+            'reveal' => is_array($reveal) ? $reveal : null,
             'startedAt' => is_numeric($startedAt) ? (int) $startedAt : null,
             'wordStartedAt' => is_numeric($wordStartedAt) ? (int) $wordStartedAt : null,
             'elapsedSeconds' => is_numeric($elapsed) ? (int) $elapsed : null,
@@ -201,7 +211,7 @@ class PuzzleController extends Controller
         return redirect()->route('user.home.puzzle.scramble');
     }
 
-    public function wordle(Request $request): View|RedirectResponse
+    public function wordle(Request $request): Response|RedirectResponse
     {
         if ($request->query('autostart') === '1' && ! session()->has('puzzle_wordle')) {
             return $this->nextWordle($request);
@@ -216,14 +226,19 @@ class PuzzleController extends Controller
         $celebrateRecord = session('puzzle_wordle_celebrate_record');
         session()->forget('puzzle_wordle_celebrate_record');
 
-        return view('user.puzzle.wordle', [
-            'puzzle' => $puzzle,
+        $clientPuzzle = is_array($puzzle) ? $puzzle : null;
+        if (is_array($clientPuzzle)) {
+            unset($clientPuzzle['correct_word']);
+        }
+
+        return Inertia::render('Puzzle/Wordle', [
+            'puzzle' => $clientPuzzle,
             'guesses' => session('puzzle_wordle_guesses', []),
             'hint' => session('puzzle_wordle_hint'),
             'hintAt' => session('puzzle_wordle_hint_at'),
             'feedback' => session('puzzle_wordle_feedback'),
             'wasCorrect' => session('puzzle_wordle_was_correct'),
-            'reveal' => is_array($reveal) ? $this->toViewModel($reveal) : null,
+            'reveal' => is_array($reveal) ? $reveal : null,
             'startedAt' => is_numeric($startedAt) ? (int) $startedAt : null,
             'elapsedSeconds' => session('puzzle_wordle_elapsed'),
             'sessionCorrect' => (int) session('puzzle_wordle_session_correct', 0),
@@ -244,11 +259,20 @@ class PuzzleController extends Controller
                 ->with('error', 'You need at least one saved 5-letter word to play Wordle. Add words in Vocabulary.');
         }
 
+        $hint = $this->queries->ask(new GetScrambleHint(
+            userId: $request->user()->id,
+            vocabularyId: (int) ($puzzle['vocabulary_id'] ?? 0),
+        ));
+        $hintAt = now()->timestamp;
+
         $payload = [
             'puzzle_wordle' => $puzzle,
             'puzzle_wordle_guesses' => [],
-            'puzzle_wordle_hint' => null,
-            'puzzle_wordle_hint_at' => null,
+            'puzzle_wordle_hint' => [
+                'definition' => $hint['definition'] ?? '',
+                'part_of_speech' => $hint['part_of_speech'] ?? null,
+            ],
+            'puzzle_wordle_hint_at' => $hintAt,
             'puzzle_wordle_feedback' => null,
             'puzzle_wordle_was_correct' => null,
             'puzzle_wordle_reveal' => null,
@@ -393,6 +417,175 @@ class PuzzleController extends Controller
         session($sessionUpdate);
 
         return redirect()->route('user.home.puzzle.wordle');
+    }
+
+    public function hangman(Request $request): Response|RedirectResponse
+    {
+        if ($request->query('autostart') === '1' && ! session()->has('puzzle_hangman')) {
+            return $this->nextHangman($request);
+        }
+
+        $reveal = session('puzzle_hangman_reveal');
+        $startedAt = session('puzzle_hangman_started_at');
+        $guessedLetters = session('puzzle_hangman_guessed', []);
+        if (! is_array($guessedLetters)) {
+            $guessedLetters = [];
+        }
+
+        /** @var User $user */
+        $user = $request->user();
+        $celebrateRecord = session('puzzle_hangman_celebrate_record');
+        session()->forget('puzzle_hangman_celebrate_record');
+
+        $puzzle = session('puzzle_hangman');
+        if (is_array($puzzle)) {
+            $correctWord = strtolower(trim((string) ($puzzle['correct_word'] ?? '')));
+            $puzzle['mask'] = HangmanGrader::mask($correctWord, $guessedLetters);
+            $puzzle['wrong_count'] = HangmanGrader::wrongCount($correctWord, $guessedLetters);
+            unset($puzzle['correct_word']);
+        }
+
+        return Inertia::render('Puzzle/Hangman', [
+            'puzzle' => $puzzle,
+            'guessedLetters' => $guessedLetters,
+            'feedback' => session('puzzle_hangman_feedback'),
+            'wasCorrect' => session('puzzle_hangman_was_correct'),
+            'reveal' => is_array($reveal) ? $reveal : null,
+            'startedAt' => is_numeric($startedAt) ? (int) $startedAt : null,
+            'elapsedSeconds' => session('puzzle_hangman_elapsed'),
+            'sessionCorrect' => (int) session('puzzle_hangman_session_correct', 0),
+            'bestCorrect' => GameRecord::bestCorrectFor($user->id, GameRecord::GAME_HANGMAN),
+            'celebrateRecord' => $celebrateRecord,
+        ]);
+    }
+
+    public function nextHangman(Request $request): RedirectResponse
+    {
+        $puzzle = $this->queries->ask(new GetNextHangmanPuzzle($request->user()->id));
+
+        if (! $puzzle) {
+            $this->clearHangmanSession();
+
+            return redirect()
+                ->route('user.home.puzzle.hangman')
+                ->with('error', 'You need at least one saved single word (3–12 letters) to play Hangman. Add words in Vocabulary.');
+        }
+
+        $payload = [
+            'puzzle_hangman' => $puzzle,
+            'puzzle_hangman_guessed' => [],
+            'puzzle_hangman_feedback' => null,
+            'puzzle_hangman_was_correct' => null,
+            'puzzle_hangman_reveal' => null,
+            'puzzle_hangman_elapsed' => null,
+            'puzzle_hangman_celebrate_record' => null,
+        ];
+
+        if (! session()->has('puzzle_hangman_started_at')) {
+            $payload['puzzle_hangman_started_at'] = now()->timestamp;
+            $payload['puzzle_hangman_session_correct'] = 0;
+        }
+
+        session($payload);
+
+        return redirect()->route('user.home.puzzle.hangman');
+    }
+
+    public function guessHangman(Request $request): RedirectResponse
+    {
+        $puzzle = session('puzzle_hangman');
+
+        if (! is_array($puzzle)) {
+            return redirect()->route('user.home.puzzle.hangman');
+        }
+
+        if (session('puzzle_hangman_feedback') !== null) {
+            return redirect()->route('user.home.puzzle.hangman');
+        }
+
+        $data = $request->validate([
+            'letter' => ['required', 'string', 'size:1'],
+        ]);
+
+        $letter = strtolower(trim($data['letter']));
+        if (! HangmanGrader::isValidLetter($letter)) {
+            return redirect()
+                ->route('user.home.puzzle.hangman')
+                ->with('error', 'Pick a letter A–Z.');
+        }
+
+        $guessedLetters = session('puzzle_hangman_guessed', []);
+        if (! is_array($guessedLetters)) {
+            $guessedLetters = [];
+        }
+
+        $correctWord = strtolower(trim((string) ($puzzle['correct_word'] ?? '')));
+        $result = HangmanGrader::applyGuess($correctWord, $guessedLetters, $letter);
+
+        if ($result === null) {
+            return redirect()->route('user.home.puzzle.hangman');
+        }
+
+        $sessionUpdate = [
+            'puzzle_hangman_guessed' => $result['guessed_letters'],
+        ];
+
+        if ($result['finished']) {
+            $vocabularyId = (int) ($puzzle['vocabulary_id'] ?? 0);
+            $won = $result['won'];
+
+            $this->commands->dispatch(new RecordQuizAttempt(
+                userId: $request->user()->id,
+                vocabularyId: $vocabularyId,
+                questionType: 'hangman',
+                correct: $won,
+            ));
+
+            $reveal = $this->queries->ask(new GetUserVocabulary(
+                userId: $request->user()->id,
+                vocabularyId: $vocabularyId,
+            ));
+
+            $startedAt = (int) session('puzzle_hangman_started_at', now()->timestamp);
+            $elapsed = max(0, now()->timestamp - $startedAt);
+
+            $sessionUpdate['puzzle_hangman_feedback'] = $won
+                ? 'You got it!'
+                : 'Out of lives. Answer: '.$correctWord;
+            $sessionUpdate['puzzle_hangman_was_correct'] = $won;
+            $sessionUpdate['puzzle_hangman_reveal'] = is_array($reveal) ? $reveal : null;
+            $sessionUpdate['puzzle_hangman_elapsed'] = $elapsed;
+            $sessionUpdate['puzzle_hangman_celebrate_record'] = null;
+
+            if ($won) {
+                $sessionCorrect = (int) session('puzzle_hangman_session_correct', 0) + 1;
+                $sessionUpdate['puzzle_hangman_session_correct'] = $sessionCorrect;
+
+                $bump = GameRecord::bumpIfBetter($request->user()->id, GameRecord::GAME_HANGMAN, $sessionCorrect);
+                if ($bump['is_new_record']) {
+                    $sessionUpdate['puzzle_hangman_celebrate_record'] = $sessionCorrect;
+                }
+            }
+        }
+
+        session($sessionUpdate);
+
+        return redirect()->route('user.home.puzzle.hangman');
+    }
+
+    private function clearHangmanSession(): void
+    {
+        session()->forget([
+            'puzzle_hangman',
+            'puzzle_hangman_guessed',
+            'puzzle_hangman_feedback',
+            'puzzle_hangman_was_correct',
+            'puzzle_hangman_reveal',
+            'puzzle_hangman_started_at',
+            'puzzle_hangman_elapsed',
+            'puzzle_hangman_session_correct',
+            'puzzle_hangman_celebrate_record',
+        ]);
     }
 
     private function clearWordleSession(): void

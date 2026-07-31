@@ -345,7 +345,7 @@ class WordChatInsightsTest extends TestCase
             ->assertJsonPath('data.0.insight_type', 'meaning');
     }
 
-    public function test_quiz_can_use_insight_question(): void
+    public function test_quiz_uses_saved_vocabulary_meanings_instead_of_insights(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
@@ -381,11 +381,17 @@ class WordChatInsightsTest extends TestCase
             'content' => 'From chat: alpha is the first letter.',
         ]);
 
-        $this->getJson('/api/quiz/next?insight_id='.$insight->id)
-            ->assertOk()
-            ->assertJsonPath('data.question_type', 'insight_to_word')
-            ->assertJsonPath('data.insight_id', $insight->id)
-            ->assertJsonPath('data.correct_answer', 'alpha');
+        $response = $this->getJson(
+            '/api/quiz/next?vocabulary_id='.$target->id.'&insight_id='.$insight->id,
+        )->assertOk();
+
+        $this->assertContains($response->json('data.question_type'), [
+            'definition_to_word',
+            'word_to_definition',
+        ]);
+        $this->assertSame($target->id, $response->json('data.vocabulary_id'));
+        $this->assertNull($response->json('data.insight_id'));
+        $this->assertNotSame($insight->content, $response->json('data.prompt'));
     }
 
     public function test_stream_updates_existing_vocabulary_examples_from_save_vocab(): void

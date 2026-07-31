@@ -12,7 +12,8 @@ use Flc\Listening\Application\Repository\ListeningAssessmentRepository;
 use Flc\Shared\Application\CommandBus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 use RuntimeException;
 
 class ListeningController extends Controller
@@ -45,7 +46,7 @@ class ListeningController extends Controller
         return redirect()->route('user.listening.show', $session['assessment_id']);
     }
 
-    public function show(Request $request, ListeningAssessment $listeningAssessment): View|RedirectResponse
+    public function show(Request $request, ListeningAssessment $listeningAssessment): Response|RedirectResponse
     {
         $this->authorizeAssessment($request, $listeningAssessment);
 
@@ -57,6 +58,7 @@ class ListeningController extends Controller
         $result = session('listening_result');
         $sessionKey = $this->sessionCacheKey($listeningAssessment);
         $userId = $request->user()->id;
+        $questions = collect();
 
         if ($result) {
             session()->forget($sessionKey);
@@ -65,9 +67,24 @@ class ListeningController extends Controller
 
             $lastAttempt = $this->assessments->latestAttemptForUser($listeningAssessment->id, $userId);
 
-            return view('user.listening', [
-                'assessment' => $listeningAssessment,
-                'questions' => collect(),
+            return Inertia::render('Listening/Show', [
+                'assessment' => [
+                    'id' => $listeningAssessment->id,
+                    'title' => $listeningAssessment->title,
+                    'type' => $listeningAssessment->type,
+                    'status' => $listeningAssessment->status,
+                ],
+                'mediaItem' => $listeningAssessment->mediaItem
+                    ? [
+                        'id' => $listeningAssessment->mediaItem->id,
+                        'title' => $listeningAssessment->mediaItem->title,
+                        'type' => $listeningAssessment->mediaItem->type,
+                        'source_id' => $listeningAssessment->mediaItem->source_id,
+                        'url' => $listeningAssessment->mediaItem->url,
+                        'has_audio' => filled($listeningAssessment->mediaItem->audio_path),
+                    ]
+                    : null,
+                'questions' => [],
                 'result' => [
                     'score' => $lastAttempt?->score,
                     'total' => $lastAttempt?->total,
@@ -97,10 +114,33 @@ class ListeningController extends Controller
             $listeningAssessment->question_ids = session($sessionKey);
         }
 
-        $questions = $listeningAssessment->sessionQuestions();
+        if (! $result) {
+            $questions = collect($listeningAssessment->sessionQuestions())->map(function ($question) {
+                return [
+                    'id' => $question->id ?? $question['id'] ?? null,
+                    'prompt' => $question->prompt ?? $question->question ?? $question['prompt'] ?? $question['question'] ?? '',
+                    'options' => $question->options ?? $question['options'] ?? [],
+                ];
+            })->values();
+        }
 
-        return view('user.listening', [
-            'assessment' => $listeningAssessment,
+        return Inertia::render('Listening/Show', [
+            'assessment' => [
+                'id' => $listeningAssessment->id,
+                'title' => $listeningAssessment->title,
+                'type' => $listeningAssessment->type,
+                'status' => $listeningAssessment->status,
+            ],
+            'mediaItem' => $listeningAssessment->mediaItem
+                ? [
+                    'id' => $listeningAssessment->mediaItem->id,
+                    'title' => $listeningAssessment->mediaItem->title,
+                    'type' => $listeningAssessment->mediaItem->type,
+                    'source_id' => $listeningAssessment->mediaItem->source_id,
+                    'url' => $listeningAssessment->mediaItem->url,
+                    'has_audio' => filled($listeningAssessment->mediaItem->audio_path),
+                ]
+                : null,
             'questions' => $questions,
             'result' => $result,
         ]);

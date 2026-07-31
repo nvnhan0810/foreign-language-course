@@ -10,7 +10,8 @@ use Flc\Vocabulary\Application\Query\FindUserVocabularyByWord;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class LookupController extends Controller
 {
@@ -18,11 +19,11 @@ class LookupController extends Controller
         private readonly QueryBus $queries,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $prefill = trim((string) $request->query('q', ''));
 
-        return view('user.lookup', [
+        return Inertia::render('Learn/Index', [
             'prefill' => $prefill,
         ]);
     }

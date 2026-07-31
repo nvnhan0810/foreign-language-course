@@ -11,7 +11,8 @@ use Flc\Shared\Application\CommandBus;
 use Flc\Shared\Application\QueryBus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class QuizController extends Controller
 {
@@ -20,14 +21,14 @@ class QuizController extends Controller
         private readonly CommandBus $commands,
     ) {}
 
-    public function index(): View
+    public function index(): Response
     {
         $this->clearQuizSession();
 
-        return view('user.quiz.hub');
+        return Inertia::render('Quiz/Hub');
     }
 
-    public function play(Request $request): View|RedirectResponse
+    public function play(Request $request): Response|RedirectResponse
     {
         if ($request->query('autostart') === '1' && ! session()->has('quiz_question')) {
             return $this->next($request);
@@ -38,13 +39,14 @@ class QuizController extends Controller
         $celebrateRecord = session('quiz_celebrate_record');
         session()->forget('quiz_celebrate_record');
 
-        return view('user.quiz.play', [
+        return Inertia::render('Quiz/Play', [
             'question' => session('quiz_question'),
             'feedback' => session('quiz_feedback'),
             'wasCorrect' => session('quiz_was_correct'),
             'sessionCorrect' => (int) session('quiz_session_correct', 0),
             'bestCorrect' => GameRecord::bestCorrectFor($user->id, GameRecord::GAME_QUIZ),
             'celebrateRecord' => $celebrateRecord,
+            'autostart' => $request->query('autostart') === '1',
         ]);
     }
 
@@ -63,10 +65,13 @@ class QuizController extends Controller
                 ->with('error', 'You need at least 4 saved words to generate a question.');
         }
 
-        return redirect()->route('user.home.quiz.play')
-            ->with('quiz_question', $question)
-            ->with('quiz_feedback', null)
-            ->with('quiz_was_correct', null);
+        session([
+            'quiz_question' => $question,
+            'quiz_feedback' => null,
+            'quiz_was_correct' => null,
+        ]);
+
+        return redirect()->route('user.home.quiz.play');
     }
 
     public function answer(Request $request): RedirectResponse
@@ -111,10 +116,13 @@ class QuizController extends Controller
             'correct_answer' => $data['correct_answer'],
         ];
 
-        return redirect()->route('user.home.quiz.play')
-            ->with('quiz_question', $question)
-            ->with('quiz_feedback', $correct ? 'Correct!' : 'Incorrect. Answer: '.$data['correct_answer'])
-            ->with('quiz_was_correct', $correct);
+        session([
+            'quiz_question' => $question,
+            'quiz_feedback' => $correct ? 'Correct!' : 'Incorrect. Answer: '.$data['correct_answer'],
+            'quiz_was_correct' => $correct,
+        ]);
+
+        return redirect()->route('user.home.quiz.play');
     }
 
     private function ensureQuizSessionStarted(): void
