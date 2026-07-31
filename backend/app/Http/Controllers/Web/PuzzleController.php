@@ -253,7 +253,16 @@ class PuzzleController extends Controller
 
     public function nextWordle(Request $request): RedirectResponse
     {
-        $puzzle = $this->queries->ask(new GetNextWordlePuzzle($request->user()->id));
+        $seenIds = session('puzzle_wordle_seen_ids', []);
+        if (! is_array($seenIds)) {
+            $seenIds = [];
+        }
+        $seenIds = array_values(array_unique(array_map('intval', $seenIds)));
+
+        $puzzle = $this->queries->ask(new GetNextWordlePuzzle(
+            userId: $request->user()->id,
+            excludeVocabularyIds: $seenIds,
+        ));
 
         if (! $puzzle) {
             $this->clearWordleSession();
@@ -263,9 +272,21 @@ class PuzzleController extends Controller
                 ->with('error', 'You need at least one saved 5-letter word to play Wordle. Add words in Vocabulary.');
         }
 
+        $vocabularyId = (int) ($puzzle['vocabulary_id'] ?? 0);
+
+        // Handler falls back to the full pool when every eligible word was already
+        // seen this run — start a fresh cycle from the newly chosen word.
+        if ($vocabularyId > 0 && in_array($vocabularyId, $seenIds, true)) {
+            $seenIds = [];
+        }
+        if ($vocabularyId > 0) {
+            $seenIds[] = $vocabularyId;
+            $seenIds = array_values(array_unique($seenIds));
+        }
+
         $hint = $this->queries->ask(new GetScrambleHint(
             userId: $request->user()->id,
-            vocabularyId: (int) ($puzzle['vocabulary_id'] ?? 0),
+            vocabularyId: $vocabularyId,
         ));
         $hintAt = now()->timestamp;
 
@@ -282,6 +303,7 @@ class PuzzleController extends Controller
             'puzzle_wordle_reveal' => null,
             'puzzle_wordle_elapsed' => null,
             'puzzle_wordle_celebrate_record' => null,
+            'puzzle_wordle_seen_ids' => $seenIds,
         ];
 
         if (! session()->has('puzzle_wordle_started_at')) {
@@ -824,6 +846,7 @@ class PuzzleController extends Controller
             'puzzle_wordle_elapsed',
             'puzzle_wordle_session_correct',
             'puzzle_wordle_celebrate_record',
+            'puzzle_wordle_seen_ids',
         ]);
     }
 
