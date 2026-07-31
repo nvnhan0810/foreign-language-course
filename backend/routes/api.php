@@ -85,5 +85,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/puzzle/hangman/next', [PuzzleController::class, 'nextHangman']);
     Route::post('/puzzle/hangman/guesses', [PuzzleController::class, 'guessHangman']);
 
+    Route::get('/puzzle/word-search/next', [PuzzleController::class, 'nextWordSearch']);
+    Route::post('/puzzle/word-search/finds', [PuzzleController::class, 'findWordSearch']);
+
     Route::get('/sync', [SyncController::class, 'index']);
 });

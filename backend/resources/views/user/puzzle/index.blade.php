@@ -53,10 +53,10 @@
                     </span>
                 </a>
 
-                <a href="{{ route('user.home.puzzle', ['mode' => 'word_search']) }}" class="puzzle-mode-card puzzle-mode-soon">
+                <a href="{{ route('user.home.puzzle.word-search', ['autostart' => 1]) }}" class="puzzle-mode-card puzzle-mode-live">
                     <span class="puzzle-mode-thumb">
                         <img src="{{ asset('images/puzzle/word-search.svg') }}" alt="Word Search" loading="lazy">
-                        <span class="puzzle-mode-tag">Soon</span>
+                        <span class="puzzle-mode-tag puzzle-mode-tag-play">Play</span>
                     </span>
                     <span class="puzzle-mode-info">
                         <span class="puzzle-mode-title">Word Search</span>

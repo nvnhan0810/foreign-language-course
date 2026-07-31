@@ -15,6 +15,8 @@ class GameRecord extends Model
 
     public const GAME_HANGMAN = 'hangman';
 
+    public const GAME_WORD_SEARCH = 'word_search';
+
     protected $fillable = [
         'user_id',
         'game',

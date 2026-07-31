@@ -7,9 +7,11 @@ use App\Models\GameRecord;
 use App\Models\User;
 use Flc\Puzzle\Application\Query\GetNextHangmanPuzzle;
 use Flc\Puzzle\Application\Query\GetNextScramblePuzzle;
+use Flc\Puzzle\Application\Query\GetNextWordSearchPuzzle;
 use Flc\Puzzle\Application\Query\GetNextWordlePuzzle;
 use Flc\Puzzle\Application\Query\GetScrambleHint;
 use Flc\Puzzle\Domain\HangmanGrader;
+use Flc\Puzzle\Domain\WordSearchGrader;
 use Flc\Puzzle\Domain\WordleGrader;
 use Flc\Puzzle\Domain\WordleKeyboardBuilder;
 use Flc\Quiz\Application\Command\RecordQuizAttempt;
@@ -33,7 +35,7 @@ class PuzzleController extends Controller
     {
         $mode = $request->query('mode');
 
-        if (is_string($mode) && $mode !== '' && ! in_array($mode, ['scramble', 'wordle', 'hangman'], true)) {
+        if (is_string($mode) && $mode !== '' && ! in_array($mode, ['scramble', 'wordle', 'hangman', 'word_search'], true)) {
             return redirect()
                 ->route('user.home.puzzle')
                 ->with('error', 'Coming soon.');
@@ -42,6 +44,7 @@ class PuzzleController extends Controller
         $this->clearScrambleSession();
         $this->clearWordleSession();
         $this->clearHangmanSession();
+        $this->clearWordSearchSession();
 
         return Inertia::render('Puzzle/Index');
     }
@@ -51,6 +54,7 @@ class PuzzleController extends Controller
         $this->clearScrambleSession();
         $this->clearWordleSession();
         $this->clearHangmanSession();
+        $this->clearWordSearchSession();
 
         return redirect()->route('user.home.quiz');
     }
@@ -571,6 +575,224 @@ class PuzzleController extends Controller
         session($sessionUpdate);
 
         return redirect()->route('user.home.puzzle.hangman');
+    }
+
+    public function wordSearch(Request $request): Response|RedirectResponse
+    {
+        if ($request->query('autostart') === '1' && ! session()->has('puzzle_word_search')) {
+            return $this->nextWordSearch($request);
+        }
+
+        $reveal = session('puzzle_word_search_reveal');
+        $startedAt = session('puzzle_word_search_started_at');
+        $foundIds = session('puzzle_word_search_found', []);
+        if (! is_array($foundIds)) {
+            $foundIds = [];
+        }
+        $foundCells = session('puzzle_word_search_found_cells', []);
+        if (! is_array($foundCells)) {
+            $foundCells = [];
+        }
+
+        /** @var User $user */
+        $user = $request->user();
+        $celebrateRecord = session('puzzle_word_search_celebrate_record');
+        session()->forget('puzzle_word_search_celebrate_record');
+
+        $puzzle = session('puzzle_word_search');
+        $finished = session('puzzle_word_search_feedback') !== null;
+        $puzzle = $this->publicWordSearchPuzzle(
+            is_array($puzzle) ? $puzzle : null,
+            $foundIds,
+            $finished,
+        );
+
+        return Inertia::render('Puzzle/WordSearch', [
+            'puzzle' => $puzzle,
+            'foundIds' => array_values(array_map('intval', $foundIds)),
+            'foundCells' => $foundCells,
+            'feedback' => session('puzzle_word_search_feedback'),
+            'wasCorrect' => session('puzzle_word_search_was_correct'),
+            'reveal' => is_array($reveal) ? $reveal : null,
+            'startedAt' => is_numeric($startedAt) ? (int) $startedAt : null,
+            'elapsedSeconds' => session('puzzle_word_search_elapsed'),
+            'sessionCorrect' => (int) session('puzzle_word_search_session_correct', 0),
+            'bestCorrect' => GameRecord::bestCorrectFor($user->id, GameRecord::GAME_WORD_SEARCH),
+            'celebrateRecord' => $celebrateRecord,
+        ]);
+    }
+
+    public function nextWordSearch(Request $request): RedirectResponse
+    {
+        $puzzle = $this->queries->ask(new GetNextWordSearchPuzzle($request->user()->id));
+
+        if (! $puzzle) {
+            $this->clearWordSearchSession();
+
+            return redirect()
+                ->route('user.home.puzzle.word-search')
+                ->with('error', 'You need at least '.WordSearchGrader::MIN_WORDS.' saved single words (3–8 letters) to play Word Search. Add words in Vocabulary.');
+        }
+
+        $payload = [
+            'puzzle_word_search' => $puzzle,
+            'puzzle_word_search_found' => [],
+            'puzzle_word_search_found_cells' => [],
+            'puzzle_word_search_feedback' => null,
+            'puzzle_word_search_was_correct' => null,
+            'puzzle_word_search_reveal' => null,
+            'puzzle_word_search_elapsed' => null,
+            'puzzle_word_search_celebrate_record' => null,
+        ];
+
+        if (! session()->has('puzzle_word_search_started_at')) {
+            $payload['puzzle_word_search_started_at'] = now()->timestamp;
+            $payload['puzzle_word_search_session_correct'] = 0;
+        }
+
+        session($payload);
+
+        return redirect()->route('user.home.puzzle.word-search');
+    }
+
+    public function findWordSearch(Request $request): RedirectResponse
+    {
+        $puzzle = session('puzzle_word_search');
+
+        if (! is_array($puzzle)) {
+            return redirect()->route('user.home.puzzle.word-search');
+        }
+
+        if (session('puzzle_word_search_feedback') !== null) {
+            return redirect()->route('user.home.puzzle.word-search');
+        }
+
+        $data = $request->validate([
+            'cells' => ['required', 'array', 'min:3'],
+            'cells.*.r' => ['required', 'integer', 'min:0', 'max:'.(WordSearchGrader::GRID_SIZE - 1)],
+            'cells.*.c' => ['required', 'integer', 'min:0', 'max:'.(WordSearchGrader::GRID_SIZE - 1)],
+        ]);
+
+        $foundIds = session('puzzle_word_search_found', []);
+        if (! is_array($foundIds)) {
+            $foundIds = [];
+        }
+
+        $placements = is_array($puzzle['placements'] ?? null) ? $puzzle['placements'] : [];
+        $result = WordSearchGrader::applyFind($placements, $foundIds, $data['cells']);
+
+        if ($result === null) {
+            return redirect()->route('user.home.puzzle.word-search');
+        }
+
+        if (! $result['hit']) {
+            return redirect()->route('user.home.puzzle.word-search');
+        }
+
+        $foundCells = session('puzzle_word_search_found_cells', []);
+        if (! is_array($foundCells)) {
+            $foundCells = [];
+        }
+        $foundCells[(string) $result['vocabulary_id']] = $result['cells'];
+
+        $sessionUpdate = [
+            'puzzle_word_search_found' => $result['found_ids'],
+            'puzzle_word_search_found_cells' => $foundCells,
+        ];
+
+        $this->commands->dispatch(new RecordQuizAttempt(
+            userId: $request->user()->id,
+            vocabularyId: (int) $result['vocabulary_id'],
+            questionType: 'word_search',
+            correct: true,
+        ));
+
+        if ($result['finished']) {
+            $startedAt = (int) session('puzzle_word_search_started_at', now()->timestamp);
+            $elapsed = max(0, now()->timestamp - $startedAt);
+
+            $sessionUpdate['puzzle_word_search_feedback'] = 'Nice! You found every word.';
+            $sessionUpdate['puzzle_word_search_was_correct'] = true;
+            $sessionUpdate['puzzle_word_search_reveal'] = [
+                'words' => $puzzle['words'] ?? [],
+            ];
+            $sessionUpdate['puzzle_word_search_elapsed'] = $elapsed;
+            $sessionUpdate['puzzle_word_search_celebrate_record'] = null;
+
+            $sessionCorrect = (int) session('puzzle_word_search_session_correct', 0) + 1;
+            $sessionUpdate['puzzle_word_search_session_correct'] = $sessionCorrect;
+
+            $bump = GameRecord::bumpIfBetter($request->user()->id, GameRecord::GAME_WORD_SEARCH, $sessionCorrect);
+            if ($bump['is_new_record']) {
+                $sessionUpdate['puzzle_word_search_celebrate_record'] = $sessionCorrect;
+            }
+        }
+
+        session($sessionUpdate);
+
+        return redirect()->route('user.home.puzzle.word-search');
+    }
+
+    private function clearWordSearchSession(): void
+    {
+        session()->forget([
+            'puzzle_word_search',
+            'puzzle_word_search_found',
+            'puzzle_word_search_found_cells',
+            'puzzle_word_search_feedback',
+            'puzzle_word_search_was_correct',
+            'puzzle_word_search_reveal',
+            'puzzle_word_search_started_at',
+            'puzzle_word_search_elapsed',
+            'puzzle_word_search_session_correct',
+            'puzzle_word_search_celebrate_record',
+        ]);
+    }
+
+    /**
+     * Hide answer words until found; keep meanings visible as clues.
+     *
+     * @param  array<string, mixed>|null  $puzzle
+     * @param  list<int|string>  $foundIds
+     * @return array<string, mixed>|null
+     */
+    private function publicWordSearchPuzzle(?array $puzzle, array $foundIds, bool $finished = false): ?array
+    {
+        if (! is_array($puzzle)) {
+            return null;
+        }
+
+        unset($puzzle['placements']);
+
+        $found = [];
+        foreach ($foundIds as $id) {
+            $found[(int) $id] = true;
+        }
+
+        $puzzle['words'] = array_values(array_map(
+            function ($word) use ($found, $finished) {
+                if (! is_array($word)) {
+                    return $word;
+                }
+
+                $vocabularyId = (int) ($word['vocabulary_id'] ?? 0);
+                $public = [
+                    'vocabulary_id' => $vocabularyId,
+                    'length' => (int) ($word['length'] ?? strlen((string) ($word['word'] ?? ''))),
+                    'definition' => (string) ($word['definition'] ?? 'Find this word in the grid.'),
+                    'part_of_speech' => $word['part_of_speech'] ?? null,
+                ];
+
+                if ($finished || isset($found[$vocabularyId])) {
+                    $public['word'] = (string) ($word['word'] ?? '');
+                }
+
+                return $public;
+            },
+            is_array($puzzle['words'] ?? null) ? $puzzle['words'] : [],
+        ));
+
+        return $puzzle;
     }
 
     private function clearHangmanSession(): void
