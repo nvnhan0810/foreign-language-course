@@ -76,6 +76,10 @@ Route::name('user.')->middleware(\App\Http\Middleware\DetectFlcMobileApp::class)
             Route::post('puzzle/hangman/next', [PuzzleController::class, 'nextHangman'])->name('puzzle.hangman.next');
             Route::post('puzzle/hangman/guess', [PuzzleController::class, 'guessHangman'])->name('puzzle.hangman.guess');
 
+            Route::get('puzzle/word-search', [PuzzleController::class, 'wordSearch'])->name('puzzle.word-search');
+            Route::post('puzzle/word-search/next', [PuzzleController::class, 'nextWordSearch'])->name('puzzle.word-search.next');
+            Route::post('puzzle/word-search/find', [PuzzleController::class, 'findWordSearch'])->name('puzzle.word-search.find');
+
             Route::get('profile', [ProfileController::class, 'show'])->name('profile');
 
             Route::post('push-token', [DevicePushTokenController::class, 'store'])->name('push-token.store');

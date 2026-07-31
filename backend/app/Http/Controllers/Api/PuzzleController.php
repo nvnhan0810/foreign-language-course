@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Flc\Puzzle\Application\Query\GetNextHangmanPuzzle;
 use Flc\Puzzle\Application\Query\GetNextScramblePuzzle;
+use Flc\Puzzle\Application\Query\GetNextWordSearchPuzzle;
 use Flc\Puzzle\Application\Query\GetNextWordlePuzzle;
 use Flc\Puzzle\Domain\HangmanGrader;
+use Flc\Puzzle\Domain\WordSearchGrader;
 use Flc\Puzzle\Domain\WordleGrader;
 use Flc\Puzzle\Domain\WordleKeyboardBuilder;
 use Flc\Puzzle\Application\Query\GetScrambleHint;
@@ -276,6 +278,105 @@ class PuzzleController extends Controller
                 'lost' => $result['lost'],
                 'finished' => $result['finished'],
                 'correct_word' => $result['finished'] ? $correctWord : null,
+                'attempt' => $attempt,
+                'entry' => $entry,
+            ],
+        ]);
+    }
+
+    public function nextWordSearch(Request $request): JsonResponse
+    {
+        $puzzle = $this->queries->ask(new GetNextWordSearchPuzzle($request->user()->id));
+
+        if (! $puzzle) {
+            return response()->json([
+                'message' => 'You need at least '.WordSearchGrader::MIN_WORDS.' saved single words (3–8 letters) to play Word Search.',
+            ], 422);
+        }
+
+        return response()->json([
+            'data' => [
+                'mode' => $puzzle['mode'],
+                'grid_size' => $puzzle['grid_size'],
+                'grid' => $puzzle['grid'],
+                'words' => array_map(
+                    fn (array $word) => [
+                        'vocabulary_id' => $word['vocabulary_id'],
+                        'length' => $word['length'],
+                        'definition' => $word['definition'] ?? 'Find this word in the grid.',
+                        'part_of_speech' => $word['part_of_speech'] ?? null,
+                    ],
+                    is_array($puzzle['words'] ?? null) ? $puzzle['words'] : [],
+                ),
+            ],
+        ]);
+    }
+
+    public function findWordSearch(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'vocabulary_id' => ['required', 'integer', 'exists:vocabularies,id'],
+            'cells' => ['required', 'array', 'min:3'],
+            'cells.*.r' => ['required', 'integer', 'min:0'],
+            'cells.*.c' => ['required', 'integer', 'min:0'],
+            'grid' => ['required', 'array', 'min:1'],
+            'grid.*' => ['required', 'array', 'min:1'],
+            'found_ids' => ['nullable', 'array'],
+            'found_ids.*' => ['integer'],
+        ]);
+
+        $vocabulary = $this->vocabularies->findForUser(
+            $request->user()->id,
+            (int) $data['vocabulary_id'],
+        );
+
+        if ($vocabulary === null) {
+            throw new AccessDeniedHttpException();
+        }
+
+        $word = strtolower(trim($vocabulary->word));
+        $foundIds = is_array($data['found_ids'] ?? null) ? $data['found_ids'] : [];
+        if (in_array((int) $data['vocabulary_id'], array_map('intval', $foundIds), true)) {
+            return response()->json([
+                'message' => 'Word already found.',
+            ], 422);
+        }
+
+        if (! WordSearchGrader::pathSpellsWord($data['grid'], $data['cells'], $word)) {
+            return response()->json([
+                'data' => [
+                    'hit' => false,
+                    'vocabulary_id' => null,
+                    'finished' => false,
+                    'won' => false,
+                    'found_ids' => array_values(array_map('intval', $foundIds)),
+                ],
+            ]);
+        }
+
+        $foundIds[] = (int) $data['vocabulary_id'];
+        $foundIds = array_values(array_unique(array_map('intval', $foundIds)));
+
+        $attempt = $this->commands->dispatch(new RecordQuizAttempt(
+            userId: $request->user()->id,
+            vocabularyId: (int) $data['vocabulary_id'],
+            questionType: 'word_search',
+            correct: true,
+        ));
+
+        $entry = $this->queries->ask(new GetUserVocabulary(
+            userId: $request->user()->id,
+            vocabularyId: (int) $data['vocabulary_id'],
+        ));
+
+        return response()->json([
+            'data' => [
+                'hit' => true,
+                'vocabulary_id' => (int) $data['vocabulary_id'],
+                'word' => $word,
+                'found_ids' => $foundIds,
+                'finished' => false,
+                'won' => false,
                 'attempt' => $attempt,
                 'entry' => $entry,
             ],
