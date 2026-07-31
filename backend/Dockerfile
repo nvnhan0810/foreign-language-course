@@ -32,6 +32,22 @@ RUN composer install --no-dev --optimize-autoloader --no-scripts \
     && php artisan package:discover --ansi
 
 # -----------------------------------------------------------------------------
+# Frontend assets (Vite / Vue / Tailwind)
+# -----------------------------------------------------------------------------
+FROM node:22-bookworm AS frontend
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY vite.config.js jsconfig.json ./
+COPY resources ./resources
+COPY public/css ./public/css
+
+RUN npm run build
+
+# -----------------------------------------------------------------------------
 # Production runtime (nginx + php-fpm + queue + scheduler)
 # -----------------------------------------------------------------------------
 FROM php:8.4-fpm-bookworm AS runtime
@@ -85,6 +101,7 @@ COPY --from=vendor /app/artisan ./artisan
 COPY --from=vendor /app/composer.json ./composer.json
 COPY --from=vendor /app/composer.lock ./composer.lock
 COPY public ./public
+COPY --from=frontend /app/public/build ./public/build
 
 RUN mkdir -p storage/framework/{cache,sessions,views} storage/logs storage/app/public bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
