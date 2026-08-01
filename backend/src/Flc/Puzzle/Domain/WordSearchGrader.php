@@ -14,6 +14,10 @@ final class WordSearchGrader
 
     public const MAX_LENGTH = 8;
 
+    public const HINT_VISIBLE_SECONDS = 10;
+
+    public const HINT_COOLDOWN_SECONDS = 10;
+
     /** @var list<array{0: int, 1: int}> */
     private const DIRECTIONS = [
         [0, 1],
@@ -276,6 +280,122 @@ final class WordSearchGrader
         $reverse = strrev($forward);
 
         return $forward === $word || $reverse === $word;
+    }
+
+    /**
+     * Pick one cell from an unfound word to highlight as a hint.
+     *
+     * @param  list<array{vocabulary_id: int, word: string, cells: list<array{r: int, c: int}>}>  $placements
+     * @param  list<int>  $foundIds
+     * @param  list<array{r: int, c: int}>  $excludeCells
+     * @return array{r: int, c: int, vocabulary_id: int}|null
+     */
+    public static function pickHintCell(
+        array $placements,
+        array $foundIds,
+        ?int $preferredVocabularyId = null,
+        array $excludeCells = [],
+    ): ?array {
+        $foundSet = [];
+        foreach ($foundIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $foundSet[$id] = true;
+            }
+        }
+
+        $candidates = self::hintCandidates($placements, $foundSet, $excludeCells);
+
+        if ($preferredVocabularyId !== null && $preferredVocabularyId > 0 && ! isset($foundSet[$preferredVocabularyId])) {
+            $preferred = array_values(array_filter(
+                $candidates,
+                fn (array $candidate) => $candidate['vocabulary_id'] === $preferredVocabularyId,
+            ));
+            if ($preferred !== []) {
+                return self::pickHintCandidate($preferred);
+            }
+        }
+
+        if ($candidates !== []) {
+            return self::pickHintCandidate($candidates);
+        }
+
+        $lastExcluded = $excludeCells !== [] ? end($excludeCells) : null;
+        if (! is_array($lastExcluded)) {
+            return null;
+        }
+
+        $fallbackExclude = array_slice($excludeCells, 0, -1);
+        $fallback = self::hintCandidates($placements, $foundSet, $fallbackExclude);
+
+        return self::pickHintCandidate($fallback);
+    }
+
+    /**
+     * @param  array<int, true>  $foundSet
+     * @param  list<array{r: int, c: int}>  $excludeCells
+     * @return list<array{r: int, c: int, vocabulary_id: int}>
+     */
+    private static function hintCandidates(array $placements, array $foundSet, array $excludeCells): array
+    {
+        $candidates = [];
+
+        foreach ($placements as $placement) {
+            $vocabularyId = (int) ($placement['vocabulary_id'] ?? 0);
+            if ($vocabularyId <= 0 || isset($foundSet[$vocabularyId])) {
+                continue;
+            }
+
+            $cells = self::normalizeCells($placement['cells'] ?? []);
+            if ($cells === null) {
+                continue;
+            }
+
+            foreach ($cells as $cell) {
+                if (self::isExcludedHintCell($cell, $excludeCells)) {
+                    continue;
+                }
+
+                $candidates[] = [
+                    'r' => $cell['r'],
+                    'c' => $cell['c'],
+                    'vocabulary_id' => $vocabularyId,
+                ];
+            }
+        }
+
+        return $candidates;
+    }
+
+    /**
+     * @param  list<array{r: int, c: int, vocabulary_id: int}>  $candidates
+     * @return array{r: int, c: int, vocabulary_id: int}|null
+     */
+    private static function pickHintCandidate(array $candidates): ?array
+    {
+        if ($candidates === []) {
+            return null;
+        }
+
+        return $candidates[array_rand($candidates)];
+    }
+
+    /**
+     * @param  array{r: int, c: int}  $cell
+     * @param  list<array{r: int, c: int}>  $excludeCells
+     */
+    private static function isExcludedHintCell(array $cell, array $excludeCells): bool
+    {
+        foreach ($excludeCells as $excluded) {
+            if (! is_array($excluded)) {
+                continue;
+            }
+            if ((int) ($excluded['r'] ?? -1) === $cell['r'] && (int) ($excluded['c'] ?? -1) === $cell['c']) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

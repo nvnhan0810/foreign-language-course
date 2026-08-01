@@ -107,7 +107,20 @@ class PuzzleController extends Controller
 
     public function nextWordle(Request $request): JsonResponse
     {
-        $puzzle = $this->queries->ask(new GetNextWordlePuzzle($request->user()->id));
+        $data = $request->validate([
+            'exclude_vocabulary_ids' => ['sometimes', 'array'],
+            'exclude_vocabulary_ids.*' => ['integer'],
+        ]);
+
+        $exclude = array_values(array_unique(array_map(
+            'intval',
+            is_array($data['exclude_vocabulary_ids'] ?? null) ? $data['exclude_vocabulary_ids'] : [],
+        )));
+
+        $puzzle = $this->queries->ask(new GetNextWordlePuzzle(
+            userId: $request->user()->id,
+            excludeVocabularyIds: $exclude,
+        ));
 
         if (! $puzzle) {
             return response()->json([
@@ -122,6 +135,7 @@ class PuzzleController extends Controller
                 'word_length' => $puzzle['word_length'],
                 'max_guesses' => $puzzle['max_guesses'],
                 'keyboard_letters' => $puzzle['keyboard_letters'],
+                'eligible_count' => $puzzle['eligible_count'] ?? null,
             ],
         ]);
     }

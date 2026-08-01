@@ -253,7 +253,16 @@ class PuzzleController extends Controller
 
     public function nextWordle(Request $request): RedirectResponse
     {
-        $puzzle = $this->queries->ask(new GetNextWordlePuzzle($request->user()->id));
+        $seenIds = session('puzzle_wordle_seen_ids', []);
+        if (! is_array($seenIds)) {
+            $seenIds = [];
+        }
+        $seenIds = array_values(array_unique(array_map('intval', $seenIds)));
+
+        $puzzle = $this->queries->ask(new GetNextWordlePuzzle(
+            userId: $request->user()->id,
+            excludeVocabularyIds: $seenIds,
+        ));
 
         if (! $puzzle) {
             $this->clearWordleSession();
@@ -263,9 +272,21 @@ class PuzzleController extends Controller
                 ->with('error', 'You need at least one saved 5-letter word to play Wordle. Add words in Vocabulary.');
         }
 
+        $vocabularyId = (int) ($puzzle['vocabulary_id'] ?? 0);
+
+        // Handler falls back to the full pool when every eligible word was already
+        // seen this run — start a fresh cycle from the newly chosen word.
+        if ($vocabularyId > 0 && in_array($vocabularyId, $seenIds, true)) {
+            $seenIds = [];
+        }
+        if ($vocabularyId > 0) {
+            $seenIds[] = $vocabularyId;
+            $seenIds = array_values(array_unique($seenIds));
+        }
+
         $hint = $this->queries->ask(new GetScrambleHint(
             userId: $request->user()->id,
-            vocabularyId: (int) ($puzzle['vocabulary_id'] ?? 0),
+            vocabularyId: $vocabularyId,
         ));
         $hintAt = now()->timestamp;
 
@@ -282,6 +303,7 @@ class PuzzleController extends Controller
             'puzzle_wordle_reveal' => null,
             'puzzle_wordle_elapsed' => null,
             'puzzle_wordle_celebrate_record' => null,
+            'puzzle_wordle_seen_ids' => $seenIds,
         ];
 
         if (! session()->has('puzzle_wordle_started_at')) {
@@ -607,10 +629,19 @@ class PuzzleController extends Controller
             $finished,
         );
 
+        $hintCell = session('puzzle_word_search_hint_cell');
+        if (! is_array($hintCell) || ! isset($hintCell['r'], $hintCell['c'])) {
+            $hintCell = null;
+        } else {
+            $hintCell = ['r' => (int) $hintCell['r'], 'c' => (int) $hintCell['c']];
+        }
+
         return Inertia::render('Puzzle/WordSearch', [
             'puzzle' => $puzzle,
             'foundIds' => array_values(array_map('intval', $foundIds)),
             'foundCells' => $foundCells,
+            'hintCell' => $hintCell,
+            'hintAt' => is_numeric(session('puzzle_word_search_hint_at')) ? (int) session('puzzle_word_search_hint_at') : null,
             'feedback' => session('puzzle_word_search_feedback'),
             'wasCorrect' => session('puzzle_word_search_was_correct'),
             'reveal' => is_array($reveal) ? $reveal : null,
@@ -638,6 +669,10 @@ class PuzzleController extends Controller
             'puzzle_word_search' => $puzzle,
             'puzzle_word_search_found' => [],
             'puzzle_word_search_found_cells' => [],
+            'puzzle_word_search_hint_cell' => null,
+            'puzzle_word_search_hint_at' => null,
+            'puzzle_word_search_hint_word_id' => null,
+            'puzzle_word_search_hinted_cells' => [],
             'puzzle_word_search_feedback' => null,
             'puzzle_word_search_was_correct' => null,
             'puzzle_word_search_reveal' => null,
@@ -700,6 +735,12 @@ class PuzzleController extends Controller
             'puzzle_word_search_found_cells' => $foundCells,
         ];
 
+        $hintWordId = session('puzzle_word_search_hint_word_id');
+        if (is_numeric($hintWordId) && (int) $hintWordId === (int) $result['vocabulary_id']) {
+            $sessionUpdate['puzzle_word_search_hint_word_id'] = null;
+            $sessionUpdate['puzzle_word_search_hinted_cells'] = [];
+        }
+
         $this->commands->dispatch(new RecordQuizAttempt(
             userId: $request->user()->id,
             vocabularyId: (int) $result['vocabulary_id'],
@@ -733,12 +774,71 @@ class PuzzleController extends Controller
         return redirect()->route('user.home.puzzle.word-search');
     }
 
+    public function hintWordSearch(Request $request): RedirectResponse
+    {
+        $puzzle = session('puzzle_word_search');
+
+        if (! is_array($puzzle)) {
+            return redirect()->route('user.home.puzzle.word-search');
+        }
+
+        if (session('puzzle_word_search_feedback') !== null) {
+            return redirect()->route('user.home.puzzle.word-search');
+        }
+
+        $hintAt = session('puzzle_word_search_hint_at');
+        if (is_numeric($hintAt) && (now()->timestamp - (int) $hintAt) < WordSearchGrader::HINT_COOLDOWN_SECONDS) {
+            return redirect()->route('user.home.puzzle.word-search');
+        }
+
+        $foundIds = session('puzzle_word_search_found', []);
+        if (! is_array($foundIds)) {
+            $foundIds = [];
+        }
+
+        $placements = is_array($puzzle['placements'] ?? null) ? $puzzle['placements'] : [];
+        $preferredWordId = session('puzzle_word_search_hint_word_id');
+        $preferredWordId = is_numeric($preferredWordId) ? (int) $preferredWordId : null;
+        if ($preferredWordId !== null && in_array($preferredWordId, array_map('intval', $foundIds), true)) {
+            $preferredWordId = null;
+        }
+
+        $hintedCells = session('puzzle_word_search_hinted_cells', []);
+        if (! is_array($hintedCells)) {
+            $hintedCells = [];
+        }
+        $hintedCells = array_values(array_filter($hintedCells, function ($cell) {
+            return is_array($cell) && isset($cell['r'], $cell['c']);
+        }));
+
+        $hint = WordSearchGrader::pickHintCell($placements, $foundIds, $preferredWordId, $hintedCells);
+
+        if ($hint === null) {
+            return redirect()->route('user.home.puzzle.word-search');
+        }
+
+        $hintedCells[] = ['r' => $hint['r'], 'c' => $hint['c']];
+
+        session([
+            'puzzle_word_search_hint_cell' => ['r' => $hint['r'], 'c' => $hint['c']],
+            'puzzle_word_search_hint_at' => now()->timestamp,
+            'puzzle_word_search_hint_word_id' => $hint['vocabulary_id'],
+            'puzzle_word_search_hinted_cells' => $hintedCells,
+        ]);
+
+        return redirect()->route('user.home.puzzle.word-search');
+    }
+
     private function clearWordSearchSession(): void
     {
         session()->forget([
             'puzzle_word_search',
             'puzzle_word_search_found',
             'puzzle_word_search_found_cells',
+            'puzzle_word_search_hint_cell',
+            'puzzle_word_search_hint_at',
+            'puzzle_word_search_hint_word_id',
+            'puzzle_word_search_hinted_cells',
             'puzzle_word_search_feedback',
             'puzzle_word_search_was_correct',
             'puzzle_word_search_reveal',
@@ -824,6 +924,7 @@ class PuzzleController extends Controller
             'puzzle_wordle_elapsed',
             'puzzle_wordle_session_correct',
             'puzzle_wordle_celebrate_record',
+            'puzzle_wordle_seen_ids',
         ]);
     }
 

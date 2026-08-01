@@ -3696,6 +3696,15 @@ body.media-word-chat-open {
     inset 0 0 0 1px color-mix(in srgb, #fff 18%, transparent);
 }
 
+.word-search-cell.is-hint {
+  background: #f59f00;
+  color: #fff;
+  opacity: 1;
+  transform: scale(1.08);
+  box-shadow: 0 0 0 2px color-mix(in srgb, #f59f00 45%, transparent);
+  z-index: 1;
+}
+
 .word-search-cell.is-found.is-selecting {
   background: #2f9e44;
   color: #fff;
@@ -3836,6 +3845,12 @@ body.media-word-chat-open {
   text-align: center;
   font-size: 13px;
   color: var(--muted);
+}
+
+.word-search-help-zone {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 4px;
 }
 
 .word-search-idle-art span {
