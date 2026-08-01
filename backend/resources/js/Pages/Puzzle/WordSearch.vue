@@ -283,56 +283,66 @@ const screenClass = computed(() => ({
                 </div>
 
                 <div class="puzzle-screen-scroll">
-                    <div
-                        class="word-search-grid"
-                        :class="{ 'is-dragging': selecting }"
-                        :style="{ '--ws-size': gridSize }"
-                        @mousedown="startSelect"
-                        @mousemove="moveSelect"
-                        @touchstart.prevent="startSelect"
-                        @touchmove.prevent="moveSelect"
-                    >
+                    <div class="word-search-sticky">
                         <div
-                            v-for="(row, r) in grid"
-                            :key="`row-${r}`"
-                            class="word-search-row"
+                            class="word-search-grid"
+                            :class="{ 'is-dragging': selecting }"
+                            :style="{ '--ws-size': gridSize }"
+                            @mousedown="startSelect"
+                            @mousemove="moveSelect"
+                            @touchstart.prevent="startSelect"
+                            @touchmove.prevent="moveSelect"
                         >
-                            <button
-                                v-for="(letter, c) in row"
-                                :key="`cell-${r}-${c}`"
-                                type="button"
-                                class="word-search-cell"
-                                :class="cellClass(r, c)"
-                                :style="cellStyle(r, c)"
-                                :data-ws-r="r"
-                                :data-ws-c="c"
-                                tabindex="-1"
+                            <div
+                                v-for="(row, r) in grid"
+                                :key="`row-${r}`"
+                                class="word-search-row"
                             >
-                                {{ String(letter || '').toUpperCase() }}
+                                <button
+                                    v-for="(letter, c) in row"
+                                    :key="`cell-${r}-${c}`"
+                                    type="button"
+                                    class="word-search-cell"
+                                    :class="cellClass(r, c)"
+                                    :style="cellStyle(r, c)"
+                                    :data-ws-r="r"
+                                    :data-ws-c="c"
+                                    tabindex="-1"
+                                >
+                                    {{ String(letter || '').toUpperCase() }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="draftWord"
+                            class="word-search-draft"
+                            aria-live="polite"
+                        >
+                            <span class="word-search-draft-label">Selecting</span>
+                            <span class="word-search-draft-word">{{ draftWord }}</span>
+                        </div>
+
+                        <div v-if="!answered" class="word-search-help-zone">
+                            <button
+                                type="button"
+                                class="wordle-help-btn"
+                                :class="{ 'is-cooldown': !canHelp }"
+                                :disabled="!canHelp"
+                                :aria-label="canHelp ? 'Show letter hint' : 'Help on cooldown'"
+                                @click="askHint"
+                            >
+                                <span aria-hidden="true">?</span>
                             </button>
                         </div>
-                    </div>
 
-                    <div
-                        v-if="draftWord"
-                        class="word-search-draft"
-                        aria-live="polite"
-                    >
-                        <span class="word-search-draft-label">Selecting</span>
-                        <span class="word-search-draft-word">{{ draftWord }}</span>
-                    </div>
-
-                    <div v-if="!answered" class="word-search-help-zone">
-                        <button
-                            type="button"
-                            class="wordle-help-btn"
-                            :class="{ 'is-cooldown': !canHelp }"
-                            :disabled="!canHelp"
-                            :aria-label="canHelp ? 'Show letter hint' : 'Help on cooldown'"
-                            @click="askHint"
-                        >
-                            <span aria-hidden="true">?</span>
-                        </button>
+                        <div v-if="answered" class="puzzle-result is-win word-search-result">
+                            <div class="puzzle-result-banner">
+                                <span class="puzzle-result-title">Cleared!</span>
+                                <span class="puzzle-result-time">✓ {{ sessionCorrect }} · {{ formatTime(elapsedSeconds) }}</span>
+                            </div>
+                            <p class="puzzle-result-msg">{{ feedback }}</p>
+                        </div>
                     </div>
 
                     <div class="word-search-wordlist" aria-label="Clues to find">
@@ -357,16 +367,6 @@ const screenClass = computed(() => ({
                             </li>
                         </ul>
                     </div>
-
-                    <template v-if="answered">
-                        <div class="puzzle-result is-win">
-                            <div class="puzzle-result-banner">
-                                <span class="puzzle-result-title">Cleared!</span>
-                                <span class="puzzle-result-time">✓ {{ sessionCorrect }} · {{ formatTime(elapsedSeconds) }}</span>
-                            </div>
-                            <p class="puzzle-result-msg">{{ feedback }}</p>
-                        </div>
-                    </template>
                 </div>
 
                 <div class="puzzle-screen-footer word-search-footer">
