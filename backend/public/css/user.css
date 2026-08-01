@@ -3644,7 +3644,6 @@ body.media-word-chat-open {
   align-self: center;
   padding-bottom: 8px;
   background: transparent;
-  touch-action: none;
 }
 
 .word-search-help-zone .wordle-help-btn {
