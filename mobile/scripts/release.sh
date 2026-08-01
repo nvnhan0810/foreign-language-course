@@ -226,6 +226,47 @@ build_android_aab() {
   AAB_PATH="$aab"
 }
 
+resolve_asc_key_path() {
+  if [[ -n "${ASC_KEY_PATH:-}" && -f "$ASC_KEY_PATH" ]]; then
+    return 0
+  fi
+  if [[ -n "${ASC_KEY_ID:-}" ]]; then
+    local default_key="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+    if [[ -f "$default_key" ]]; then
+      ASC_KEY_PATH="$default_key"
+      export ASC_KEY_PATH
+    fi
+  fi
+}
+
+export_ios_ipa_from_archive() {
+  local archive="$ROOT/build/ios/archive/Runner.xcarchive"
+  local export_dir="$ROOT/build/ios/ipa"
+  local export_plist="$ROOT/ios/ExportOptions-AppStore.plist"
+
+  [[ -d "$archive" ]] || return 1
+  [[ -f "$export_plist" ]] || return 1
+
+  resolve_asc_key_path
+  if [[ -z "${ASC_KEY_ID:-}" || -z "${ASC_ISSUER_ID:-}" || ! -f "${ASC_KEY_PATH:-}" ]]; then
+    warn "ASC auth export skipped (missing ASC_KEY_ID, ASC_ISSUER_ID, or .p8 key)."
+    return 1
+  fi
+
+  log "Export IPA via xcodebuild (App Store Connect API auth)"
+  rm -rf "$export_dir"
+  mkdir -p "$export_dir"
+
+  xcodebuild -exportArchive \
+    -archivePath "$archive" \
+    -exportPath "$export_dir" \
+    -exportOptionsPlist "$export_plist" \
+    -allowProvisioningUpdates \
+    -authenticationKeyID "$ASC_KEY_ID" \
+    -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+    -authenticationKeyPath "$ASC_KEY_PATH"
+}
+
 build_ios_ipa() {
   [[ "$DO_IOS" -eq 1 ]] || return 0
 
@@ -233,10 +274,18 @@ build_ios_ipa() {
   [[ -f "$export_plist" ]] || die "Missing $export_plist"
 
   log "Build iOS IPA (App Store / production)"
-  "${FLUTTER[@]}" build ipa --release --export-options-plist="$export_plist"
+  if ! "${FLUTTER[@]}" build ipa --release --export-options-plist="$export_plist"; then
+    warn "flutter build ipa failed — trying ASC auth export from archive"
+  fi
 
   local ipa
   ipa="$(find "$ROOT/build/ios/ipa" -maxdepth 1 -name '*.ipa' | head -1 || true)"
+
+  if [[ -z "$ipa" || ! -f "$ipa" ]]; then
+    export_ios_ipa_from_archive || true
+    ipa="$(find "$ROOT/build/ios/ipa" -maxdepth 1 -name '*.ipa' | head -1 || true)"
+  fi
+
   [[ -n "$ipa" && -f "$ipa" ]] || die "IPA not found under build/ios/ipa/"
   log "iOS IPA ready: $ipa"
   IPA_PATH="$ipa"
