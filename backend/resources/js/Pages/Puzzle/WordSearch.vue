@@ -35,6 +35,7 @@ const selecting = ref(false);
 const draftPath = ref([]);
 const exitOpen = ref(false);
 const nowMs = ref(Date.now());
+const gridRef = ref(null);
 let clockTimer = null;
 let helpTimer = null;
 
@@ -151,6 +152,35 @@ function confirmExit() {
 }
 
 function cellFromPoint(clientX, clientY) {
+    const gridEl = gridRef.value;
+    if (gridEl instanceof HTMLElement) {
+        const rows = gridEl.querySelectorAll('.word-search-row');
+        for (let r = 0; r < rows.length; r++) {
+            const rowEl = rows[r];
+            if (!(rowEl instanceof HTMLElement)) continue;
+            const rowRect = rowEl.getBoundingClientRect();
+            if (clientY < rowRect.top || clientY > rowRect.bottom) continue;
+
+            const cells = rowEl.querySelectorAll('[data-ws-r][data-ws-c]');
+            for (const cellEl of cells) {
+                if (!(cellEl instanceof HTMLElement)) continue;
+                const cellRect = cellEl.getBoundingClientRect();
+                if (
+                    clientX >= cellRect.left
+                    && clientX <= cellRect.right
+                    && clientY >= cellRect.top
+                    && clientY <= cellRect.bottom
+                ) {
+                    const row = Number(cellEl.dataset.wsR);
+                    const col = Number(cellEl.dataset.wsC);
+                    if (Number.isInteger(row) && Number.isInteger(col)) {
+                        return { r: row, c: col };
+                    }
+                }
+            }
+        }
+    }
+
     const el = document.elementFromPoint(clientX, clientY);
     if (!(el instanceof HTMLElement)) return null;
     const cell = el.closest('[data-ws-r]');
@@ -192,22 +222,55 @@ function appendCell(cell) {
 
 function startSelect(event) {
     if (answered.value || !props.puzzle) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
+
+    const gridEl = gridRef.value;
+    if (gridEl instanceof HTMLElement && typeof gridEl.setPointerCapture === 'function') {
+        try {
+            gridEl.setPointerCapture(event.pointerId);
+        } catch {
+            // Some WebViews reject capture; fall back to window listeners below.
+        }
+    }
+
     selecting.value = true;
     draftPath.value = [];
-    const point = 'touches' in event ? event.touches[0] : event;
-    appendCell(cellFromPoint(point.clientX, point.clientY));
+    appendCell(cellFromPoint(event.clientX, event.clientY));
 }
 
 function moveSelect(event) {
     if (!selecting.value) return;
     event.preventDefault();
-    const point = 'touches' in event ? event.touches[0] : event;
-    appendCell(cellFromPoint(point.clientX, point.clientY));
+    appendCell(cellFromPoint(event.clientX, event.clientY));
 }
 
-function endSelect() {
+function cancelSelect(event) {
     if (!selecting.value) return;
+    const gridEl = gridRef.value;
+    if (
+        gridEl instanceof HTMLElement
+        && typeof gridEl.hasPointerCapture === 'function'
+        && gridEl.hasPointerCapture(event.pointerId)
+    ) {
+        gridEl.releasePointerCapture(event.pointerId);
+    }
+    selecting.value = false;
+    draftPath.value = [];
+}
+
+function endSelect(event) {
+    if (!selecting.value) return;
+    if (event) {
+        const gridEl = gridRef.value;
+        if (
+            gridEl instanceof HTMLElement
+            && typeof gridEl.hasPointerCapture === 'function'
+            && gridEl.hasPointerCapture(event.pointerId)
+        ) {
+            gridEl.releasePointerCapture(event.pointerId);
+        }
+    }
     selecting.value = false;
     const path = draftPath.value;
     draftPath.value = [];
@@ -215,9 +278,25 @@ function endSelect() {
     useForm({ cells: path }).post('/home/puzzle/word-search/find');
 }
 
+function onWindowPointerMove(event) {
+    if (!selecting.value) return;
+    moveSelect(event);
+}
+
+function onWindowPointerUp(event) {
+    if (!selecting.value) return;
+    endSelect(event);
+}
+
+function onWindowPointerCancel(event) {
+    if (!selecting.value) return;
+    cancelSelect(event);
+}
+
 onMounted(() => {
-    window.addEventListener('mouseup', endSelect);
-    window.addEventListener('touchend', endSelect);
+    window.addEventListener('pointermove', onWindowPointerMove, { passive: false });
+    window.addEventListener('pointerup', onWindowPointerUp);
+    window.addEventListener('pointercancel', onWindowPointerCancel);
     startHelpTicker();
     if (props.startedAt) {
         const tick = () => {
@@ -229,8 +308,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-    window.removeEventListener('mouseup', endSelect);
-    window.removeEventListener('touchend', endSelect);
+    window.removeEventListener('pointermove', onWindowPointerMove);
+    window.removeEventListener('pointerup', onWindowPointerUp);
+    window.removeEventListener('pointercancel', onWindowPointerCancel);
     if (clockTimer) window.clearInterval(clockTimer);
     if (helpTimer) window.clearInterval(helpTimer);
 });
@@ -285,32 +365,29 @@ const screenClass = computed(() => ({
                 <div class="puzzle-screen-scroll">
                     <div class="word-search-sticky">
                         <div
+                            ref="gridRef"
                             class="word-search-grid"
                             :class="{ 'is-dragging': selecting }"
                             :style="{ '--ws-size': gridSize }"
-                            @mousedown="startSelect"
-                            @mousemove="moveSelect"
-                            @touchstart.prevent="startSelect"
-                            @touchmove.prevent="moveSelect"
+                            @pointerdown="startSelect"
                         >
                             <div
                                 v-for="(row, r) in grid"
                                 :key="`row-${r}`"
                                 class="word-search-row"
                             >
-                                <button
+                                <div
                                     v-for="(letter, c) in row"
                                     :key="`cell-${r}-${c}`"
-                                    type="button"
                                     class="word-search-cell"
                                     :class="cellClass(r, c)"
                                     :style="cellStyle(r, c)"
                                     :data-ws-r="r"
                                     :data-ws-c="c"
-                                    tabindex="-1"
+                                    aria-hidden="true"
                                 >
                                     {{ String(letter || '').toUpperCase() }}
-                                </button>
+                                </div>
                             </div>
                         </div>
 
