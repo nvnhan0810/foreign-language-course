@@ -3,6 +3,8 @@ import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/core/theme/theme_mode_provider.dart';
 import 'package:flc_mobile/core/theme/theme_storage.dart';
 import 'package:flc_mobile/core/webview/web_app_navigation.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -72,6 +74,7 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
 
     if (platform is AndroidWebViewController) {
       await platform.setMediaPlaybackRequiresUserGesture(false);
+      await platform.setTextZoom(100);
       final cookies = WebViewCookieManager().platform;
       if (cookies is AndroidWebViewCookieManager) {
         await cookies.setAcceptThirdPartyCookies(platform, true);
@@ -79,7 +82,7 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
     }
 
     if (platform is WebKitWebViewController) {
-      await platform.setAllowsBackForwardNavigationGestures(true);
+      await platform.setAllowsBackForwardNavigationGestures(false);
     }
   }
 
@@ -368,7 +371,13 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          if (_controller != null) WebViewWidget(controller: _controller!),
+          if (_controller != null)
+            WebViewWidget(
+              controller: _controller!,
+              gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+                Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer()),
+              },
+            ),
           if (_loading)
             const Positioned(
               top: 0,

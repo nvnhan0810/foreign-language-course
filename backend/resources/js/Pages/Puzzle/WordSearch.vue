@@ -38,6 +38,11 @@ const nowMs = ref(Date.now());
 const gridRef = ref(null);
 let clockTimer = null;
 let helpTimer = null;
+let gridMetrics = null;
+let dragListenersBound = false;
+let moveFrame = null;
+let pendingMove = null;
+let touchDragActive = false;
 
 const elapsedSinceHintMs = computed(() => {
     if (!props.hintAt) return null;
@@ -151,7 +156,47 @@ function confirmExit() {
     router.visit('/home/puzzle');
 }
 
+function measureGrid() {
+    const gridEl = gridRef.value;
+    if (!(gridEl instanceof HTMLElement)) return null;
+
+    const rows = gridEl.querySelectorAll('.word-search-row');
+    if (!rows.length) return null;
+
+    const firstRow = rows[0];
+    if (!(firstRow instanceof HTMLElement)) return null;
+
+    const firstCell = firstRow.querySelector('[data-ws-c]');
+    if (!(firstCell instanceof HTMLElement)) return null;
+
+    const gridRect = gridEl.getBoundingClientRect();
+    const cellRect = firstCell.getBoundingClientRect();
+    const rowRect = firstRow.getBoundingClientRect();
+    const gap = parseFloat(getComputedStyle(gridEl).gap || '4') || 4;
+    const size = gridSize.value;
+
+    return {
+        left: gridRect.left,
+        top: gridRect.top,
+        stepX: cellRect.width + gap,
+        stepY: rowRect.height + gap,
+        rows: size,
+        cols: size,
+    };
+}
+
 function cellFromPoint(clientX, clientY) {
+    const metrics = gridMetrics;
+    if (metrics) {
+        const c = Math.floor((clientX - metrics.left) / metrics.stepX);
+        const r = Math.floor((clientY - metrics.top) / metrics.stepY);
+        if (r >= 0 && r < metrics.rows && c >= 0 && c < metrics.cols) {
+            return { r, c };
+        }
+
+        return null;
+    }
+
     const gridEl = gridRef.value;
     if (gridEl instanceof HTMLElement) {
         const rows = gridEl.querySelectorAll('.word-search-row');
@@ -181,14 +226,7 @@ function cellFromPoint(clientX, clientY) {
         }
     }
 
-    const el = document.elementFromPoint(clientX, clientY);
-    if (!(el instanceof HTMLElement)) return null;
-    const cell = el.closest('[data-ws-r]');
-    if (!(cell instanceof HTMLElement)) return null;
-    const r = Number(cell.dataset.wsR);
-    const c = Number(cell.dataset.wsC);
-    if (!Number.isInteger(r) || !Number.isInteger(c)) return null;
-    return { r, c };
+    return null;
 }
 
 function sameCell(a, b) {
@@ -220,83 +258,122 @@ function appendCell(cell) {
     draftPath.value = [...path, cell];
 }
 
-function startSelect(event) {
-    if (answered.value || !props.puzzle) return;
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    event.preventDefault();
+function bindDragListeners() {
+    if (dragListenersBound) return;
+    dragListenersBound = true;
+    window.addEventListener('pointermove', onWindowPointerMove, { passive: false });
+    window.addEventListener('pointerup', onWindowPointerUp);
+    window.addEventListener('pointercancel', onWindowPointerCancel);
+    window.addEventListener('touchmove', onWindowTouchMove, { passive: false });
+    window.addEventListener('touchend', onWindowTouchEnd);
+    window.addEventListener('touchcancel', onWindowTouchCancel);
+}
 
-    const gridEl = gridRef.value;
-    if (gridEl instanceof HTMLElement && typeof gridEl.setPointerCapture === 'function') {
-        try {
-            gridEl.setPointerCapture(event.pointerId);
-        } catch {
-            // Some WebViews reject capture; fall back to window listeners below.
-        }
+function unbindDragListeners() {
+    if (!dragListenersBound) return;
+    dragListenersBound = false;
+    window.removeEventListener('pointermove', onWindowPointerMove);
+    window.removeEventListener('pointerup', onWindowPointerUp);
+    window.removeEventListener('pointercancel', onWindowPointerCancel);
+    window.removeEventListener('touchmove', onWindowTouchMove);
+    window.removeEventListener('touchend', onWindowTouchEnd);
+    window.removeEventListener('touchcancel', onWindowTouchCancel);
+    if (moveFrame) {
+        cancelAnimationFrame(moveFrame);
+        moveFrame = null;
     }
+    pendingMove = null;
+    gridMetrics = null;
+}
 
+function scheduleMove(clientX, clientY) {
+    pendingMove = { clientX, clientY };
+    if (moveFrame) return;
+    moveFrame = requestAnimationFrame(() => {
+        moveFrame = null;
+        if (!pendingMove || !selecting.value) return;
+        appendCell(cellFromPoint(pendingMove.clientX, pendingMove.clientY));
+        pendingMove = null;
+    });
+}
+
+function beginSelect(clientX, clientY) {
+    gridMetrics = measureGrid();
+    bindDragListeners();
     selecting.value = true;
     draftPath.value = [];
-    appendCell(cellFromPoint(event.clientX, event.clientY));
+    appendCell(cellFromPoint(clientX, clientY));
 }
 
-function moveSelect(event) {
-    if (!selecting.value) return;
+function startTouchSelect(event) {
+    if (answered.value || !props.puzzle || selecting.value) return;
+    if (event.touches.length !== 1) return;
     event.preventDefault();
-    appendCell(cellFromPoint(event.clientX, event.clientY));
+    touchDragActive = true;
+    beginSelect(event.touches[0].clientX, event.touches[0].clientY);
 }
 
-function cancelSelect(event) {
+function startSelect(event) {
+    if (answered.value || !props.puzzle || selecting.value) return;
+    if (touchDragActive && event.pointerType === 'touch') return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    event.preventDefault();
+    beginSelect(event.clientX, event.clientY);
+}
+
+function onWindowPointerMove(event) {
+    if (!selecting.value || touchDragActive) return;
+    event.preventDefault();
+    scheduleMove(event.clientX, event.clientY);
+}
+
+function onWindowTouchMove(event) {
+    if (!selecting.value || !touchDragActive || event.touches.length !== 1) return;
+    event.preventDefault();
+    scheduleMove(event.touches[0].clientX, event.touches[0].clientY);
+}
+
+function cancelSelect() {
     if (!selecting.value) return;
-    const gridEl = gridRef.value;
-    if (
-        gridEl instanceof HTMLElement
-        && typeof gridEl.hasPointerCapture === 'function'
-        && gridEl.hasPointerCapture(event.pointerId)
-    ) {
-        gridEl.releasePointerCapture(event.pointerId);
-    }
     selecting.value = false;
     draftPath.value = [];
+    touchDragActive = false;
+    unbindDragListeners();
 }
 
-function endSelect(event) {
+function endSelect() {
     if (!selecting.value) return;
-    if (event) {
-        const gridEl = gridRef.value;
-        if (
-            gridEl instanceof HTMLElement
-            && typeof gridEl.hasPointerCapture === 'function'
-            && gridEl.hasPointerCapture(event.pointerId)
-        ) {
-            gridEl.releasePointerCapture(event.pointerId);
-        }
-    }
     selecting.value = false;
+    touchDragActive = false;
+    unbindDragListeners();
     const path = draftPath.value;
     draftPath.value = [];
     if (path.length < 3 || answered.value) return;
     useForm({ cells: path }).post('/home/puzzle/word-search/find');
 }
 
-function onWindowPointerMove(event) {
-    if (!selecting.value) return;
-    moveSelect(event);
-}
-
 function onWindowPointerUp(event) {
-    if (!selecting.value) return;
-    endSelect(event);
+    if (!selecting.value || touchDragActive) return;
+    endSelect();
 }
 
-function onWindowPointerCancel(event) {
-    if (!selecting.value) return;
-    cancelSelect(event);
+function onWindowPointerCancel() {
+    if (!selecting.value || touchDragActive) return;
+    cancelSelect();
+}
+
+function onWindowTouchEnd(event) {
+    if (!selecting.value || !touchDragActive) return;
+    if (event.touches.length > 0) return;
+    endSelect();
+}
+
+function onWindowTouchCancel() {
+    if (!selecting.value || !touchDragActive) return;
+    cancelSelect();
 }
 
 onMounted(() => {
-    window.addEventListener('pointermove', onWindowPointerMove, { passive: false });
-    window.addEventListener('pointerup', onWindowPointerUp);
-    window.addEventListener('pointercancel', onWindowPointerCancel);
     startHelpTicker();
     if (props.startedAt) {
         const tick = () => {
@@ -308,9 +385,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-    window.removeEventListener('pointermove', onWindowPointerMove);
-    window.removeEventListener('pointerup', onWindowPointerUp);
-    window.removeEventListener('pointercancel', onWindowPointerCancel);
+    unbindDragListeners();
     if (clockTimer) window.clearInterval(clockTimer);
     if (helpTimer) window.clearInterval(helpTimer);
 });
@@ -370,6 +445,7 @@ const screenClass = computed(() => ({
                             :class="{ 'is-dragging': selecting }"
                             :style="{ '--ws-size': gridSize }"
                             @pointerdown="startSelect"
+                            @touchstart="startTouchSelect"
                         >
                             <div
                                 v-for="(row, r) in grid"
