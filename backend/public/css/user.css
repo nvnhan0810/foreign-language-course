@@ -3827,6 +3827,28 @@ body.media-word-chat-open {
   }
 }
 
+/* Flutter WebView: lighter paint during drag (scale/blur cause lag & flicker). */
+.flc-app .word-search-grid {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+.flc-app .word-search-cell {
+  backdrop-filter: none;
+  transition: background 80ms ease, color 80ms ease, box-shadow 80ms ease;
+}
+
+.flc-app .word-search-cell.is-selecting,
+.flc-app .word-search-cell.is-select-end,
+.flc-app .word-search-cell.is-hint {
+  transform: none;
+  animation: none;
+}
+
+.flc-app .word-search-draft {
+  animation: none;
+}
+
 .word-search-wordlist {
   flex: 1 1 0;
   min-height: 0;

@@ -39,10 +39,8 @@ const gridRef = ref(null);
 let clockTimer = null;
 let helpTimer = null;
 let gridMetrics = null;
-let dragListenersBound = false;
 let moveFrame = null;
 let pendingMove = null;
-let touchDragActive = false;
 
 const elapsedSinceHintMs = computed(() => {
     if (!props.hintAt) return null;
@@ -258,32 +256,16 @@ function appendCell(cell) {
     draftPath.value = [...path, cell];
 }
 
-function bindDragListeners() {
-    if (dragListenersBound) return;
-    dragListenersBound = true;
-    window.addEventListener('pointermove', onWindowPointerMove, { passive: false });
-    window.addEventListener('pointerup', onWindowPointerUp);
-    window.addEventListener('pointercancel', onWindowPointerCancel);
-    window.addEventListener('touchmove', onWindowTouchMove, { passive: false });
-    window.addEventListener('touchend', onWindowTouchEnd);
-    window.addEventListener('touchcancel', onWindowTouchCancel);
-}
-
-function unbindDragListeners() {
-    if (!dragListenersBound) return;
-    dragListenersBound = false;
-    window.removeEventListener('pointermove', onWindowPointerMove);
-    window.removeEventListener('pointerup', onWindowPointerUp);
-    window.removeEventListener('pointercancel', onWindowPointerCancel);
-    window.removeEventListener('touchmove', onWindowTouchMove);
-    window.removeEventListener('touchend', onWindowTouchEnd);
-    window.removeEventListener('touchcancel', onWindowTouchCancel);
-    if (moveFrame) {
-        cancelAnimationFrame(moveFrame);
-        moveFrame = null;
+function releasePointerCapture(event) {
+    const gridEl = gridRef.value;
+    if (!(gridEl instanceof HTMLElement)) return;
+    try {
+        if (gridEl.hasPointerCapture(event.pointerId)) {
+            gridEl.releasePointerCapture(event.pointerId);
+        }
+    } catch {
+        // WebView may reject release after the pointer is already gone.
     }
-    pendingMove = null;
-    gridMetrics = null;
 }
 
 function scheduleMove(clientX, clientY) {
@@ -297,80 +279,81 @@ function scheduleMove(clientX, clientY) {
     });
 }
 
-function beginSelect(clientX, clientY) {
+function onGridPointerDown(event) {
+    if (answered.value || !props.puzzle || selecting.value) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    const gridEl = gridRef.value;
+    if (!(gridEl instanceof HTMLElement)) return;
+
+    event.preventDefault();
+    try {
+        gridEl.setPointerCapture(event.pointerId);
+    } catch {
+        // Some WebViews reject capture; pointer events on the grid still work.
+    }
+
     gridMetrics = measureGrid();
-    bindDragListeners();
     selecting.value = true;
     draftPath.value = [];
-    appendCell(cellFromPoint(clientX, clientY));
+    appendCell(cellFromPoint(event.clientX, event.clientY));
 }
 
-function startTouchSelect(event) {
-    if (answered.value || !props.puzzle || selecting.value) return;
-    if (event.touches.length !== 1) return;
-    event.preventDefault();
-    touchDragActive = true;
-    beginSelect(event.touches[0].clientX, event.touches[0].clientY);
-}
-
-function startSelect(event) {
-    if (answered.value || !props.puzzle || selecting.value) return;
-    if (touchDragActive && event.pointerType === 'touch') return;
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    event.preventDefault();
-    beginSelect(event.clientX, event.clientY);
-}
-
-function onWindowPointerMove(event) {
-    if (!selecting.value || touchDragActive) return;
+function onGridPointerMove(event) {
+    if (!selecting.value) return;
+    if (event.pointerType === 'mouse' && event.buttons === 0) {
+        endSelect(event);
+        return;
+    }
     event.preventDefault();
     scheduleMove(event.clientX, event.clientY);
 }
 
-function onWindowTouchMove(event) {
-    if (!selecting.value || !touchDragActive || event.touches.length !== 1) return;
-    event.preventDefault();
-    scheduleMove(event.touches[0].clientX, event.touches[0].clientY);
-}
-
-function cancelSelect() {
+function cancelSelect(event) {
     if (!selecting.value) return;
+    if (event) releasePointerCapture(event);
     selecting.value = false;
     draftPath.value = [];
-    touchDragActive = false;
-    unbindDragListeners();
+    gridMetrics = null;
+    if (moveFrame) {
+        cancelAnimationFrame(moveFrame);
+        moveFrame = null;
+    }
+    pendingMove = null;
 }
 
-function endSelect() {
+function endSelect(event) {
     if (!selecting.value) return;
+    if (event) releasePointerCapture(event);
     selecting.value = false;
-    touchDragActive = false;
-    unbindDragListeners();
+    gridMetrics = null;
+    if (moveFrame) {
+        cancelAnimationFrame(moveFrame);
+        moveFrame = null;
+    }
+    pendingMove = null;
     const path = draftPath.value;
     draftPath.value = [];
     if (path.length < 3 || answered.value) return;
-    useForm({ cells: path }).post('/home/puzzle/word-search/find');
+    useForm({ cells: path }).post('/home/puzzle/word-search/find', {
+        preserveScroll: true,
+    });
 }
 
-function onWindowPointerUp(event) {
-    if (!selecting.value || touchDragActive) return;
-    endSelect();
+function onGridPointerUp(event) {
+    if (!selecting.value) return;
+    endSelect(event);
 }
 
-function onWindowPointerCancel() {
-    if (!selecting.value || touchDragActive) return;
-    cancelSelect();
+function onGridPointerCancel(event) {
+    if (!selecting.value) return;
+    cancelSelect(event);
 }
 
-function onWindowTouchEnd(event) {
-    if (!selecting.value || !touchDragActive) return;
-    if (event.touches.length > 0) return;
-    endSelect();
-}
-
-function onWindowTouchCancel() {
-    if (!selecting.value || !touchDragActive) return;
-    cancelSelect();
+function onGridLostPointerCapture() {
+    if (selecting.value) {
+        endSelect();
+    }
 }
 
 onMounted(() => {
@@ -385,7 +368,11 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-    unbindDragListeners();
+    if (selecting.value) {
+        selecting.value = false;
+        draftPath.value = [];
+    }
+    if (moveFrame) cancelAnimationFrame(moveFrame);
     if (clockTimer) window.clearInterval(clockTimer);
     if (helpTimer) window.clearInterval(helpTimer);
 });
@@ -444,8 +431,11 @@ const screenClass = computed(() => ({
                             class="word-search-grid"
                             :class="{ 'is-dragging': selecting }"
                             :style="{ '--ws-size': gridSize }"
-                            @pointerdown="startSelect"
-                            @touchstart="startTouchSelect"
+                            @pointerdown="onGridPointerDown"
+                            @pointermove="onGridPointerMove"
+                            @pointerup="onGridPointerUp"
+                            @pointercancel="onGridPointerCancel"
+                            @lostpointercapture="onGridLostPointerCapture"
                         >
                             <div
                                 v-for="(row, r) in grid"

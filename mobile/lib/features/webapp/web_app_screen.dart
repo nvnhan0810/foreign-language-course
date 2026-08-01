@@ -30,6 +30,7 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
   String? _error;
   var _sessionEstablished = false;
   var _signingOut = false;
+  String? _loadedPath;
 
   Uri get _webOrigin => Uri.parse(webAppUrl);
 
@@ -107,11 +108,17 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
         ..setBackgroundColor(Theme.of(context).scaffoldBackgroundColor)
         ..setNavigationDelegate(
           NavigationDelegate(
-            onPageStarted: (_) {
-              if (mounted) setState(() => _loading = true);
+            onPageStarted: (url) {
+              if (!mounted) return;
+              final path = Uri.tryParse(url)?.path ?? '';
+              // Same-route Inertia round-trips (e.g. Word Search drag submit) should
+              // not flash the loading bar — it makes the grid appear to vanish.
+              if (_loadedPath != null && _loadedPath == path) return;
+              setState(() => _loading = true);
             },
             onPageFinished: (url) async {
               if (!mounted) return;
+              _loadedPath = Uri.tryParse(url)?.path ?? '';
               setState(() => _loading = false);
               await _syncWebChrome();
               await _onUrl(url);
