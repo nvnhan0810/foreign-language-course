@@ -1,7 +1,7 @@
 name: flc_mobile
 description: FLC mobile — WebView shell for the FLC web app.
 publish_to: 'none'
-version: 1.0.3+17
+version: 1.0.3+18
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
