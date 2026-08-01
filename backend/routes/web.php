@@ -79,6 +79,7 @@ Route::name('user.')->middleware(\App\Http\Middleware\DetectFlcMobileApp::class)
             Route::get('puzzle/word-search', [PuzzleController::class, 'wordSearch'])->name('puzzle.word-search');
             Route::post('puzzle/word-search/next', [PuzzleController::class, 'nextWordSearch'])->name('puzzle.word-search.next');
             Route::post('puzzle/word-search/find', [PuzzleController::class, 'findWordSearch'])->name('puzzle.word-search.find');
+            Route::post('puzzle/word-search/hint', [PuzzleController::class, 'hintWordSearch'])->name('puzzle.word-search.hint');
 
             Route::get('profile', [ProfileController::class, 'show'])->name('profile');
 

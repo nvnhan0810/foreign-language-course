@@ -117,4 +117,54 @@ class WordSearchGraderTest extends TestCase
             'dog',
         ));
     }
+
+    public function test_pick_hint_cell_from_unfound_words(): void
+    {
+        $puzzle = WordSearchGrader::build([
+            ['vocabulary_id' => 1, 'word' => 'cat'],
+            ['vocabulary_id' => 2, 'word' => 'dog'],
+            ['vocabulary_id' => 3, 'word' => 'bird'],
+            ['vocabulary_id' => 4, 'word' => 'fish'],
+        ]);
+        $this->assertNotNull($puzzle);
+
+        $hint = WordSearchGrader::pickHintCell($puzzle['placements'], [1]);
+        $this->assertNotNull($hint);
+        $this->assertArrayHasKey('r', $hint);
+        $this->assertArrayHasKey('c', $hint);
+        $this->assertArrayHasKey('vocabulary_id', $hint);
+        $this->assertNotSame(1, $hint['vocabulary_id']);
+
+        $this->assertNull(WordSearchGrader::pickHintCell($puzzle['placements'], [1, 2, 3, 4]));
+    }
+
+    public function test_pick_hint_cell_prefers_different_letter_on_same_word(): void
+    {
+        $placements = [[
+            'vocabulary_id' => 10,
+            'word' => 'cat',
+            'cells' => [
+                ['r' => 0, 'c' => 0],
+                ['r' => 0, 'c' => 1],
+                ['r' => 0, 'c' => 2],
+            ],
+        ]];
+
+        $first = WordSearchGrader::pickHintCell($placements, []);
+        $this->assertNotNull($first);
+        $this->assertSame(10, $first['vocabulary_id']);
+
+        $second = WordSearchGrader::pickHintCell(
+            $placements,
+            [],
+            10,
+            [['r' => $first['r'], 'c' => $first['c']]],
+        );
+        $this->assertNotNull($second);
+        $this->assertSame(10, $second['vocabulary_id']);
+        $this->assertFalse(
+            $first['r'] === $second['r'] && $first['c'] === $second['c'],
+            'Second hint should highlight a different cell on the same word.',
+        );
+    }
 }

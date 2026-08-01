@@ -1,14 +1,19 @@
 <script setup>
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import GameRecordCelebrate from '@/Components/GameRecordCelebrate.vue';
 import PuzzleExitModal from '@/Components/PuzzleExitModal.vue';
+
+const HINT_VISIBLE_MS = 10_000;
+const HINT_COOLDOWN_MS = 10_000;
 
 const props = defineProps({
     puzzle: { type: Object, default: null },
     foundIds: { type: Array, default: () => [] },
     foundCells: { type: Object, default: () => ({}) },
+    hintCell: { type: Object, default: null },
+    hintAt: { type: Number, default: null },
     feedback: { type: String, default: null },
     wasCorrect: { type: Boolean, default: null },
     reveal: { type: Object, default: null },
@@ -29,7 +34,30 @@ const timerText = ref('00:00');
 const selecting = ref(false);
 const draftPath = ref([]);
 const exitOpen = ref(false);
+const nowMs = ref(Date.now());
 let clockTimer = null;
+let helpTimer = null;
+
+const elapsedSinceHintMs = computed(() => {
+    if (!props.hintAt) return null;
+    return Math.max(0, nowMs.value - Number(props.hintAt) * 1000);
+});
+
+const hintCellVisible = computed(() => {
+    if (answered.value || !props.hintCell || elapsedSinceHintMs.value === null) return false;
+    return elapsedSinceHintMs.value < HINT_VISIBLE_MS;
+});
+
+const canHelp = computed(() => {
+    if (answered.value) return false;
+    if (props.hintAt == null) return true;
+    return (elapsedSinceHintMs.value ?? 0) >= HINT_COOLDOWN_MS;
+});
+
+const hintCellKey = computed(() => {
+    if (!hintCellVisible.value || !props.hintCell) return null;
+    return `${props.hintCell.r},${props.hintCell.c}`;
+});
 
 const foundCellKeys = computed(() => {
     const keys = new Set();
@@ -70,6 +98,7 @@ function cellClass(r, c) {
     const selecting = selectIndex !== undefined;
     return {
         'is-found': foundCellKeys.value.has(key),
+        'is-hint': hintCellKey.value === key,
         'is-selecting': selecting,
         'is-select-start': selecting && selectIndex === 0,
         'is-select-end': selecting && selectIndex === draftPath.value.length - 1,
@@ -93,6 +122,28 @@ function isFoundWord(word) {
 function next() {
     useForm({}).post('/home/puzzle/word-search/next');
 }
+
+function askHint() {
+    if (!canHelp.value) return;
+    useForm({}).post('/home/puzzle/word-search/hint');
+}
+
+function startHelpTicker() {
+    if (helpTimer) window.clearInterval(helpTimer);
+    nowMs.value = Date.now();
+    helpTimer = window.setInterval(() => {
+        nowMs.value = Date.now();
+        if (props.hintAt == null || (Date.now() - Number(props.hintAt) * 1000) >= HINT_COOLDOWN_MS) {
+            if (helpTimer) window.clearInterval(helpTimer);
+            helpTimer = null;
+        }
+    }, 250);
+}
+
+watch(
+    () => [props.hintAt, props.puzzle?.grid_size],
+    () => startHelpTicker(),
+);
 
 function confirmExit() {
     exitOpen.value = false;
@@ -167,6 +218,7 @@ function endSelect() {
 onMounted(() => {
     window.addEventListener('mouseup', endSelect);
     window.addEventListener('touchend', endSelect);
+    startHelpTicker();
     if (props.startedAt) {
         const tick = () => {
             timerText.value = formatTime(Math.floor(Date.now() / 1000) - props.startedAt);
@@ -180,6 +232,7 @@ onUnmounted(() => {
     window.removeEventListener('mouseup', endSelect);
     window.removeEventListener('touchend', endSelect);
     if (clockTimer) window.clearInterval(clockTimer);
+    if (helpTimer) window.clearInterval(helpTimer);
 });
 
 const screenClass = computed(() => ({
@@ -267,6 +320,19 @@ const screenClass = computed(() => ({
                     >
                         <span class="word-search-draft-label">Selecting</span>
                         <span class="word-search-draft-word">{{ draftWord }}</span>
+                    </div>
+
+                    <div v-if="!answered" class="word-search-help-zone">
+                        <button
+                            type="button"
+                            class="wordle-help-btn"
+                            :class="{ 'is-cooldown': !canHelp }"
+                            :disabled="!canHelp"
+                            :aria-label="canHelp ? 'Show letter hint' : 'Help on cooldown'"
+                            @click="askHint"
+                        >
+                            <span aria-hidden="true">?</span>
+                        </button>
                     </div>
 
                     <div class="word-search-wordlist" aria-label="Clues to find">
