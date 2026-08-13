@@ -1,7 +1,7 @@
 name: flc_mobile
 description: FLC mobile — WebView shell for the FLC web app.
 publish_to: 'none'
-version: 1.0.3+19
+version: 1.0.3+20
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -22,6 +22,7 @@ dependencies:
   webview_flutter: ^4.10.0
   webview_flutter_android: ^4.3.0
   webview_flutter_wkwebview: ^3.16.0
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

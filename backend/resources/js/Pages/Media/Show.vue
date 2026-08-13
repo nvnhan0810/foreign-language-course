@@ -1,5 +1,5 @@
 <script setup>
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import WordChat from '@/Components/WordChat.vue';
@@ -7,6 +7,22 @@ import WordChat from '@/Components/WordChat.vue';
 const props = defineProps({
     item: { type: Object, required: true },
     listeningOptions: { type: Array, default: () => [] },
+});
+
+const page = usePage();
+const isFlcApp = computed(() => !!page.props.isFlcApp);
+
+const youtubeWatchUrl = computed(() => {
+    if (props.item.url) return props.item.url;
+    if (props.item.source_id) {
+        return `https://www.youtube.com/watch?v=${props.item.source_id}`;
+    }
+    return null;
+});
+
+const youtubeThumbUrl = computed(() => {
+    if (!props.item.source_id) return null;
+    return `https://i.ytimg.com/vi/${props.item.source_id}/hqdefault.jpg`;
 });
 
 const chatOpen = ref(false);
@@ -102,7 +118,22 @@ onUnmounted(() => {
                     </button>
                 </div>
 
-                <div v-if="item.type === 'youtube' && item.source_id" class="video-embed">
+                <a
+                    v-if="item.type === 'youtube' && item.source_id && isFlcApp && youtubeWatchUrl"
+                    :href="youtubeWatchUrl"
+                    class="video-embed video-embed--external"
+                    :aria-label="`Open ${item.title} in YouTube`"
+                >
+                    <img
+                        v-if="youtubeThumbUrl"
+                        :src="youtubeThumbUrl"
+                        :alt="item.title"
+                        class="video-embed-thumb"
+                    />
+                    <span class="video-embed-play" aria-hidden="true">▶</span>
+                    <span class="video-embed-label">Open in YouTube</span>
+                </a>
+                <div v-else-if="item.type === 'youtube' && item.source_id" class="video-embed">
                     <iframe
                         :src="`https://www.youtube.com/embed/${item.source_id}?playsinline=1&rel=0`"
                         :title="item.title"
