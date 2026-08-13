@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flc_mobile/config/app_config.dart';
 import 'package:flc_mobile/core/providers/app_providers.dart';
 import 'package:flc_mobile/core/theme/theme_mode_provider.dart';
@@ -9,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
@@ -214,29 +217,71 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
     return uri.host == _webOrigin.host;
   }
 
-  /// YouTube embed / player loads (and related Google media CDNs).
-  bool _isYouTubeRelatedHost(Uri uri) {
+  /// YouTube embed player assets (not watch-page navigation).
+  bool _isYouTubeEmbedOrAssetHost(Uri uri) {
     final host = uri.host.toLowerCase();
     if (host.isEmpty) return false;
 
-    const exact = <String>{
-      'youtu.be',
-      'youtube.com',
-      'www.youtube.com',
-      'm.youtube.com',
-      'youtube-nocookie.com',
-      'www.youtube-nocookie.com',
-      'accounts.google.com',
-    };
-
-    if (exact.contains(host)) return true;
-
-    return host.endsWith('.youtube.com') ||
-        host.endsWith('.youtube-nocookie.com') ||
-        host.endsWith('.googlevideo.com') ||
+    if (host.endsWith('.googlevideo.com') ||
         host.endsWith('.ytimg.com') ||
         host.endsWith('.ggpht.com') ||
-        host.endsWith('.googleusercontent.com');
+        host.endsWith('.googleusercontent.com')) {
+      return true;
+    }
+
+    if (host == 'youtube-nocookie.com' ||
+        host == 'www.youtube-nocookie.com' ||
+        host.endsWith('.youtube-nocookie.com')) {
+      return uri.path.startsWith('/embed/');
+    }
+
+    if (host == 'youtube.com' ||
+        host == 'www.youtube.com' ||
+        host == 'm.youtube.com' ||
+        host.endsWith('.youtube.com')) {
+      return uri.path.startsWith('/embed/') || uri.path.startsWith('/iframe_api');
+    }
+
+    return false;
+  }
+
+  /// Watch / share URLs that should open in the native YouTube app.
+  bool _isYouTubeExternalNavigation(Uri uri) {
+    if (uri.scheme == 'youtube' || uri.scheme == 'vnd.youtube') {
+      return true;
+    }
+
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      return false;
+    }
+
+    final host = uri.host.toLowerCase();
+    if (host == 'youtu.be') {
+      return uri.pathSegments.isNotEmpty && uri.pathSegments.first.isNotEmpty;
+    }
+
+    if (host == 'youtube.com' ||
+        host == 'www.youtube.com' ||
+        host == 'm.youtube.com' ||
+        host.endsWith('.youtube.com')) {
+      final path = uri.path;
+      if (path.startsWith('/embed/') || path.startsWith('/iframe_api')) {
+        return false;
+      }
+      return path.startsWith('/watch') ||
+          path.startsWith('/shorts/') ||
+          path.startsWith('/live/') ||
+          path == '/' ||
+          path.isEmpty;
+    }
+
+    return false;
+  }
+
+  Future<void> _launchExternalUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   bool _shouldAllowNavigation(String url) {
@@ -245,8 +290,13 @@ class _WebAppScreenState extends ConsumerState<WebAppScreen> {
     if (uri.scheme == 'about' || uri.scheme == 'data' || uri.scheme == 'blob') {
       return true;
     }
+    if (_isOurHost(uri)) return true;
+    if (_isYouTubeExternalNavigation(uri)) {
+      unawaited(_launchExternalUrl(url));
+      return false;
+    }
     if (uri.scheme != 'http' && uri.scheme != 'https') return false;
-    return _isOurHost(uri) || _isYouTubeRelatedHost(uri);
+    return _isYouTubeEmbedOrAssetHost(uri);
   }
 
   bool _isLoginUrl(String url) {
