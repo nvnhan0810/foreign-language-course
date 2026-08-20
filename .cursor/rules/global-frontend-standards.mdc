@@ -1,0 +1,71 @@
+---
+description: Frontend — Clean Architecture, TypeScript strict, ESLint, Prettier, TDD-first
+alwaysApply: true
+---
+
+# Frontend standards (Clean Architecture)
+
+Apply on web/mobile UI (React, Vue, Next, Flutter). JS UIs are **TypeScript only**.
+
+## TDD first (required)
+
+1. Write a failing unit or component test.
+2. Implement the minimum code to pass.
+3. Refactor while tests stay green.
+
+New UI, hook, or use case ships with tests in the same change.
+
+## Architecture — Clean Architecture (inward only)
+
+```
+Presentation → Application → Domain
+Infrastructure → Domain
+```
+
+```text
+src/domain/           # entities, ports — no React/Vue, no fetch
+src/application/      # use cases — orchestrate ports only
+src/infrastructure/   # HTTP, storage, env, DI container
+src/presentation/     # views, stores, providers
+```
+
+- Depend inward. Infrastructure implements domain ports.
+- Wire in a composition root (`infrastructure/di/container.ts`).
+- Pages only gate + compose features — no fetch/SSE/business state.
+- Split UI: shell / list / item / composer / view. Avoid god components (~200 lines/file).
+
+## TypeScript (strict)
+
+- `"strict": true` — do not disable. Prefer `allowJs: false`, `noUncheckedIndexedAccess`.
+- **No `any`**. JSON boundary: `unknown` → parse to typed entities.
+- Explicit return types on exported functions, hooks, and use-case `execute`.
+- No non-null `!` unless proven. Handle `T | undefined` from index access.
+
+```ts
+// ❌ const id = (data as any).id;
+// ✅ parse unknown → string / entity; throw on invalid shape
+```
+
+## Lint / format
+
+- **ESLint**: fix violations; do not disable rules without reason.
+- **Prettier**: format before commit; keep project configs and follow them.
+
+## Testing
+
+| Target | Test type | Location |
+|-----|-----|----|
+| Components, widgets, pages | Component / widget tests | `tests/presentation/...` |
+| Use cases, hooks with logic | Unit tests | `tests/application/...` |
+| Domain pure logic | Unit tests | `tests/domain/...` |
+| User flows | Integration / E2E when applicable | `tests/integration/...` |
+
+- Mirror `src/` under `tests/` — no `*.test.ts` beside source files.
+- Test user-visible behavior. Mock Infrastructure at boundaries — not Domain.
+
+## Forbidden
+
+- Business logic or `fetch` / SSE parse inside components
+- `any`, `as any`, or disabling strict checks
+- Domain importing React, Vue, or HTTP clients
+- Skipping component tests for new UI

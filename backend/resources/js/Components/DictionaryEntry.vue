@@ -19,8 +19,8 @@ function cleanWords(list) {
 }
 
 function relatedHref(word) {
-    const q = new URLSearchParams({ word, detail: props.preferDetail ? '1' : '0' });
-    return `/home/lookup?${q.toString()}`;
+    const detail = props.preferDetail ? '1' : '0';
+    return `/home/word/${encodeURIComponent(word)}?detail=${detail}`;
 }
 
 function exampleText(example) {

@@ -1,0 +1,50 @@
+---
+description: Luôn có test — unit, feature, component/widget tùy loại dự án
+alwaysApply: true
+---
+
+# Global testing standards
+
+Testing is mandatory for every change. Do not ship features or bug fixes without tests.
+
+## General
+
+- **TDD first**: write a failing test, then implement, then refactor.
+- Every new feature, bug fix, or refactor must include or update tests.
+- Run the relevant test suite before finishing the task.
+- Prefer meaningful tests over coverage theater — assert behavior, not implementation details.
+- Named constants / enums over magic strings in assertions and production code.
+
+## Test layout (required)
+
+**Never colocate test files next to production source.** Use a top-level `tests/` directory that **mirrors** the source tree.
+
+```text
+src/domain/chat/message-order.ts     →  tests/domain/chat/message-order.test.ts
+src/lib/repo-paths.ts                →  tests/lib/repo-paths.test.ts
+backend-python/src/application/...   →  tests/application/.../test_*.py
+mcp-server-go/internal/domain/...      →  tests/domain/..._test.go
+```
+
+- Production code lives under `src/` (FE/TS), `backend-python/src/`, `mcp-server-go/internal/`, etc.
+- Tests live only under `tests/` with the same relative path and module name.
+- Naming: `*.test.ts` / `*.spec.ts` (TS), `test_*.py` (pytest), `*_test.go` (Go).
+- Do not put `*.test.*` or `*_test.*` inside `src/` or production package folders.
+
+## Backend projects
+
+- **Unit tests**: domain logic, use cases, command/query handlers, value objects, services.
+- **Feature / integration tests**: HTTP endpoints, CLI commands, message handlers, DB flows.
+- Name tests clearly: `should_<expected_behavior>_when_<condition>`.
+
+## Frontend projects
+
+- **Component / widget tests**: UI behavior, user interactions, conditional rendering.
+- **Integration tests** (when applicable): page flows, form submit, routing, API mocking.
+- Test accessibility-critical paths where relevant (labels, roles, keyboard).
+
+## When adding code
+
+1. Identify the correct test layer (unit vs feature vs component).
+2. Add or update tests in the same change.
+3. If tests cannot be added, explain why — do not silently skip.
