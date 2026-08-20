@@ -4,6 +4,7 @@ globs: *
 ---
 # Web UI vs Flutter mobile
 
-- Flutter mobile is a **WebView shell** (Google OAuth native → session handoff → Blade web app).
-- User-facing screens (lookup, vocab, media, quiz, scramble, profile, …) live on **web** (`backend/resources/views`, CSS/JS). Do **not** recreate them as native Flutter screens.
-- When changing those features, update the **web** app. Flutter only needs changes for shell concerns: login, WebView, theme handoff, FCM deep links, auth/API helpers.
+- Flutter mobile is a **WebView shell** (Google OAuth native → session handoff → Inertia/Vue web app).
+- User-facing screens (lookup, vocab, media, quiz, scramble, profile, …) live on **web** (`backend/resources/js/Pages`, CSS/JS). Do **not** recreate them as native Flutter screens.
+- Admin (`/admin`) stays Blade (`backend/resources/views/admin`). User app does **not** use `resources/views/user`.
+- When changing learner features, update the **Vue** app. Flutter only needs changes for shell concerns: login, WebView, theme handoff, FCM deep links, auth/API helpers.

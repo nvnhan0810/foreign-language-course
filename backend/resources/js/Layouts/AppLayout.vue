@@ -22,7 +22,7 @@ const url = computed(() => page.url.split('?')[0]);
 const hasCustomHeader = computed(() => !!slots.header);
 
 const nav = [
-    { href: '/home/lookup', label: 'Learn', icon: '💬', match: (u) => u.startsWith('/home/lookup') },
+    { href: '/home/lookup', label: 'Lookup', icon: '📖', match: (u) => u.startsWith('/home/lookup') },
     { href: '/home/vocab', label: 'Vocabulary', icon: '🔖', match: (u) => u.startsWith('/home/vocab') },
     { href: '/home/media', label: 'Listen', icon: '🎧', match: (u) => u.startsWith('/home/media') },
     { href: '/home/quiz', label: 'Games', icon: '🎮', match: (u) => u.startsWith('/home/quiz') || u.startsWith('/home/puzzle') },
