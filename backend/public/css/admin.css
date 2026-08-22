@@ -231,10 +231,40 @@ th {
   gap: 12px;
   margin-top: 20px;
   margin-bottom: 4px;
+  flex-wrap: wrap;
 }
 
 .meanings-header h3 {
   margin: 0;
+}
+
+.meanings-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.meanings-mode-toggle {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.meanings-json-editor textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  min-height: 280px;
+  white-space: pre;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+.form-error {
+  color: #b42318;
+  margin: 8px 0;
 }
 
 .meaning-card {
