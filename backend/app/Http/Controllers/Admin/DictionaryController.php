@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\DictionaryEntry;
 use Flc\Dictionary\Application\Command\CurateDictionaryEntry;
 use Flc\Dictionary\Application\Command\DeleteDictionaryEntry;
+use Flc\Dictionary\Application\DictionaryMeaningsEditor;
 use Flc\Shared\Application\CommandBus;
 use Flc\Shared\Support\Text;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use InvalidArgumentException;
 
 class DictionaryController extends Controller
 {
@@ -41,15 +44,20 @@ class DictionaryController extends Controller
 
     public function create(): View
     {
+        $formMeanings = [[
+            'part_of_speech' => '',
+            'definition' => '',
+            'examples_text' => '',
+            'synonyms_text' => '',
+            'antonyms_text' => '',
+        ]];
+
         return view('admin.dictionary.form', [
             'entry' => null,
-            'formMeanings' => [[
-                'part_of_speech' => '',
-                'definition' => '',
-                'examples_text' => '',
-                'synonyms_text' => '',
-                'antonyms_text' => '',
-            ]],
+            'formMeanings' => $formMeanings,
+            'meaningsJson' => old('meanings_json', DictionaryMeaningsEditor::toPrettyJson([])),
+            'meaningsEditor' => old('meanings_editor', DictionaryMeaningsEditor::MODE_FORM),
+            'meaningsAiPrompt' => DictionaryMeaningsEditor::aiPrompt((string) old('word', '')),
             'entrySynonymsText' => '',
             'entryAntonymsText' => '',
         ]);
@@ -105,6 +113,12 @@ class DictionaryController extends Controller
         return view('admin.dictionary.form', [
             'entry' => $dictionary,
             'formMeanings' => $formMeanings,
+            'meaningsJson' => old(
+                'meanings_json',
+                DictionaryMeaningsEditor::toPrettyJson(DictionaryMeaningsEditor::fromFormRows($formMeanings))
+            ),
+            'meaningsEditor' => old('meanings_editor', DictionaryMeaningsEditor::MODE_FORM),
+            'meaningsAiPrompt' => DictionaryMeaningsEditor::aiPrompt($dictionary->word),
             'entrySynonymsText' => $dictionary->synonyms->whereNull('dictionary_meaning_id')->pluck('term')->implode(', '),
             'entryAntonymsText' => $dictionary->antonyms->whereNull('dictionary_meaning_id')->pluck('term')->implode(', '),
         ]);
@@ -147,38 +161,47 @@ class DictionaryController extends Controller
      */
     private function validatedDictionary(Request $request): array
     {
-        $data = $request->validate([
+        $editor = $request->string('meanings_editor')->toString();
+        if ($editor !== DictionaryMeaningsEditor::MODE_JSON) {
+            $editor = DictionaryMeaningsEditor::MODE_FORM;
+        }
+
+        $rules = [
             'word' => ['required', 'string', 'max:255'],
             'phonetic' => ['nullable', 'string', 'max:120'],
             'audio_url' => ['nullable', 'string', 'max:2000'],
             'entry_synonyms' => ['nullable', 'string'],
             'entry_antonyms' => ['nullable', 'string'],
-            'meanings' => ['required', 'array', 'min:1'],
-            'meanings.*.part_of_speech' => ['nullable', 'string', 'max:40'],
-            'meanings.*.definition' => ['required', 'string'],
-            'meanings.*.examples_text' => ['nullable', 'string'],
-            'meanings.*.synonyms_text' => ['nullable', 'string'],
-            'meanings.*.antonyms_text' => ['nullable', 'string'],
-        ]);
+            'meanings_editor' => ['nullable', 'string'],
+        ];
 
-        $meanings = [];
-        foreach ($data['meanings'] as $meaning) {
-            $definition = trim((string) ($meaning['definition'] ?? ''));
-            if ($definition === '') {
-                continue;
-            }
+        if ($editor === DictionaryMeaningsEditor::MODE_JSON) {
+            $rules['meanings_json'] = ['required', 'string'];
+        } else {
+            $rules['meanings'] = ['required', 'array', 'min:1'];
+            $rules['meanings.*.part_of_speech'] = ['nullable', 'string', 'max:40'];
+            $rules['meanings.*.definition'] = ['required', 'string'];
+            $rules['meanings.*.examples_text'] = ['nullable', 'string'];
+            $rules['meanings.*.synonyms_text'] = ['nullable', 'string'];
+            $rules['meanings.*.antonyms_text'] = ['nullable', 'string'];
+        }
 
-            $meanings[] = [
-                'part_of_speech' => $meaning['part_of_speech'] ?: null,
-                'definition' => $definition,
-                'examples' => $this->linesToList($meaning['examples_text'] ?? ''),
-                'synonyms' => $this->csvToList($meaning['synonyms_text'] ?? ''),
-                'antonyms' => $this->csvToList($meaning['antonyms_text'] ?? ''),
-            ];
+        $data = $request->validate($rules);
+
+        try {
+            $meanings = $editor === DictionaryMeaningsEditor::MODE_JSON
+                ? DictionaryMeaningsEditor::fromJson((string) ($data['meanings_json'] ?? ''))
+                : DictionaryMeaningsEditor::fromFormRows($data['meanings'] ?? []);
+        } catch (InvalidArgumentException $e) {
+            throw ValidationException::withMessages([
+                'meanings_json' => $e->getMessage(),
+            ]);
         }
 
         if ($meanings === []) {
-            abort(422, 'Cần ít nhất một nghĩa.');
+            throw ValidationException::withMessages([
+                $editor === DictionaryMeaningsEditor::MODE_JSON ? 'meanings_json' : 'meanings' => 'Cần ít nhất một nghĩa.',
+            ]);
         }
 
         return [
@@ -186,32 +209,15 @@ class DictionaryController extends Controller
             'phonetic' => $data['phonetic'] ?? null,
             'audio_url' => $data['audio_url'] ?? null,
             'meanings' => $meanings,
-            'synonyms' => $this->csvToList($data['entry_synonyms'] ?? ''),
-            'antonyms' => $this->csvToList($data['entry_antonyms'] ?? ''),
+            'synonyms' => $this->csvFromEntryField((string) ($data['entry_synonyms'] ?? '')),
+            'antonyms' => $this->csvFromEntryField((string) ($data['entry_antonyms'] ?? '')),
         ];
     }
 
     /**
      * @return list<string>
      */
-    private function linesToList(string $text): array
-    {
-        $lines = preg_split('/\r\n|\r|\n/', $text) ?: [];
-        $out = [];
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line !== '') {
-                $out[] = $line;
-            }
-        }
-
-        return $out;
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function csvToList(string $text): array
+    private function csvFromEntryField(string $text): array
     {
         $parts = preg_split('/[,;]+/', $text) ?: [];
         $out = [];
