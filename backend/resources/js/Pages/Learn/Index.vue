@@ -3,6 +3,7 @@ import { computed, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import DictionaryEntry from '@/Components/DictionaryEntry.vue';
+import { fetchDictionaryPronounceUrl, playPronunciation } from '@/lib/pronunciation';
 
 const props = defineProps({
     word: { type: String, default: '' },
@@ -68,11 +69,13 @@ function clearWord() {
     searchForm.word = '';
 }
 
-function pronounce() {
-    const audioUrl = props.result?.audio_url;
-    if (audioUrl) {
-        new Audio(audioUrl).play().catch(() => {});
-    }
+async function pronounce() {
+    const word = props.result?.word || '';
+    await playPronunciation({
+        word,
+        audioUrl: props.result?.audio_url,
+        fetchAudioUrl: word ? () => fetchDictionaryPronounceUrl(word) : undefined,
+    });
 }
 
 function submitSave() {
@@ -125,6 +128,7 @@ function submitSave() {
                     type="button"
                     class="btn btn-secondary btn-sm"
                     title="Pronounce"
+                    aria-label="Pronounce"
                     @click="pronounce"
                 >🔊</button>
             </div>
