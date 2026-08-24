@@ -3,6 +3,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { onMounted, onUnmounted, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import DictionaryEntry from '@/Components/DictionaryEntry.vue';
+import { fetchDictionaryPronounceUrl, playPronunciation } from '@/lib/pronunciation';
 
 const props = defineProps({
     vocab: { type: Object, required: true },
@@ -11,13 +12,11 @@ const props = defineProps({
 const menuOpen = ref(false);
 
 async function pronounce() {
-    const res = await fetch(`/home/dictionary/${encodeURIComponent(props.vocab.word)}/pronounce`, {
-        headers: { Accept: 'application/json' },
-        credentials: 'same-origin',
+    const word = props.vocab.word;
+    await playPronunciation({
+        word,
+        fetchAudioUrl: () => fetchDictionaryPronounceUrl(word),
     });
-    if (!res.ok) return;
-    const payload = await res.json();
-    if (payload.audio_url) new Audio(payload.audio_url).play().catch(() => {});
 }
 
 function destroyWord() {

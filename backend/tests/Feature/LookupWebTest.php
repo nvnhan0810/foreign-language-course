@@ -278,4 +278,40 @@ class LookupWebTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data', []);
     }
+
+    public function test_pronounce_endpoint_returns_audio_url_json(): void
+    {
+        DictionaryEntry::query()->create([
+            'word' => 'happy',
+            'phonetic' => '/ˈhæpi/',
+            'audio_url' => 'https://example.com/happy-us.mp3',
+            'source' => 'admin',
+            'is_curated' => true,
+            'save_count' => 1,
+        ]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->getJson(route('user.home.dictionary.pronounce', ['word' => 'happy']))
+            ->assertOk()
+            ->assertJsonPath('audio_url', 'https://example.com/happy-us.mp3');
+    }
+
+    public function test_pronounce_endpoint_returns_404_when_audio_missing(): void
+    {
+        DictionaryEntry::query()->create([
+            'word' => 'silent',
+            'audio_url' => null,
+            'source' => 'admin',
+            'is_curated' => true,
+            'save_count' => 1,
+        ]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->getJson(route('user.home.dictionary.pronounce', ['word' => 'silent']))
+            ->assertNotFound();
+    }
 }

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import { fetchDictionaryPronounceUrl, playPronunciation } from '@/lib/pronunciation';
 
 const props = defineProps({
     prefill: { type: String, default: '' },
@@ -229,15 +230,10 @@ async function saveWord(word) {
 }
 
 async function pronounce(word) {
-    const res = await fetch(`/home/dictionary/${encodeURIComponent(word)}/pronounce`, {
-        headers: { Accept: 'application/json' },
-        credentials: 'same-origin',
+    await playPronunciation({
+        word,
+        fetchAudioUrl: () => fetchDictionaryPronounceUrl(word),
     });
-    if (!res.ok) return;
-    const payload = await res.json();
-    if (payload.audio_url) {
-        new Audio(payload.audio_url).play().catch(() => {});
-    }
 }
 
 onMounted(async () => {
